@@ -1,0 +1,7 @@
+site_name: Neo Command & Control Framework Project Documentation
+site_url: https://neoc2.readthedocs.io/ 
+docs_dir: docs 
+
+theme:
+  name: readthedocs 
+
