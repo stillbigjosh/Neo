@@ -63,7 +63,7 @@ _A post-exploitation framework built for collaborative agent management in red t
 ## Installation:
 ### Prerequisites
 - Linux Machine
-- Python 3.8+
+- Python 3.*
 - Virtual environment (recommended)
 - OpenSSL for HTTPS certificates
 
