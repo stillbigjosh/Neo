@@ -1751,11 +1751,28 @@ Examples:
                             import os
                             import sys
 
+                            # Look for PyInstaller in multiple possible locations
                             possible_paths = [
-                                '/opt/neoc2/.venv/bin/pyinstaller',
+                                # Current working directory or development environment
+                                'pyinstaller',
+                                # System Python environment
                                 os.path.join(os.path.dirname(sys.executable), 'pyinstaller'),
-                                'pyinstaller'
+                                # Pip install --user location
+                                os.path.join(os.path.expanduser('~/.local/bin'), 'pyinstaller'),
+                                # Installation paths after deployment (try both absolute and relative)
+                                '/opt/neoc2/.venv/bin/pyinstaller',
+                                # System-wide installations
+                                '/usr/local/bin/pyinstaller',
+                                '/usr/bin/pyinstaller'
                             ]
+
+                            # Try to resolve the path relative to the current installation directory
+                            # This accounts for the situation where the code is running from /opt/neoc2
+                            current_install_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                            if current_install_dir.rstrip('/') in ['/opt/neoc2', '/home/kali/Neo']:
+                                # If running from installed path or development path, try local venv
+                                local_pyinstaller = os.path.join(current_install_dir, '.venv', 'bin', 'pyinstaller')
+                                possible_paths.insert(4, local_pyinstaller)  # Insert at position 4
 
                             pyinstaller_cmd = None
                             for path in possible_paths:
