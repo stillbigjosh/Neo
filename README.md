@@ -167,7 +167,7 @@ NeoC2 > interact <agent-id>
 - Remote CLI: 8444
 
 ## Documentation 
-Please [READ DOCUMENTATIONS](https://github.com/stillbigjosh/Neo/tree/main/docs) for Usage guides 
+Please [READ DOCUMENTATIONS](https://neoc2.readthedocs.io/en/latest/) for Usage guides 
 
 ### Contributions
 This project is accepting contributions and under active development. You can reach out to @stillbigjosh 
