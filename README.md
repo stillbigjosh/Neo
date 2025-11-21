@@ -61,6 +61,8 @@ _A post-exploitation framework built for collaborative agent management in red t
 - Uses the same backend services as main Flask app
   
 ## Installation:
+Please [READ DOCUMENTATIONS](https://neoc2.readthedocs.io/en/latest/) for a comprehensive Usage guides 
+
 ### Prerequisites
 - Linux Machine
 - Python 3.*
@@ -176,3 +178,4 @@ This project is accepting contributions and under active development. You can re
 Users are responsible for ensuring their use of this framework complies with laws, regulations, and corporate policies. The author cannot be held responsible for any malicious utilizations. The Software is intended exclusively for authorised penetration testers and security researchers who have obtained authorisation from the owner of each target system.
 By downloading this software you are accepting the terms of use and the licensing agreement.
 
+Author: @stillbigjosh
