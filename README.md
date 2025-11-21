@@ -123,6 +123,9 @@ Default user set via environment variable is Administrator. Other multiplayer op
 neoc2-cli --server <IP>:8444 --username <> --password <>
 ```
 
+<img width="433" height="208" alt="001" src="https://github.com/user-attachments/assets/4d5b5da9-a37a-49c1-bdbf-a7e7b3b713e7" />
+
+
 ### Basic Workflow
 Building a payload using the listener created from your profile config ensures that your chosen API endpoints are visible to the Endpoint Auto-detection Background service.
 
