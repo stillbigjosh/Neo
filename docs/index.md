@@ -1,6 +1,8 @@
 # Overview
 
-![neoc2](neoc2.PNG)
+<div style="text-align: center;">
+  ![neoc2](neoc2.PNG)
+</div>
 
 A modular architecture post-exploitation framework built for collaborative agent management in red team operations and security testing. Enables flexibility by allowing operators to add their own modules. 
 
