@@ -61,7 +61,7 @@ _A post-exploitation framework built for collaborative agent management in red t
 - Uses the same backend services as main Flask app
   
 ## Installation:
-Please [READ DOCUMENTATIONS](https://neoc2.readthedocs.io/en/latest/) for a comprehensive Usage guides 
+Please READ DOCUMENTATIONS AT [neoc2.readthedocs.io/en/latest/](https://neoc2.readthedocs.io/en/latest/) for a comprehensive Usage guides on every core feature.
 
 ### Prerequisites
 - Linux Machine
