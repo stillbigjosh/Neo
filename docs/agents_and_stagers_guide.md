@@ -91,26 +91,15 @@ NeoC2 > kill
 
 ### Supported Types
 
-#### PowerShell Dropper
-After XOR Decryption. Instead of writing the decrypted payload to disk, which would make it easier to detect, the script leverages .NET to allocate memory within the PowerShell process itself. Then copy into the allocated memory and changes the memory protection attributes of the allocated memory region via VirtualProtect to 0x40 (PAGE_EXECUTE_READWRITE). This enables the execution of the shellcode. GetDelegateForFunctionPointerto create a delegate instance that points to the beginning of the shellcode in memory. Then use the Invoke() method to execute the shellcode. Launching the in-memory beacon.
-- **Windows compatibility only**
-- **Supports shellcode execution only**
-- **Downloads agent** from `/api/assets/main.js` endpoint
-- **Self-deletes** Post-execution
-- **Encoded** Using PowerShell encoding to evade detection
-
-#### Bash Dropper (nohup)
-- **Linux/macOS compatibility**
-- **Downloads agent** from `/api/assets/main.js` endpoint
-- **Self-executes** the downloaded agent using nohup for background operation
+#### Bash Dropper
+- **Linux compatibility**
+- **Downloads agent** from `/api/assets/main.js` endpoint and deryptes using embedded secret key
+- **Self-executes** the downloaded agent 
 - **Self-deletes** after execution
-- **Encoded** in base64 to evade simple string detection
-- **Binary payload support**: Can execute binary files after temporary storage
-- **Python payload support**: Can execute Python scripts 
+- **Binary payload support**: Can only execute linux binary files after temporary storage
 ### Usage
 ```
-stager generate powershell_dropper host=<c2_host> port=<c2_port> [protocol=https] [download_uri=/api/assets/main.js]
-stager generate bash_dropper host=<c2_host> port=<c2_port> [protocol=https] [download_uri=/api/assets/main.js]
+stager generate linux_binary host=<c2_host> port=<c2_port> [protocol=https] [download_uri=/api/assets/main.js]
 ```
 
 ---
@@ -118,7 +107,7 @@ stager generate bash_dropper host=<c2_host> port=<c2_port> [protocol=https] [dow
 ## Payload Upload Feature
 
 ### Description
-NeoC2 supports uploading custom payloads directly through the web interface, allowing operators to deploy binary executables like .exe, .dll, or other file types in addition to Python scripts.
+NeoC2 supports uploading custom payloads directly through the `payload_upload` base-command of the remote client server, allowing operators to deploy binary executables like .exe, .dll, or other file types in addition to Python scripts.
 
 ### Capabilities
 - **Multi-Format Support**: Upload EXE, DLL, PY, JS, VBS, BAT, PS1, and other binary/script files
@@ -132,15 +121,9 @@ NeoC2 supports uploading custom payloads directly through the web interface, all
 ```
 NeocC2 > payload_upload <options>
 # Then deploy droppers 
-NeoC2 > stager generate powershell_dropper host=<c2_host> port=<c2_port>
-NeoC2 > stager generate bash_dropper host=<c2_host> port=<c2_port>
+NeoC2 > stager generate linux_binary host=<c2_host> port=<c2_port> protocol=https
 ```
 
-### Payload Handling
-- **Python Scripts**: Executed in-memory by droppers without writing to disk (stealthy)
-- **Binary Files (EXE, DLL, etc.)**: Written to temporary directory, executed, and cleaned up automatically
-- **Encryption**: All payloads encrypted using XOR with SECRET_KEY and Base64 encoded for safe transmission
-- **Cleanup**: Temporary files are automatically removed after execution for binary payloads
 
 ## Agent Configuration and Profiles
 
