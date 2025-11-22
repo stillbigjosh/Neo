@@ -1849,8 +1849,6 @@ Examples:
                     safe_listener_name = listener_name.replace(" ", "_").replace("/", "_").replace("\\", "_").replace("|", "_")
                     if payload_type in ['phantom_hawk_agent']:
                         ext = '.py'
-                    elif payload_type == 'cross_platform_stager':
-                        ext = '.exe'
                     elif payload_type == 'go_agent':
                         ext = '.exe'
                     else:

@@ -101,28 +101,7 @@ def handle_interactive_stager_command(command_parts: list, session: object) -> t
                 elif value.lower() == 'false':
                     value = False
                 options[key.lower()] = value
-        if stager_type == 'cross_platform':
-            listener_id = options.get('listener_id')
-            obfuscate = options.get('obfuscate', False)
-            if not listener_id:
-                return "Missing Arguments. `listener_id` is required for cross-platform stagers.", 'error'
-            try:
-                if not hasattr(session, 'db') or session.db is None:
-                    return "Error: Session database not available.", 'error'
-                if not hasattr(session, 'config') or session.config is None:
-                    return "Error: Session configuration not available.", 'error'
-                from agents.payload_generator import PayloadGenerator
-                payload_gen = PayloadGenerator(session.config, session.db)
-                payload = payload_gen.generate_payload(
-                    listener_id=listener_id,
-                    payload_type="cross_platform_stager",
-                    obfuscate=bool(obfuscate),
-                    bypass_amsi=False
-                )
-                return payload, 'success'
-            except Exception as e:
-                return f"Cross-platform stager generation failed: {e}", 'error'
-        elif stager_type == 'linux_binary':
+        if stager_type == 'linux_binary':
             host = options.get('host')
             port = options.get('port')
             protocol = options.get('protocol', 'http').lower()
@@ -150,7 +129,7 @@ def handle_interactive_stager_command(command_parts: list, session: object) -> t
             except Exception as e:
                 return f"Linux binary stager generation failed: An unexpected error occurred: {e}", 'error'
         else:
-            return f"Unsupported Type: '{stager_type}'. Available: `cross_platform`, `linux_binary`.", 'error'
+            return f"Unsupported Type: '{stager_type}'. Available: `linux_binary`.", 'error'
     elif action == 'list':
         output = """
 **Available Stager Types:**
