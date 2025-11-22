@@ -25,16 +25,16 @@ NOTE:
 ### Service Installation (Recommended for permanent deployment)
 To run NeoC2 as a background service that starts automatically on boot:
 1. **Install prerequisites and setup**
-   ```bash
+   ```
    ./install.sh
    ```
 2. **Configure your environment variables** in `.env` file 
 3. **Install and start the service**
-   ```bash
+   ```
    sudo ./setup_service.sh
    ```
 4. **Verify service installation**
-   ```bash
+   ```
    neoc2 status
    ```
 
