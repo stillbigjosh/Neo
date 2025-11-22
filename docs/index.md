@@ -1,14 +1,16 @@
-# Welcome to the Project Documentation
+# Overview
 
-This documentation provides guides and information for using the NeoC2 Framework. If you are a new user getting started or configuring specific modules, you should find the resources you need here.
+<p align="center"><img width="250" height="250" alt="neoc2" src="https://github.com/user-attachments/assets/6da0f8c9-2e12-49cf-8111-63b401431dac" /></p>
+
+A modular architecture post-exploitation framework built for collaborative agent management in red team operations and security testing. Enables flexibility by allowing operators to add their own modules. 
 
 ---
 
 ## Getting Started
 
-If you are new to the project, we recommend starting with the general usage guide to understand the basic operations.
+*  [**Installation**](Installation.md): Start here for installations 
 
-*   [**General Usage Guide**](GENERAL%20USAGE%20GUIDE.md): Start here for an overview of the platform's features and basic usage instructions.
+*   [**General Usage Guide**](GENERAL%20USAGE%20GUIDE.md): Overview of the platform's features and basic usage instructions. 
 
 ---
 
