@@ -183,4 +183,10 @@ This project is accepting contributions and under active development. You can re
 Users are responsible for ensuring their use of this framework complies with laws, regulations, and corporate policies. The author cannot be held responsible for any malicious utilizations. The Software is intended exclusively for authorised penetration testers and security researchers who have obtained authorisation from the owner of each target system.
 By downloading this software you are accepting the terms of use and the licensing agreement.
 
+
+### Acknowledgments, Contributors & Involuntary Contributors
+- [@TrustedSec](https://github.com/trustedsec/COFFLoader) For their awesome COFFLoader and BOF collections (This won't be the least thing I'll steal from them :p)
+- [@PowerShellMafia](https://github.com/PowerShellMafia/PowerSploit) For their repository of powershell modules to practice the extendibility of the C2
+
+
 Author: @stillbigjosh
