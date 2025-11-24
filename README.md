@@ -177,7 +177,7 @@ Blog PART 2: Learning: Neo Command & Control Framework (Part 2) Tutorial & Usage
 
 
 ### Contributions
-This project is accepting contributions and under active development. You can reach out to @stillbigjosh 
+This project is accepting contributions and under active development. You can reach out to @stillbigjosh or Join discussions https://github.com/stillbigjosh/Neo/discussions
 
 ### Disclaimer
 Users are responsible for ensuring their use of this framework complies with laws, regulations, and corporate policies. The author cannot be held responsible for any malicious utilizations. The Software is intended exclusively for authorised penetration testers and security researchers who have obtained authorisation from the owner of each target system.
