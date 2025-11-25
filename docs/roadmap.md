@@ -1,10 +1,9 @@
 
 
 # Actively Under development
-1. Remote CLI GUI
-2. Advanced P2P Agent comms
-3. Agent-register alerting system via the multiplayer agent manager to the remote_cli.py
-4. Polymorphic go_agent generator
+1. Advanced P2P Agent cocomm
+2. Agent-register alerting system via the multiplayer agent manager to the remote_cli.py
+3. Polymorphic go_agent generator
 
 # To be implemented
 1. Configurable killdate/workingtime 
