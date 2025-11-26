@@ -1,7 +1,7 @@
 # Overview
 
 
-A modular architecture post-exploitation framework built for collaborative agent management in red team operations and security testing. Enables flexibility by allowing operators to add their own modules. 
+A modular server-client architecture post-exploitation framework built for collaborative agent management in red team operations and security testing. Enables flexibility by allowing operators to add their own modules. 
 
 ---
 
