@@ -1,6 +1,6 @@
 # The NeoC2 Framework
 
-_A modular architecture post-exploitation framework built for collaborative agent management in red team operations and security testing. Enables flexibility by allowing operators to add their own modules._
+_A modular server-client architecture post-exploitation framework built for collaborative agent management in red team operations and security testing. Enables flexibility by allowing operators to add their own modules._
 
 <p align="center"><img width="250" height="250" alt="neoc2" src="https://github.com/user-attachments/assets/6da0f8c9-2e12-49cf-8111-63b401431dac" /></p>
 
