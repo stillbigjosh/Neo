@@ -6,10 +6,10 @@ _A modular architecture post-exploitation framework built for collaborative agen
 
 ### Architecture
 - Profile-driven Configuration: Malleable profiles for customizing agent behavior and communication patterns
-- Polymorphic Payloads: Generate unique, obfuscated payloads for evasion
-- Features mainly a functional HTTPS protocol
-- SQLite-based storage for persistent data storage
 - Modular Design: Add your own Extensible modules for post-exploitation tasks via Python wrappers
+- Polymorphic Payloads: Generate unique, obfuscated payloads for evasion
+- SQLite-based storage for persistent data storage
+- Features mainly a functional HTTPS protocol
 
 ### Managers
 - The Agent Manager: Core component coordinating communication between agents and other framework components.
@@ -20,24 +20,12 @@ _A modular architecture post-exploitation framework built for collaborative agen
 - Task Orchestrator: Chain modules for complex operations
 - Remote CLI Server manages remote command-line interface for synchronized agent management and interactive sessions
 
-### Coommunication Flow 
-- Agents connect via HTTP/S endpoints
-- Agent information is registered in the database
-- Secret keys are generated for encrypted communication
-- Multi-port endpoint discovery for additional C2 channels
-- Remote CLI Server sends commands to modules
-- Modules generate tasks for agents
-- Tasks are queued and distributed to agents via HTTP/S
-- Results are collected and stored
-
 ### Security Features
-- Generated payloads are pre-registered with agent ID and embedded encryption key. C2 validates the secret key against the DB before accepting agent check-in and ensuring encrypted communication using Fernet's AES-128-CBC
+- Generated payloads are pre-registered with agent ID and embedded encryption key. C2 validates the secret key against the DB before accepting agent check-in and enforces encrypted communication using Fernet's AES-128-CBC
 - Multiple authentication layers (sessions, tokens, roles)
 - Input validation and command injection prevention
 - Audit logging for all operations
-- Agent secret key management for secure communication
 - Configurable HTTP/S endpoint URLs to evade detection
-- Multi-port endpoint discovery to complicate blocking
 
 ### Multiplayer Features
 - Real-time collaboration between operators
@@ -45,21 +33,8 @@ _A modular architecture post-exploitation framework built for collaborative agen
 - Interactive session locking
 - User presence and status management
 
-### Interactive Mode
-- Real-time communication between operators and agents via HTTP/S
-- Locking mechanism prevents conflicts
+_This Project is created and mainatined by_ [@stillbigjosh](https://github.com/stillbigjosh)    
 
-### Main Web Application
-- Runs on MULTI environment variable port (default 7443)
-- Handles user management interface and API
-- Processes agent communications
-
-### HTTP/S Listener Process (web_app_default)
-- Runs on port 443 as a separate process (default)
-- Accepts agent connections on standard HTTPS port
-- Forwards agent requests to main web application
-- Uses the same backend services as main Flask app
-  
 ## Installation:
 Please READ DOCUMENTATIONS AT [neoc2.readthedocs.io/en/latest/](https://neoc2.readthedocs.io/en/latest/) for a comprehensive Usage guides on every core feature.
 
