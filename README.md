@@ -15,16 +15,15 @@ _A modular architecture post-exploitation framework built for collaborative agen
 - The Agent Manager: Core component coordinating communication between agents and other framework components.
 - Modules manager: Manages post-exploitation modules and commands. Operators can also build/bring own modules and plug it in to the c2.
 - Role and User Manager: Co-ordinates role-based access control (RBAC) with admin/operator/viewer roles and a Web ui for user management
-- Audit logging system that tracks user actions and permissions
-- Multiplayer session management allowing multiple operators to work simultaneously
+- Audit logger: Tracks user actions and permissions
+- Multiplayer session management: allows multiple operators to work simultaneously
 - Task Orchestrator: Chain modules for complex operations
-- Remote CLI Server manages remote command-line interface for synchronized agent management and interactive sessions
+- Remote CLI Server: manages remote command-line interface for synchronized agent management and interactive sessions
 
 ### Security Features
-- Generated payloads are pre-registered with agent ID and embedded encryption key. C2 validates the secret key against the DB before accepting agent check-in and enforces encrypted communication using Fernet's AES-128-CBC
+- Payloads are pre-registered with agent ID and embedded encryption key. C2 validates the secret key and enforces encrypted communication using Fernet AES-128-CBC
 - Multiple authentication layers (sessions, tokens, roles)
 - Input validation and command injection prevention
-- Audit logging for all operations
 - Configurable HTTP/S endpoint URLs to evade detection
 
 ### Multiplayer Features
