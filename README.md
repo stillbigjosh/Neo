@@ -33,8 +33,6 @@ _A modular architecture post-exploitation framework built for collaborative agen
 - Interactive session locking
 - User presence and status management
 
-_This Project is created and mainatined by_ [@stillbigjosh](https://github.com/stillbigjosh)    
-
 ## Installation:
 Please READ DOCUMENTATIONS AT [neoc2.readthedocs.io/en/latest/](https://neoc2.readthedocs.io/en/latest/) for a comprehensive Usage guides on every core feature.
 
@@ -160,8 +158,8 @@ By downloading this software you are accepting the terms of use and the licensin
 
 
 ### Acknowledgments, Contributors & Involuntary Contributors
-- [@TrustedSec](https://github.com/trustedsec/COFFLoader) For their awesome COFFLoader and BOF collections (This won't be the least thing I'll steal from them :p)
+- [@TrustedSec](https://github.com/trustedsec/COFFLoader) For their awesome COFFLoader and BOF collections 
 - [@PowerShellMafia](https://github.com/PowerShellMafia/PowerSploit) For their repository of powershell modules to practice the extendibility of the C2
 
 
-Author: @stillbigjosh
+_This Project is created and mainatined by_ [@stillbigjosh](https://github.com/stillbigjosh)    
