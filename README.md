@@ -34,7 +34,6 @@ _A modular architecture post-exploitation framework built for collaborative agen
 - User presence and status management
 
 ## Installation:
-Please READ DOCUMENTATIONS AT [neoc2.readthedocs.io/en/latest/](https://neoc2.readthedocs.io/en/latest/) for a comprehensive Usage guides on every core feature.
 
 ### Prerequisites
 - Linux Machine
