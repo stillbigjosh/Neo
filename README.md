@@ -160,4 +160,4 @@ By downloading this software you are accepting the terms of use and the licensin
 - [@PowerShellMafia](https://github.com/PowerShellMafia/PowerSploit) For their repository of powershell modules to practice the extendibility of the C2
 
 
-_This Project is created and mainatined by_ [@stillbigjosh](https://github.com/stillbigjosh)    
+_This Project is created and maintained by_ [@stillbigjosh](https://github.com/stillbigjosh)    
