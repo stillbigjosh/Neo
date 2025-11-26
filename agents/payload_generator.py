@@ -16,7 +16,6 @@ class PolymorphicEngine:
         self.func_mapping = {}
 
     def generate_random_name(self, prefix='', length=None):
-        """Generate random variable/function name"""
         if length is None:
             length = random.randint(6, 12)
 
@@ -30,11 +29,9 @@ class PolymorphicEngine:
         return prefix + name if prefix else name
 
     def generate_go_field_name(self, prefix='', length=None):
-        """Generate random Go struct field name (needs to start with uppercase for export)"""
         if length is None:
             length = random.randint(6, 12)
 
-        # Generate random name and capitalize first letter for Go export
         name = ''.join(random.choices(string.ascii_lowercase, k=length))
         capitalized_name = name[0].upper() + name[1:]
         return prefix + capitalized_name if prefix else capitalized_name
