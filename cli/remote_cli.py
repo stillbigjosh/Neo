@@ -48,32 +48,15 @@ class NeoC2RemoteCLI:
         self.is_interactive_mode = False
         self.current_agent = None
 
-        if RICH_AVAILABLE:
-            self.COLORS = {
-                'success': '[green]',
-                'error': '[red]',
-                'info': '[cyan]',
-                'warning': '[yellow]',
-                'prompt': '[green]',
-                'reset': '[/]'
-            }
-        elif COLORS_ENABLED:
-            self.COLORS = {
-                'success': Fore.GREEN,
-                'error': Fore.RED,
-                'info': Fore.CYAN,
-                'warning': Fore.YELLOW,
-                'prompt': Fore.GREEN,
-                'reset': Style.RESET_ALL
-            }
-        else:
-            self.COLORS = {
-                'success': '',
-                'error': '',
-                'info': '',
-                'warning': '',
-                'reset': ''
-            }
+        # Remove all color codes
+        self.COLORS = {
+            'success': '',
+            'error': '',
+            'info': '',
+            'warning': '',
+            'prompt': '',
+            'reset': ''
+        }
 
         self.history_file = os.path.expanduser("~/.neoc2_remote_cli_history")
         if os.path.exists(self.history_file):
@@ -109,10 +92,7 @@ class NeoC2RemoteCLI:
 
     def connect(self):
         try:
-            if RICH_AVAILABLE:
-                console.print(f"{self.COLORS['info']}[*] Connecting to {self.server_host}:{self.server_port}{self.COLORS['reset']}")
-            else:
-                print(f"{self.COLORS['info']}[*] Connecting to {self.server_host}:{self.server_port}{self.COLORS['reset']}")
+            print(f"[*] Connecting to {self.server_host}:{self.server_port}")
 
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -126,29 +106,17 @@ class NeoC2RemoteCLI:
             self.sock.connect((self.server_host, self.server_port))
             self.connected = True
 
-            if RICH_AVAILABLE:
-                console.print(f"{self.COLORS['success']}[+] Connected to NeoC2 server{self.COLORS['reset']}")
-            else:
-                print(f"{self.COLORS['success']}[+] Connected to NeoC2 server{self.COLORS['reset']}")
+            print(f"[+] Connected to NeoC2 server")
 
             if self._authenticate():
-                if RICH_AVAILABLE:
-                    console.print(f"{self.COLORS['success']}[+] Authentication successful{self.COLORS['reset']}")
-                else:
-                    print(f"{self.COLORS['success']}[+] Authentication successful{self.COLORS['reset']}")
+                print(f"[+] Authentication successful")
                 return True
             else:
-                if RICH_AVAILABLE:
-                    console.print(f"{self.COLORS['error']}[-] Authentication failed{self.COLORS['reset']}")
-                else:
-                    print(f"{self.COLORS['error']}[-] Authentication failed{self.COLORS['reset']}")
+                print(f"[-] Authentication failed")
                 return False
 
         except Exception as e:
-            if RICH_AVAILABLE:
-                console.print(f"{self.COLORS['error']}[-] Connection error: {str(e)}{self.COLORS['reset']}")
-            else:
-                print(f"{self.COLORS['error']}[-] Connection error: {str(e)}{self.COLORS['reset']}")
+            print(f"[-] Connection error: {str(e)}")
             return False
 
     def _authenticate(self):
@@ -170,27 +138,17 @@ class NeoC2RemoteCLI:
 
                 user_info = response.get('user_info', {})
                 if user_info:
-                    if RICH_AVAILABLE:
-                        console.print(f"{self.COLORS['info']}[+] User: {user_info.get('username', 'unknown')}{self.COLORS['reset']}")
-                        console.print(f"{self.COLORS['info']}[+] Role: {user_info.get('role', 'unknown')}{self.COLORS['reset']}")
-                    else:
-                        print(f"{self.COLORS['info']}[+] User: {user_info.get('username', 'unknown')}")
-                        print(f"{self.COLORS['info']}[+] Role: {user_info.get('role', 'unknown')}")
+                    print(f"[+] User: {user_info.get('username', 'unknown')}")
+                    print(f"[+] Role: {user_info.get('role', 'unknown')}")
 
                 return True
             else:
                 error_msg = response.get('error', 'Authentication failed')
-                if RICH_AVAILABLE:
-                    console.print(f"{self.COLORS['error']}[-] Authentication error: {error_msg}{self.COLORS['reset']}")
-                else:
-                    print(f"{self.COLORS['error']}[-] Authentication error: {error_msg}{self.COLORS['reset']}")
+                print(f"[-] Authentication error: {error_msg}")
                 return False
 
         except Exception as e:
-            if RICH_AVAILABLE:
-                console.print(f"{self.COLORS['error']}[-] Authentication error: {str(e)}{self.COLORS['reset']}")
-            else:
-                print(f"{self.COLORS['error']}[-] Authentication error: {str(e)}{self.COLORS['reset']}")
+            print(f"[-] Authentication error: {str(e)}")
             return False
 
     def _send_data(self, data):
@@ -300,10 +258,7 @@ class NeoC2RemoteCLI:
             if 'loading_stop_event' in locals():
                 loading_stop_event.set()
 
-            if RICH_AVAILABLE:
-                console.print(f"{self.COLORS['error']}[-] Error sending command: {str(e)}{self.COLORS['reset']}")
-            else:
-                print(f"{self.COLORS['error']}[-] Error sending command: {str(e)}{self.COLORS['reset']}")
+            print(f"[-] Error sending command: {str(e)}")
             self.connected = False
             return None
 
@@ -324,54 +279,28 @@ class NeoC2RemoteCLI:
                     with open(local_path, 'wb') as f:
                         f.write(file_bytes)
 
-                    if RICH_AVAILABLE:
-                        console.print(f"{self.COLORS['success']}[+] File '{filename}' downloaded successfully!{self.COLORS['reset']}")
-                        console.print(f"{self.COLORS['info']}[+] Saved as: {local_path}{self.COLORS['reset']}")
-                        console.print(f"{self.COLORS['info']}[+] Size: {size} bytes{self.COLORS['reset']}")
-                    else:
-                        print(f"{self.COLORS['success']}[+] File '{filename}' downloaded successfully!")
-                        print(f"{self.COLORS['info']}[+] Saved as: {local_path}")
-                        print(f"{self.COLORS['info']}[+] Size: {size} bytes")
-                        print(f"{self.COLORS['reset']}")
+                    print(f"[+] File '{filename}' downloaded successfully!")
+                    print(f"[+] Saved as: {local_path}")
+                    print(f"[+] Size: {size} bytes")
                 else:
-                    if RICH_AVAILABLE:
-                        console.print(str(message))
-                    else:
-                        print(message)
+                    print(str(message))
             except Exception as e:
-                if RICH_AVAILABLE:
-                    console.print(f"{self.COLORS['error']}[-] Error processing file download: {str(e)}{self.COLORS['reset']}")
-                else:
-                    print(f"{self.COLORS['error']}[-] Error processing file download: {str(e)}{self.COLORS['reset']}")
+                print(f"[-] Error processing file download: {str(e)}")
         elif status == 'success':
-            if RICH_AVAILABLE:
-                console.print(f"{self.COLORS['success']}{message}{self.COLORS['reset']}")
-            else:
-                print(f"{self.COLORS['success']}{message}{self.COLORS['reset']}")
+            print(f"{message}")
         elif status == 'error':
-            if RICH_AVAILABLE:
-                console.print(f"{self.COLORS['error']}{message}{self.COLORS['reset']}")
-            else:
-                print(f"{self.COLORS['error']}{message}{self.COLORS['reset']}")
+            print(f"{message}")
         elif status == 'info':
-            if RICH_AVAILABLE:
-                console.print(f"{self.COLORS['info']}{message}{self.COLORS['reset']}")
-            else:
-                print(f"{self.COLORS['info']}{message}{self.COLORS['reset']}")
+            print(f"{message}")
         elif status == 'warning':
-            if RICH_AVAILABLE:
-                console.print(f"{self.COLORS['warning']}{message}{self.COLORS['reset']}")
-            else:
-                print(f"{self.COLORS['warning']}{message}{self.COLORS['reset']}")
+            print(f"{message}")
         else:
-            if RICH_AVAILABLE:
-                console.print(str(message))
-            else:
-                print(message)
+            print(str(message))
 
     def interactive_mode(self):
         if RICH_AVAILABLE:
-            console.print(f"\n{self.COLORS['success']}{'=' * 80}{self.COLORS['reset']}")
+            # Keeping ASCII art colored but removed colors from other text
+            console.print(f"\n{'=' * 80}")
             console.print(Text(f"""███╗   ██╗███████╗ ██████╗  ██████╗██████╗
 ████╗  ██║██╔════╝██╔═══██╗██╔════╝╚════██╗
 ██╔██╗ ██║█████╗  ██║   ██║██║      █████╔╝
@@ -379,13 +308,13 @@ class NeoC2RemoteCLI:
 ██║ ╚████║███████╗╚██████╔╝╚██████╗███████╗
 ╚═╝  ╚═══╝╚══════╝ ╚═════╝  ╚═════╝╚══════╝
                                             """, style="bold green"))
-            console.print(f"{self.COLORS['prompt']}Neo Remote Command & Control Framework{self.COLORS['reset']}")
-            console.print(f"{self.COLORS['info']}Connected to: {self.server_host}:{self.server_port}{self.COLORS['reset']}")
-            console.print(f"{self.COLORS['info']}User: {self.username}{self.COLORS['reset']}")
-            console.print(f"{self.COLORS['prompt']}Type 'help' for available commands{self.COLORS['reset']}")
-            console.print(f"{self.COLORS['success']}{'=' * 80}{self.COLORS['reset']}\n")
+            console.print(f"Neo Remote Command & Control Framework")
+            console.print(f"Connected to: {self.server_host}:{self.server_port}")
+            console.print(f"User: {self.username}")
+            console.print(f"Type 'help' for available commands")
+            console.print(f"{'=' * 80}\n")
         else:
-            print(f"\n{self.COLORS['success']}{'=' * 80}")
+            print(f"\n{'=' * 80}")
             print(f"""███╗   ██╗███████╗ ██████╗  ██████╗██████╗
 ████╗  ██║██╔════╝██╔═══██╗██╔════╝╚════██╗
 ██╔██╗ ██║█████╗  ██║   ██║██║      █████╔╝
@@ -393,11 +322,11 @@ class NeoC2RemoteCLI:
 ██║ ╚████║███████╗╚██████╔╝╚██████╗███████╗
 ╚═╝  ╚═══╝╚══════╝ ╚═════╝  ╚═════╝╚══════╝
                                             """)
-            print(f"{self.COLORS['prompt']}Neo Remote Command & Control Framework")
-            print(f"{self.COLORS['info']}Connected to: {self.server_host}:{self.server_port}")
-            print(f"{self.COLORS['info']}User: {self.username}")
-            print(f"{self.COLORS['prompt']}Type 'help' for available commands")
-            print(f"{'=' * 80}{self.COLORS['reset']}\n")
+            print(f"Neo Remote Command & Control Framework")
+            print(f"Connected to: {self.server_host}:{self.server_port}")
+            print(f"User: {self.username}")
+            print(f"Type 'help' for available commands")
+            print(f"{'=' * 80}\n")
 
         while self.connected:
             try:
@@ -405,10 +334,7 @@ class NeoC2RemoteCLI:
                     interactive_result = self._try_receive_interactive_result()
                     while interactive_result:
                         result_text = interactive_result.get('result', '')
-                        if RICH_AVAILABLE:
-                            console.print(f"{self.COLORS['success']}{result_text}{self.COLORS['reset']}")
-                        else:
-                            print(f"{self.COLORS['success']}{result_text}{self.COLORS['reset']}")
+                        print(f"{result_text}")
 
                         self.interactive_command_sent = False
                         self.interactive_command_start_time = None
@@ -418,17 +344,9 @@ class NeoC2RemoteCLI:
 
                 if self.is_interactive_mode and self.current_agent:
                     agent_id_short = self.current_agent[:8] if self.current_agent else 'unknown'
-                    if RICH_AVAILABLE:
-                        console.print(f"[green]NeoC2 [INTERACTIVE:{agent_id_short}] > ", end='', markup=True)
-                        command = input()
-                    else:
-                        command = input(f"{self.COLORS['prompt']} NeoC2 [INTERACTIVE:{agent_id_short}] > {self.COLORS['reset']}")
+                    command = input(f"NeoC2 [INTERACTIVE:{agent_id_short}] > ")
                 else:
-                    if RICH_AVAILABLE:
-                        console.print(f"[green]NeoC2 ({self.username}@remote) > ", end='', markup=True)
-                        command = input()
-                    else:
-                        command = input(f"{self.COLORS['prompt']}NeoC2 ({self.username}@remote) > {self.COLORS['reset']}")
+                    command = input(f"NeoC2 ({self.username}@remote) > ")
 
                 command = command.strip()
 
@@ -471,10 +389,7 @@ class NeoC2RemoteCLI:
                                 except:
                                     self.current_agent = 'unknown'
 
-                            if RICH_AVAILABLE:
-                                console.print(f"{self.COLORS['success']}{result}{self.COLORS['reset']}")
-                            else:
-                                print(f"{self.COLORS['success']}{result}{self.COLORS['reset']}")
+                            print(f"{result}")
                         elif status == 'file_download':
                             self.print_result(result, status)
                         elif 'Exited interactive mode' in result or 'exited interactive mode' in result.lower():
@@ -487,24 +402,15 @@ class NeoC2RemoteCLI:
                 else:
                     self.print_result("No response from server", 'error')
                     if not self.connected:
-                        if RICH_AVAILABLE:
-                            console.print(f"{self.COLORS['error']}[-] Connection to server lost{self.COLORS['reset']}")
-                        else:
-                            print(f"{self.COLORS['error']}[-] Connection to server lost{self.COLORS['reset']}")
+                        print(f"[-] Connection to server lost")
                         break
 
             except KeyboardInterrupt:
-                if RICH_AVAILABLE:
-                    console.print(f"{self.COLORS['warning']}\n[!] Use 'exit' to quit{self.COLORS['reset']}")
-                else:
-                    print(f"\n{self.COLORS['warning']}[!] Use 'exit' to quit{self.COLORS['reset']}")
+                print(f"\n[!] Use 'exit' to quit")
             except EOFError:
                 break
             except Exception as e:
-                if RICH_AVAILABLE:
-                    console.print(f"{self.COLORS['error']}[-] Error: {str(e)}{self.COLORS['reset']}")
-                else:
-                    print(f"{self.COLORS['error']}[-] Error: {str(e)}{self.COLORS['reset']}")
+                print(f"[-] Error: {str(e)}")
                 break
 
 
@@ -554,9 +460,9 @@ class NeoC2RemoteCLI:
             if RICH_AVAILABLE:
                 from rich.text import Text
                 text = Text()
-                text.append("[+]", style="cyan")
-                text.append(" Sending command... ", style="cyan")
-                text.append(f"{chars[idx % len(chars)]}", style="cyan")
+                text.append("[+]")
+                text.append(" Sending command... ")
+                text.append(f"{chars[idx % len(chars)]}")
 
                 with console.capture() as capture:
                     console.print(text, end='')
@@ -565,7 +471,7 @@ class NeoC2RemoteCLI:
                 sys.stdout.write(f"\r{output}")
                 sys.stdout.flush()
             else:
-                sys.stdout.write(f"\r{self.COLORS['info']}[+] Sending command... {chars[idx % len(chars)]}")
+                sys.stdout.write(f"\r[+] Sending command... {chars[idx % len(chars)]}")
                 sys.stdout.flush()
             idx += 1
             time.sleep(delay)
@@ -654,10 +560,7 @@ def main():
             cli.interactive_mode()
         finally:
             cli.disconnect()
-            if RICH_AVAILABLE:
-                console.print(f"{cli.COLORS['info']}\n[*] Disconnected from NeoC2 server{cli.COLORS['reset']}")
-            else:
-                print(f"\n{cli.COLORS['info']}[*] Disconnected from NeoC2 server{cli.COLORS['reset']}")
+            print(f"\n[*] Disconnected from NeoC2 server")
     else:
         sys.exit(1)
 
