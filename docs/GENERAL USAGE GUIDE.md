@@ -557,44 +557,21 @@ listener create <listener_name> https <port> <ip> profile_name=<profile_name>
 4. Days are numbered from 1-7 (Monday=1, Sunday=7), with Sunday represented as both 0 (Go's default) and 7 (in configuration).
 5. Hours are specified in 24-hour format (0-23).
 
+### File Operation Commands
 
-### Save Content
-
-```
-# Save all results from a specific agent to logs directory
-NeoC2 > save logs <agent_id> [limit]
-
-# Save all results from all agents to logs directory
-NeoC2 > save logs all [limit]
-```
-
-- Results saved for long-term analysis and reporting
-- Easy organization and retrieval of results from specific times
-
-### File Location
-- Results are saved in the `logs/` directory
-- Files use format: `results_<identifier>_<timestamp>.txt`
-- Each file contains complete task information with headers and clear formatting
-
-### File Download Capabilities
-- **Base64 Encoding**: Files are automatically base64-encoded during transfer for safe transmission
+### File Download 
+- **Base64 Encoding**: Files are automatically base64-encoded during transfer 
 - **Command Format**: `download <remote_path>` - queues download task for the agent
 - **Automatic Decoding**: CLI automatically detects and decodes base64 content for storage
 - **Smart Saving**: Files saved to loot directory with timestamps and sanitized names
-- **Progress Tracking**: Task submission and completion monitoring
+- **Remote CLI**: Download an agent executable or script from C2 Server to your local remote_client machine.
 
-### File Upload Capabilities
+### File Upload 
 - **Base64 Encoding**: Local files are base64-encoded before transmission to agent
 - **Command Format**: `upload <remote_path> <base64_data>` - agent receives and decodes the file
 - **CLI Integration**: Use the `upload` command to send files to agents
-- **Example Usage**:
-```
-# Upload a file to the agent
-NeoC2 > upload <agent_id> /path/to/local/script.py /remote/path/script.py
-```
 
-### File Operation Commands
-
+**Example Usage**:
 ```
 # Download a file from the agent
 download <agent_id> <remote_file_path>
@@ -604,12 +581,6 @@ download <file_path_on_c2>
 
 # Upload a file to the agent
 upload <agent_id> <local_file_path> <remote_file_path>
-
-# Save specific task results to loot directory
-save <agent_id> <task_id> [custom_filename]
-
-# List results including file operations
-result <agent_id>
 ```
 
 ## Event Monitoring
