@@ -63,13 +63,14 @@ Phantom Hawk is an EXPERIMENTAL Python variant. Not intended to be deployed in r
 - **Module Execution Capability**: Runs extensible modules from C2
 - **P2P Agent Communication**: Configurable Agent command forwarding to other Agents in same network.
 - **Sanbox & Debugger Detection**: Self deletes in sandboxed environment
-- **Embedded Coff-loader**: Execute BOFs. Compile your own COFFLoader64.exe and place in the /agents directory. 
+- **Embedded Coff-loader**: To execute BOFs. Compile your own COFFLoader64.exe and place in the /agents directory. The default COFFLoader from TrustedSec is heavily signatured. 
 
 ### Limitations
 - Larger payload size due to comprehensive feature set
 - Network communication may be detected by advanced network monitoring
 - May be flagged by advanced threat detection tools
 
+To aid your evasion 
 ### Usage
 ```
 payload phantom_hawk <listener_id> [output_file] [--obfuscate] [--disable-sandbox]
