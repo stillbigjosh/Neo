@@ -1008,7 +1008,7 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_CHECK_WORKING_HOURS_FUNC}() bool {
 		now = now.UTC()
 	} else {
 		// Use local time for other timezones (for simplicity)
-		// In a real implementation, you might want to parse the timezone
+		// Later on, We might want to parse the timezone
 	}
 
 	// Check if current day is in the allowed working days
