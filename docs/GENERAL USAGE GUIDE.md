@@ -221,16 +221,16 @@ evasion list                  # List available evasion techniques
 NeoC2 provides enhanced file operations with automatic handling of encoded content.
 
 ### File Download 
-- **Base64 Encoding**: Files are automatically base64-encoded during transfer 
-- **Command Format**: `download <remote_path>` - queues download task for the agent
-- **Automatic Decoding**: CLI automatically detects and decodes base64 content for storage
-- **Smart Saving**: Files saved to loot directory with timestamps and sanitized names
-- **Remote CLI**: Download an agent executable or script from C2 Server to your local remote_client machine.
+- Files are automatically base64-encoded during transfer 
+   `download <remote_path>` - queues download task for the agent
+- CLI automatically detects and decodes base64 content for storage
+- Files saved to loot directory with timestamps and sanitized names
+- Download an agent executable or script from C2 Server to your local remote_client machine.
 
 ### File Upload 
-- **Base64 Encoding**: Local files are base64-encoded before transmission to agent
-- **Command Format**: `upload <remote_path> <base64_data>` - agent receives and decodes the file
-- **CLI Integration**: Use the `upload` command to send files to agents
+- Local files are base64-encoded before transmission to agent
+- `upload <remote_path> <base64_data>` - agent receives and decodes the file
+- CLI Integration: Use the `upload` command to send files to agents
 
 **Example Usage**:
 ```
@@ -245,8 +245,6 @@ upload <agent_id> <local_file_path> <remote_file_path>
 ```
 
 ### Result Command
-
-The enhanced `result` command:
 - Shows all results from all agents
 - Displays specific agent results
 - Shows specific task results with detailed information
