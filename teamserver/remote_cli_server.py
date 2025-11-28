@@ -3476,7 +3476,58 @@ DB Inactive:       {stats['db_inactive_agents']}
                             result = f"Failed to create task: {error_msg}"
                             return result, 'error'
                 elif base_command == 'save':
-                    return "Save functionality would be implemented here", 'info'
+                    if len(command_parts) < 2:
+                        return "Usage: save <task_id>", 'error'
+
+                    task_id = command_parts[1]
+
+                    try:
+                        task_result = self.db.execute('''
+                            SELECT t.*, a.hostname, a.ip_address, a.os_info, a.user
+                            FROM agent_tasks t
+                            LEFT JOIN agents a ON t.agent_id = a.id
+                            WHERE t.id = ?
+                        ''', (task_id,)).fetchone()
+
+                        if not task_result:
+                            return f"Task with ID {task_id} not found", 'error'
+
+                        task_dict = dict(task_result)
+                        task_result_data = task_dict.get('result', 'No result available')
+
+                        logs_dir = 'logs'
+                        os.makedirs(logs_dir, exist_ok=True)
+
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        filename = f"task_{task_id}_{timestamp}.txt"
+                        filepath = os.path.join(logs_dir, filename)
+
+                        content = f"NeoC2 Task Result Export\n"
+                        content += f"{'='*50}\n"
+                        content += f"Task ID:        {task_dict['id']}\n"
+                        content += f"Agent ID:       {task_dict['agent_id']}\n"
+                        content += f"Hostname:       {task_dict.get('hostname', 'N/A')}\n"
+                        content += f"IP Address:     {task_dict.get('ip_address', 'N/A')}\n"
+                        content += f"OS:             {task_dict.get('os_info', 'N/A')}\n"
+                        content += f"User:           {task_dict.get('user', 'N/A')}\n"
+                        content += f"Command:        {task_dict['command']}\n"
+                        content += f"Status:         {task_dict['status']}\n"
+                        content += f"Task Type:      {task_dict.get('task_type', 'queued')}\n"
+                        content += f"Created:        {task_dict['created_at']}\n"
+                        content += f"Completed:      {task_dict['completed_at'] if task_dict['completed_at'] else 'N/A'}\n"
+                        content += f"{'='*50}\n"
+                        content += f"TASK RESULT:\n"
+                        content += f"{task_result_data}\n"
+                        content += f"{'='*50}\n"
+                        content += f"Exported:       {datetime.now().isoformat()}\n"
+
+                        with open(filepath, 'w', encoding='utf-8') as f:
+                            f.write(content)
+
+                        return f"Task result saved to: {filepath}", 'success'
+
+                    except Exception as e:
+                        return f"Error saving task result: {str(e)}", 'error'
                 elif base_command == 'back':
                     if hasattr(session, 'interactive_mode') and session.interactive_mode and session.current_agent:
                         agent_manager = session.agent_manager
@@ -4206,8 +4257,61 @@ DB Inactive:       {stats['db_inactive_agents']}
                                 result = f"Failed to create task: {error_msg}"
                                 status = 'error'
                     elif base_cmd == 'save':
-                        result = "Save functionality would be implemented here"
-                        status = 'info'
+                        if len(command_parts) < 2:
+                            result = "Usage: save <task_id>"
+                            status = 'error'
+                        else:
+                            task_id = command_parts[1]
+                            try:
+                                task_result = self.db.execute('''
+                                    SELECT t.*, a.hostname, a.ip_address, a.os_info, a.user
+                                    FROM agent_tasks t
+                                    LEFT JOIN agents a ON t.agent_id = a.id
+                                    WHERE t.id = ?
+                                ''', (task_id,)).fetchone()
+
+                                if not task_result:
+                                    result = f"Task with ID {task_id} not found"
+                                    status = 'error'
+                                else:
+                                    task_dict = dict(task_result)
+                                    task_result_data = task_dict.get('result', 'No result available')
+
+                                    logs_dir = 'logs'
+                                    os.makedirs(logs_dir, exist_ok=True)
+
+                                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                                    filename = f"task_{task_id}_{timestamp}.txt"
+                                    filepath = os.path.join(logs_dir, filename)
+
+                                    content = f"NeoC2 Task Result Export\n"
+                                    content += f"{'='*50}\n"
+                                    content += f"Task ID:        {task_dict['id']}\n"
+                                    content += f"Agent ID:       {task_dict['agent_id']}\n"
+                                    content += f"Hostname:       {task_dict.get('hostname', 'N/A')}\n"
+                                    content += f"IP Address:     {task_dict.get('ip_address', 'N/A')}\n"
+                                    content += f"OS:             {task_dict.get('os_info', 'N/A')}\n"
+                                    content += f"User:           {task_dict.get('user', 'N/A')}\n"
+                                    content += f"Command:        {task_dict['command']}\n"
+                                    content += f"Status:         {task_dict['status']}\n"
+                                    content += f"Task Type:      {task_dict.get('task_type', 'queued')}\n"
+                                    content += f"Created:        {task_dict['created_at']}\n"
+                                    content += f"Completed:      {task_dict['completed_at'] if task_dict['completed_at'] else 'N/A'}\n"
+                                    content += f"{'='*50}\n"
+                                    content += f"TASK RESULT:\n"
+                                    content += f"{task_result_data}\n"
+                                    content += f"{'='*50}\n"
+                                    content += f"Exported:       {datetime.now().isoformat()}\n"
+
+                                    with open(filepath, 'w', encoding='utf-8') as f:
+                                        f.write(content)
+
+                                    result = f"Task result saved to: {filepath}"
+                                    status = 'success'
+
+                            except Exception as e:
+                                result = f"Error saving task result: {str(e)}"
+                                status = 'error'
                     elif base_cmd == 'back':
                         if hasattr(remote_session, 'interactive_mode') and remote_session.interactive_mode and remote_session.current_agent:
                             agent_manager = remote_session.agent_manager
@@ -4461,8 +4565,61 @@ DB Inactive:       {stats['db_inactive_agents']}
                         result = f"Failed to create task: {error_msg}"
                         status = 'error'
             elif base_cmd == 'save':
-                result = "Save functionality would be implemented here"
-                status = 'info'
+                if len(command_parts) < 2:
+                    result = "Usage: save <task_id>"
+                    status = 'error'
+                else:
+                    task_id = command_parts[1]
+                    try:
+                        task_result = self.db.execute('''
+                            SELECT t.*, a.hostname, a.ip_address, a.os_info, a.user
+                            FROM agent_tasks t
+                            LEFT JOIN agents a ON t.agent_id = a.id
+                            WHERE t.id = ?
+                        ''', (task_id,)).fetchone()
+
+                        if not task_result:
+                            result = f"Task with ID {task_id} not found"
+                            status = 'error'
+                        else:
+                            task_dict = dict(task_result)
+                            task_result_data = task_dict.get('result', 'No result available')
+
+                            logs_dir = 'logs'
+                            os.makedirs(logs_dir, exist_ok=True)
+
+                            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                            filename = f"task_{task_id}_{timestamp}.txt"
+                            filepath = os.path.join(logs_dir, filename)
+
+                            content = f"NeoC2 Task Result Export\n"
+                            content += f"{'='*50}\n"
+                            content += f"Task ID:        {task_dict['id']}\n"
+                            content += f"Agent ID:       {task_dict['agent_id']}\n"
+                            content += f"Hostname:       {task_dict.get('hostname', 'N/A')}\n"
+                            content += f"IP Address:     {task_dict.get('ip_address', 'N/A')}\n"
+                            content += f"OS:             {task_dict.get('os_info', 'N/A')}\n"
+                            content += f"User:           {task_dict.get('user', 'N/A')}\n"
+                            content += f"Command:        {task_dict['command']}\n"
+                            content += f"Status:         {task_dict['status']}\n"
+                            content += f"Task Type:      {task_dict.get('task_type', 'queued')}\n"
+                            content += f"Created:        {task_dict['created_at']}\n"
+                            content += f"Completed:      {task_dict['completed_at'] if task_dict['completed_at'] else 'N/A'}\n"
+                            content += f"{'='*50}\n"
+                            content += f"TASK RESULT:\n"
+                            content += f"{task_result_data}\n"
+                            content += f"{'='*50}\n"
+                            content += f"Exported:       {datetime.now().isoformat()}\n"
+
+                            with open(filepath, 'w', encoding='utf-8') as f:
+                                f.write(content)
+
+                            result = f"Task result saved to: {filepath}"
+                            status = 'success'
+
+                    except Exception as e:
+                        result = f"Error saving task result: {str(e)}"
+                        status = 'error'
             elif base_cmd == 'back':
                 if hasattr(remote_session, 'interactive_mode') and remote_session.interactive_mode and remote_session.current_agent:
                     agent_manager = remote_session.agent_manager
