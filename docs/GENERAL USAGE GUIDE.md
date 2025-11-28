@@ -144,7 +144,7 @@ NeoC2 > payload_upload <options>
 
 ## Listener Management
 
-Listeners in NeoC2 are profile-driven, meaning they use predefined communication profiles.
+HTTP listeners run as separate processes from the main Flask application, acting as internal redirectors, forwarding traffic from agents to the main web interface. Listeners in NeoC2 are profile-driven: they use predefined communication profiles. 
 
 ### Listener Commands
 
