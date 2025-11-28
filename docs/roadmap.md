@@ -19,7 +19,7 @@
 6. Memory obfuscation and encryption for agent payloads
 7. Support for multiple communication protocols (DNS, ICMP, SSH)
 8. File browser
-
+9. Support for domain fronting
 
 
 
