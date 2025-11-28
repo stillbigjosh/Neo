@@ -10,7 +10,7 @@ COMMANDS:
   stager      - Generate stagers
   beacon      - Active HTTP/S Agents
   agent       - Manage agents (list, interact, execute, info, kill)
-  task        - Manage agent tasks 
+  task        - Pending agent tasks 
   addtask     - Add a task to an agent directly
   result      - View task results
   interact    - Interact with a beacon
@@ -22,7 +22,7 @@ COMMANDS:
   tty_shell   - Start tty shell. Agent specific cmd. 
   evasion     - Evasion techniques
   encryption  - Encryption operations
-  profile     - Communication profile management
+  profile     - Communication profile management (list, add)
   payload     - Generate various payload types
   coff-loader - Load bofs on agent session
   taskchain   - Task Orchestration
