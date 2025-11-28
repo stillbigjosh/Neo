@@ -27,11 +27,12 @@ COMMANDS:
   coff-loader - Load bofs on agent session
   taskchain   - Task Orchestration
   reporting   - Generate reports
+  event       - View Event monitor 
+
 
   status      - Show framework status
   history     - Show command history
   clear       - Clear terminal
-  event       - View Event monitor 
   back	      - Exit interactive mode
   exit/quit   - Exit CLI
 
