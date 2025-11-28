@@ -1628,13 +1628,13 @@ Options:
   --obfuscate          - Enable payload obfuscation
   --disable-sandbox    - Disable sandbox/antidebugging checks
   --output <filename>  - Save payload to file (optional)
-  --linux              - Compile payload to Linux binary (for Phantom Hawk Agent)
-  --windows            - Compile payload to Windows binary (requires Windows host)
+  --linux              - Compile payload to Linux binary 
+  --windows            - Compile payload to Windows binary
 
 Examples:
-  payload phantom_hawk_agent myhttps --obfuscate --disable-sandbox --linux
-  payload phantom_hawk_agent myhttps --windows
-  payload go_agent myhttp
+  payload phantom_hawk_agent myhttps__listener --obfuscate --disable-sandbox
+  payload phantom_hawk_agent myhttps_listener --linux
+  payload go_agent myhttps_listener --windows
             """, 'info'
 
         payload_type = command_parts[1].lower()
