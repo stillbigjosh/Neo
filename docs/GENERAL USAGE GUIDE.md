@@ -436,6 +436,18 @@ task <agent_id>                     # Show pending tasks
 addtask <agent_id> <command>  # Add task to agent queue
 ```
 
+### Task Result 
+- Shows all results from all agents `result list`
+- Displays specific agent results `result <agent_id>`
+- Shows specific task results with detailed information `result <task_id`
+
+```
+result list
+result <agent_id>
+result <agent_id> <task_id>
+```
+
+
 ## Profiles and Staging
 
 Profiles define communication characteristics for agents:
