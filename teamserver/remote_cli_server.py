@@ -1917,11 +1917,6 @@ Use 'download' command or access the file directly from the server.
             return f"Error generating payload: {str(e)}", 'error'
 
     def handle_payload_upload_command(self, command_parts, session):
-        """
-        Handle payload upload commands for use with stagers.
-        This is different from the 'upload' command which uploads files to agents.
-        Usage: payload_upload <upload> <local_file_path> | payload_upload <status> | payload_upload <clear>
-        """
         if len(command_parts) < 2:
             return """
 PAYLOAD UPLOAD COMMANDS:
@@ -1931,7 +1926,7 @@ PAYLOAD UPLOAD COMMANDS:
 
 DESCRIPTION:
   Upload custom payloads (executables, scripts, etc.) to be used with stagers.
-  These payloads can then be delivered to agents when they connect.
+  Supported extensions: .exe, .dll, .py, .js, .vbs, .bat, .ps1, .bin, .dat, .raw
 
 EXAMPLES:
   payload_upload upload /tmp/myscript.exe
