@@ -10,7 +10,7 @@ COMMANDS:
   stager      - Generate stagers
   beacon      - Active HTTP/S Agents
   agent       - Manage agents (list, interact, execute, info, kill)
-  task        - Manage agent tasks (list, addtask)
+  task        - Manage agent tasks 
   addtask     - Add a task to an agent directly
   result      - View task results
   interact    - Interact with a beacon
