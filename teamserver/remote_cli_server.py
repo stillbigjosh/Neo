@@ -1621,7 +1621,7 @@ Payload Generation Commands
 Usage: payload <type> <listener_name> [options]
 
 Available Payload Types:
-  phantom_hawk_agent   - Experimental Python agent with BOF support(not Opsec safe)
+  phantom_hawk_agent   - Python agent 
   go_agent             - Go agent compiled to Windows executable
 
 Options:
