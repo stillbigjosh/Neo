@@ -232,6 +232,11 @@ NeoC2 provides enhanced file operations with automatic handling of encoded conte
 - `upload <remote_path> <base64_data>` - agent receives and decodes the file
 - CLI Integration: Use the `upload` command to send files to agents
 
+### Save Command
+- `save <task_id>` - Saves the complete result from given task id
+- Files ae stored on the server logs directory.
+- Download to your connected client machine using `download <path>`
+
 **Example Usage**:
 ```
 # Download a file from the agent
@@ -242,19 +247,11 @@ download <file_path_on_c2>
 
 # Upload a file to the agent
 upload <agent_id> <local_file_path> <remote_file_path>
-```
 
-### Result Command
-- Shows all results from all agents
-- Displays specific agent results
-- Shows specific task results with detailed information
-- Offers to save file content to loot directory
-
-Usage:
-```
-result list
-result <agent_id>
-result <agent_id> <task_id>
+# Save a task result to c2 and download to local machine
+save <task_id>
+save 2
+download logs/task_2_20251128_224240.txt
 ```
 
 ## Persistence Mechanisms
