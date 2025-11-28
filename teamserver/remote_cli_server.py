@@ -3347,7 +3347,7 @@ DB Inactive:       {stats['db_inactive_agents']}
                     return output.strip(), 'success'
                 elif base_command == 'task':
                     if len(command_parts) < 2:
-                        return "task <agent_id> pending tasks would be shown here", 'info'
+                        return "Usage: task <agent_id> pending tasks would be shown here", 'info'
                     else:
                         agent_id = command_parts[1]
                         tasks = self.db.execute('''
@@ -4064,7 +4064,7 @@ DB Inactive:       {stats['db_inactive_agents']}
                         status = 'success'
                     elif base_cmd == 'task':
                         if len(command_parts) < 2:
-                            result = "task <agent_id> pending tasks would be shown here"
+                            result = "Usage: task <agent_id> pending tasks would be shown here"
                             status = 'info'
                         else:
                             agent_id = command_parts[1]
@@ -4319,7 +4319,7 @@ DB Inactive:       {stats['db_inactive_agents']}
                 status = 'success'
             elif base_cmd == 'task':
                 if len(command_parts) < 2:
-                    result = "task <agent_id> pending tasks would be shown here"
+                    result = "Usage: task <agent_id> pending tasks would be shown here"
                     status = 'info'
                 else:
                     agent_id = command_parts[1]
