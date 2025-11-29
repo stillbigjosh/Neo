@@ -4098,7 +4098,7 @@ DB Inactive:       {stats['db_inactive_agents']}
     
     def _is_framework_command(self, base_cmd):
         framework_commands = {
-            'agent', 'listener', 'modules', 'run', 'evasion', 'encryption',
+            'agent', 'listener', 'modules', 'run', 'pinject', 'evasion', 'encryption',
             'download', 'upload', 'stager', 'profile', 'payload', 'coff-loader',
             'interact', 'event', 'task', 'result', 'addtask', 'back', 'exit',
             'quit', 'clear', 'help', 'status', 'save', 'protocol', 'interactive',
@@ -4199,6 +4199,8 @@ DB Inactive:       {stats['db_inactive_agents']}
                         result, status = self.handle_modules_command(command_parts, remote_session)
                     elif base_cmd == 'run':
                         result, status = self.handle_run_command(command_parts, remote_session)
+                    elif base_cmd == 'pinject':
+                        result, status = self.handle_pinject_command(command_parts, remote_session)
                     elif base_cmd == 'evasion':
                         result, status = self.handle_evasion_command(command_parts, remote_session)
                     elif base_cmd == 'encryption':
