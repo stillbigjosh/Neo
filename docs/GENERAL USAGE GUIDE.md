@@ -463,9 +463,8 @@ Generate shellcode with proper null byte avoidance and correct format:
    3     base64 -w 0 shellcode.bin
 
 ```
-# Two ways of running pinject
-pinject <shellcode> [agent_id=<agent_id>]
-run pinject shellcode=<path_to_shellcode/b64>
+pinject <shellcode> [agent_id=<agent_id>] # METHOD - 1
+run pinject <shellcode> [agent_id=<agent_id>] # METHOD - 2
 ```
 
 ## Notes
