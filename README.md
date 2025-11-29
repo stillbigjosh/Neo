@@ -98,6 +98,7 @@ neoc2-cli --server <IP>:8444 --username <> --password <>
 Building a payload using the listener created from your profile config ensures that your chosen API endpoints are visible to the Endpoint Auto-detection Background service.
 
 1. Using default listener and profile
+
 ```
 NeoC2 > listener start web_app_default
 # Build payload
@@ -108,6 +109,8 @@ NeoC2 > agent list
 # Interact with agent
 NeoC2 > interact <agent-id>
 ```
+THE DEFAULT PROFILE'S WORKING HOURS IS 9AM TO 5PM: BEYOND THIS TIMEFRAME, THERE WILL BE NO AGENT CHECK-INS
+CHANGE THIS AND OTHER AGENT BEHAVIOR BY CREATING A CUSTOM PROFILE, LIKE BELOW:
 
 2. Using custom profile and own listener
 ```
@@ -115,9 +118,10 @@ NeoC2 > interact <agent-id>
 # Sample communication profile in profiles/sample.json
 # Change its endpoints based on your intended usage
 NeoC2 > profile add profiles/profile.json
+NeoC2 > profile list
 
 # Create a HTTPS listener
-NeoC2 > listener create <listener_name> https <port> <IP> profile_name=profile.json
+NeoC2 > listener create <listener_name> https <port> <IP> profile_name=<profile_name>
 NeoC2 > listener start <listener_name>
 
 # Build payload 
