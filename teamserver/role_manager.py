@@ -99,3 +99,41 @@ class RoleManager:
                 "description": role_data['description']
             })
         return roles
+
+    def has_permission(self, role_id, action):
+        """
+        Check if a role has permission to perform an action.
+
+        Args:
+            role_id (str): The ID of the role to check
+            action (str): The action to check permission for
+
+        Returns:
+            bool: True if the role has permission, False otherwise
+        """
+        role_data = self.db.execute(
+            "SELECT permissions FROM roles WHERE id = ?",
+            (role_id,)
+        ).fetchone()
+
+        if not role_data:
+            return False
+
+        permissions = json.loads(role_data['permissions']) if role_data['permissions'] else []
+
+        # Check if the role has wildcard permission (*)
+        if '*' in permissions:
+            return True
+
+        # Check if the role has the specific permission
+        if action in permissions:
+            return True
+
+        # Check for wildcard permissions in the same category (e.g., 'agents.*')
+        for perm in permissions:
+            if perm.endswith('.*'):
+                category = perm[:-2]  # Remove the '.*' suffix
+                if action.startswith(category + '.'):
+                    return True
+
+        return False

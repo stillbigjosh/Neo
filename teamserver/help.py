@@ -10,7 +10,7 @@ COMMANDS:
   stager      - Generate stagers
   beacon      - Active HTTP/S Agents
   agent       - Manage agents (list, interact, execute, info, kill)
-  task        - Pending agent tasks 
+  task        - Pending agent tasks
   addtask     - Add a task to an agent directly
   result      - View task results
   interact    - Interact with a beacon
@@ -19,15 +19,16 @@ COMMANDS:
   upload      - Upload files to agents
   save        - Save specific results to logs directory
   payload_upload - Upload staging payload to C2 endpoint
-  tty_shell   - Start tty shell. Agent specific cmd. 
+  tty_shell   - Start tty shell. Agent specific cmd.
   evasion     - Evasion techniques
   encryption  - Encryption operations
   profile     - Communication profile management (list, add)
   payload     - Generate various payload types
+  pinject     - Process injection into notepad.exe
   coff-loader - Load bofs on agent session
   taskchain   - Task Orchestration
   reporting   - Generate reports
-  event       - View Event monitor 
+  event       - View Event monitor
 
   status      - Show framework status
   history     - Show command history
@@ -60,7 +61,7 @@ COMMANDS:
     listener create myhttp http 443
   • listener start <name>      Start a listener
   • listener stop <name>       Stop an active listener
-  • listener delete <name>     Delete a stopped listenr          
+  • listener delete <name>     Delete a stopped listenr
     """
 
 

