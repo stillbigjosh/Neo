@@ -5,13 +5,13 @@
 - [Listener Management](#listener-management)
 - [Payload Generation](#payload-generation)
 - [Payload Staging](#payload-staging)
+- [Task Management](#task-management)
 - [Agent Management](#agent-management)
 - [Interactive Mode](#interactive-mode)
 - [Modules and Post-Exploitation](#modules-and-post-exploitation)
 - [Evasion Techniques](#evasion-techniques)
 - [File Operations](#file-operations)
 - [Task Chaining](#task-chaining-web-ui-only)
-- [Task Management](#task-management)
 - [Process Injection](#process-injection)
 - [Event Monitoring](#event-monitoring)
 - [Security Features](#security-features)
@@ -162,7 +162,44 @@ NeocC2 > payload_upload <options>
 NeoC2 > stager generate linux_binary host=<c2_host> port=<c2_port> protocol=https
 ```
 
+## Task Management
 
+NeoC2 implements a sophisticated task management system:
+
+### Task Types
+
+1. **Queued Tasks**: Standard command execution
+2. **Interactive Tasks**: Real-time command execution
+3. **Download Tasks**: File retrieval operations
+4. **Upload Tasks**: File transfer to agents
+5. **Module Tasks**: Specialized module execution
+
+### Task Lifecycle
+
+1. **Creation**: Task added to agent queue
+2. **Assignment**: Agent retrieves task
+3. **Execution**: Agent executes task
+4. **Result Submission**: Agent sends results back
+5. **Storage**: Results stored in database
+6. **Notification**: Operator notified of completion
+
+### Task Commands
+
+```
+task <agent_id>                     # Show pending tasks
+addtask <agent_id> <command>  # Add task to agent queue
+```
+
+### Task Result 
+- Shows all results from all agents `result list`
+- Displays specific agent results `result <agent_id>`
+- Shows specific task results with detailed information `result <task_id`
+
+```
+result list
+result <agent_id>
+result <agent_id> <task_id>
+```
 
 ## Agent Management
 
@@ -184,8 +221,6 @@ agent interact <agent_id>     # Enter interactive mode with agent
 agent info <agent_id>         # Get detailed agent information
 agent kill <agent_id>         # Remove agent from management
 agent execute <agent_id> <cmd> # Queue command for execution
-agnet monitor <agent_id>      #Monitor an agent in multiplayer
-agent unmonitor <agent_id>    #Unmonitor an agent in multiplayer
 ```
 
 ### Agent Status Indicators
@@ -409,44 +444,6 @@ NeoC2 provides advanced task chaining capabilities, allowing operators to create
    - Service installation
    - File system persistence
 
-## Task Management
-
-NeoC2 implements a sophisticated task management system:
-
-### Task Types
-
-1. **Queued Tasks**: Standard command execution
-2. **Interactive Tasks**: Real-time command execution
-3. **Download Tasks**: File retrieval operations
-4. **Upload Tasks**: File transfer to agents
-5. **Module Tasks**: Specialized module execution
-
-### Task Lifecycle
-
-1. **Creation**: Task added to agent queue
-2. **Assignment**: Agent retrieves task
-3. **Execution**: Agent executes task
-4. **Result Submission**: Agent sends results back
-5. **Storage**: Results stored in database
-6. **Notification**: Operator notified of completion
-
-### Task Commands
-
-```
-task <agent_id>                     # Show pending tasks
-addtask <agent_id> <command>  # Add task to agent queue
-```
-
-### Task Result 
-- Shows all results from all agents `result list`
-- Displays specific agent results `result <agent_id>`
-- Shows specific task results with detailed information `result <task_id`
-
-```
-result list
-result <agent_id>
-result <agent_id> <task_id>
-```
 
 ## Process Injection
 
