@@ -220,7 +220,6 @@ agent list                    # List all active agents
 agent interact <agent_id>     # Enter interactive mode with agent
 agent info <agent_id>         # Get detailed agent information
 agent kill <agent_id>         # Remove agent from management
-agent execute <agent_id> <cmd> # Queue command for execution
 ```
 
 ### Agent Status Indicators
