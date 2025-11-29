@@ -33,12 +33,11 @@
     },
     "jitter": 0.2,
     "protocol": "https",
-    "sleep_time": 60,
     "p2p_enabled": false,
     "p2p_port": 8888,
     "kill_date": "2027-12-31T23:59:59Z",
     "working_hours": {
-      "start_hour": 9,
+      "start_hour": 0,
       "end_hour": 24,
       "timezone": "UTC",
       "days": [1, 2, 3, 4, 5, 6, 7]
