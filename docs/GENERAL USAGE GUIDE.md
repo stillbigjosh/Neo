@@ -446,12 +446,14 @@ NeoC2 provides advanced task chaining capabilities, allowing operators to create
 
 ## Process Injection
 
-## Usage
+### PInject
+
+#### Usage
 1. Generate compatible shellcode using msfvenom
 2. Use the module with a base64 encoded shellcode string
 3. The agent will in-memory inject the shellcode into either notepad.exe or explorer.exe 
 
-## msfvenom Command Syntax
+#### msfvenom Command Syntax
 Generate shellcode with proper null byte avoidance and correct format:
 
 ```
@@ -463,11 +465,11 @@ pinject <shellcode> [agent_id=<agent_id>] # METHOD - 1
 run pinject <shellcode> [agent_id=<agent_id>] # METHOD - 2
 ```
 
-## Notes
+#### Notes
 - If notepad.exe is not running on the target system, the agent will fallback on explorer.exe
 - The shellcode must be in raw binary format (use `-f raw`)
 
-## Process Injection Flow
+#### Process Injection Flow
 1. Find target process PID
 2. Open process with appropriate permissions
 3. Allocate memory in target process
@@ -476,7 +478,7 @@ run pinject <shellcode> [agent_id=<agent_id>] # METHOD - 2
 6. Create remote thread to execute shellcode
 7. All operations performed in-memory without touching disk
 
-## Supported Payloads
+#### Supported Payloads
 - windows/x64/meterpreter/reverse_tcp
 - windows/x64/shell_reverse_tcp
 - windows/x64/exec

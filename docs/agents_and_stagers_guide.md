@@ -22,7 +22,6 @@ The Go Agent is a second stage exe compiled, multi-functional agent with feature
 - **TTY Shell Enabled**: Enter a full TTY Shell
 - **Polymorphic Obfuscation**: Randomized variable and function names to evade static analysis
 - **Jitter & Sleep Obfuscation**: Configurable sleep intervals with jitter during agent generation and in deployment
-- **Cross-Platform**: Works on Windows, Linux, and macOS 
 - **Module Execution Capability**: Runs extensible modules from C2
 - **Sanbox & Debugger Detection**: Self deletes in sandboxed environment
 - **Working hours & Kill dates**: The Go-agent incorporates a profile configurable kill-dates and working-hours restrictions
@@ -33,7 +32,8 @@ The Go Agent is a second stage exe compiled, multi-functional agent with feature
 
 ### Usage
 ```
-payload go_agent <listener_name> [--disable-sandbox] [--linux] [--windows]
+NeoC2 > payload go_agent <listener_name> [--disable-sandbox] [--linux] [--windows]
+NeoC2 [INTERACTIVE:abc123] > [upload, download, tty_shell, pinject, sleep, kill, interact, run]
 ```
 
 
@@ -64,7 +64,8 @@ Phantom Hawk is a Python variant.
 
 ### Usage
 ```
-payload phantom_hawk <listener_id> [--obfuscate] [--disable-sandbox] [--linux] [--windows]
+NeoC2 > payload phantom_hawk <listener_id> [--obfuscate] [--disable-sandbox] [--linux] [--windows]
+NeoC2 [INTERACTIVE:abc123] > [upload, download, tty_shell, sleep, kill, interact, run]
 ```
 
 

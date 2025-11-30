@@ -5,16 +5,16 @@ _A modular server-client architecture post-exploitation framework built for coll
 <p align="center"><img width="250" height="250" alt="neoc2" src="https://github.com/user-attachments/assets/6da0f8c9-2e12-49cf-8111-63b401431dac" /></p>
 
 ### Architecture
+- Flask based web application handles all agent's HTTP/S communications
 - Profile-driven Configuration: Malleable profiles for customizing agent behavior and communication patterns
 - Modular Design: Add your own Extensible modules for post-exploitation tasks via Python wrappers
 - Polymorphic Payloads: Generate unique, obfuscated payloads for evasion
 - SQLite-based storage for persistent data storage
-- Features mainly a functional HTTPS protocol
 
 ### Managers
 - The Agent Manager: Core component coordinating communication between agents and other framework components.
 - Modules manager: Manages post-exploitation modules and commands. Operators can also build/bring own modules and plug it in to the c2.
-- Role and User Manager: Co-ordinates role-based access control (RBAC) with admin/operator/viewer roles and a Web ui for user management
+- Role and User Manager: Co-ordinates role-based access control (RBAC) with admin/operator/viewer roles 
 - Audit logger: Tracks user actions and permissions
 - Multiplayer session management: allows multiple operators to work simultaneously
 - Task Orchestrator: Chain modules for complex operations
@@ -37,6 +37,7 @@ _A modular server-client architecture post-exploitation framework built for coll
 ### Prerequisites
 - Linux Machine
 - Python 3.*
+- Golang
 - Virtual environment (recommended)
 - OpenSSL for HTTPS certificates
 
