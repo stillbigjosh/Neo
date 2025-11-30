@@ -1,6 +1,7 @@
 ### Prerequisites
 - Linux Machine
 - Python 3.*
+- Golang
 - Virtual environment (recommended)
 - OpenSSL for HTTPS certificates
 
