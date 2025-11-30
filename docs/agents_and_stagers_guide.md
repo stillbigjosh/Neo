@@ -10,7 +10,7 @@
 ## Go Agent
 
 ### Description
-The Go Agent is an exe compiled, multi-functional agent with features like file transfer, interactive mode, and windows powershell/linux based module execution.
+The Go Agent is a second stage exe compiled, multi-functional agent with features like file transfer, interactive mode, and windows powershell/linux based module execution.
 
 ### Tested
 - Windows x64
