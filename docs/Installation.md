@@ -1,8 +1,16 @@
+# Installation
+
+
+[How to install](#how-to-install)
+[Basic workflow](#basic-workflow)
+
+
+## How to install
+
 ### Prerequisites
 - Linux Machine
 - Python 3.*
-- Golang
-- Virtual environment (recommended)
+- Golang 1.*
 - OpenSSL for HTTPS certificates
 
 ### Environment Variables
@@ -53,13 +61,18 @@ neoc2 restart
 neoc2 logs
 ```
 
+### Default Ports
+- Default HTTP/HTTPS Listener: 443
+- User management: 7443
+- Remote CLI: 8444
+
 ### Start CLI 
 Default user set via environment variable is Administrator. Other multiplayer operators can login via register via the web and have an Administrator approve and assign a role.
 ```bash
 neoc2-cli --server <IP>:8444 --username <> --password <>
 ```
 
-### Basic Workflow
+## Basic workflow
 Building a payload using the listener created from your profile config ensures that your chosen API endpoints are visible to the Endpoint Auto-detection Background service.
 
 1. Using default listener and profile
@@ -98,11 +111,5 @@ NeoC2 > agent list
 # Interact with agent
 NeoC2 > interact <agent-id>
 ```
-
-### Default Ports
-- Default HTTP/HTTPS Listener: 443
-- User management: 7443
-- Remote CLI: 8444
-
 
 
