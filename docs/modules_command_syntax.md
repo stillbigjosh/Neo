@@ -1,5 +1,8 @@
 # NeoC2 Module Command Syntax
 
+- [General Syntax](#general-syntax)
+- [Examples](#examples)
+
 ## General Syntax
 
 ```
@@ -11,7 +14,7 @@ run <module_name> <option>=<value>
 
 ## Examples
 
-Use `modules list` for a list of both external and built-in modules that might and might not be covered by documentation and their usage `modules info <name>`
+Use `modules list` for a list of both external and built-in modules that might and might not be covered by this guide and pull their usage info with `modules info <name>`
 
 ### Persistence Module
 
