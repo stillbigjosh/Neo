@@ -93,8 +93,6 @@ Default user set via environment variable is Administrator. Other multiplayer op
 ```bash
 neoc2-cli --server <IP>:8444 --username <> --password <>
 ```
-<img width="671" height="390" alt="cli" src="https://github.com/user-attachments/assets/3894cf23-6b5a-4b94-bea8-f82e504a725a" />
-
 
 ## Documentation 
 Please [https://neoc2.readthedocs.io/en/latest/](https://neoc2.readthedocs.io/en/latest/) for Usage guides 
