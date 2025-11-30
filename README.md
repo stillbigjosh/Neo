@@ -33,69 +33,10 @@ _A modular server-client architecture post-exploitation framework built for coll
 - User presence and status management
 
 ## Installation:
-
-### Prerequisites
-- Linux Machine
-- Python 3.*
-- Golang 1.*
-- OpenSSL for HTTPS certificates
-
-### Environment Variables
-**Using .env file for service (production/service)**
-- Environment variables are read from the `.env` file located at `/opt/neoc2/.env`
-- For service deployments, credentials should be set in `/opt/neoc2/.env`
-**Common Environment Variables:**
-```bash
-...
-IP=<your public ip>
-SECRET_KEY=<your random key>      # Change from default
-DEFAULT_USERNAME=<your username>  # REQUIRED - no default provided
-DEFAULT_PASSWORD=<your pass>      # REQUIRED - no default provided
-```
-NOTE: 
-- THE CREDENTIALS SET VIA THE ENVIRONMENT VARIABLE IS THE INITIAL/DEFAULT ADMINISTRATOR. 
-- AFTER STARTING THE FRAMEWORK, NAVIGATE TO https://<ip>:7443 (THE USER MANAGEMENT PORTAL) 
-- GIVE THIS REGISTRATION LINK TO OTHER MULTIPLAYERS.
-- REGISTERED OPERATORS CAN BE APPROVED AND ASSIGNED A ROLE VIA THE ADMINISTRATIVE USER MANAGEMENT INTERFACE.
-
-### Service Installation (Recommended for permanent deployment)
-To run NeoC2 as a background service that starts automatically on boot:
-1. **Install prerequisites and setup**
-   ```bash
-   ./install.sh
-   ```
-2. **Configure your environment variables** in `.env` file 
-3. **Install and start the service**
-   ```bash
-   sudo ./setup_service.sh
-   ```
-4. **Verify service installation**
-   ```bash
-   neoc2 status
-   ```
-
-### Service Management
-```bash
-# Global command
-neoc2
-# Start the service
-neoc2 start
-# Stop the service
-neoc2 stop
-# Restart the service
-neoc2 restart
-# View service logs
-neoc2 logs
-```
-
-### Start CLI 
-Default user set via environment variable is Administrator. Other multiplayer operators can login via register via the web and have an Administrator approve and assign a role.
-```bash
-neoc2-cli --server <IP>:8444 --username <> --password <>
-```
+NeoC2 works well on Kali Linux. See the [Installations](https://neoc2.readthedocs.io/en/latest/Installation/) docs for instructions. 
 
 ## Documentation 
-Please [https://neoc2.readthedocs.io/en/latest/](https://neoc2.readthedocs.io/en/latest/) for Usage guides 
+Please [https://neoc2.readthedocs.io/en/latest/](https://neoc2.readthedocs.io/en/latest/) for all Usage guides 
 
 Blog PART 1: Learning: Neo Command & Control Framework (Part 1) Tutorial & Usage guide [https://medium.com/@stillbigjosh/learning-neo-command-control-framework-part-1-912ac0b68f2b](https://medium.com/@stillbigjosh/learning-neo-command-control-framework-part-1-912ac0b68f2b)
 
