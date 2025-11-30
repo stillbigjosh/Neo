@@ -10,7 +10,7 @@
 ## Go Agent
 
 ### Description
-The Go Agent is an exe compiled, multi-functional agent with features like file transfer, interactive mode, and windows powershell/linux based module execution.
+The Go Agent is a second stage exe compiled, multi-functional agent with features like file transfer, interactive mode, and windows powershell/linux based module execution.
 
 ### Tested
 - Windows x64
@@ -26,7 +26,11 @@ The Go Agent is an exe compiled, multi-functional agent with features like file 
 - **Module Execution Capability**: Runs extensible modules from C2
 - **Sanbox & Debugger Detection**: Self deletes in sandboxed environment
 - **Working hours & Kill dates**: The Go-agent incorporates a profile configurable kill-dates and working-hours restrictions
-  
+- **Process Injection**: Shellcode injection into notepad.exe or explorer.exe with pinject
+
+### Limitations
+- Larger payload size due to comprehensive feature set
+
 ### Usage
 ```
 payload go_agent <listener_name> [--disable-sandbox] [--linux] [--windows]
@@ -57,8 +61,6 @@ Phantom Hawk is a Python variant.
 
 ### Limitations
 - Larger payload size due to comprehensive feature set
-- Network communication may be detected by advanced network monitoring
-- May be flagged by advanced threat detection tools
 
 ### Usage
 ```
