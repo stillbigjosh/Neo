@@ -24,7 +24,7 @@ COMMANDS:
   encryption  - Encryption operations
   profile     - Communication profile management (list, add)
   payload     - Generate various payload types
-  pinject     - Process injection into notepad.exe
+  pinject     - Injects shellcode into notepad.exe & explorer.exe
   coff-loader - Load bofs on agent session
   taskchain   - Task Orchestration
   reporting   - Generate reports
