@@ -11,6 +11,8 @@ run <module_name> <option>=<value>
 
 ## Examples
 
+THESE ARE JUST EXAMPLES, OTHER AVAILABLE MODULES NOT COVERED HERE CAN BE FOUND WITH `modules list` AND THER USAGE: `modules info <name>`
+
 ### Persistence Module
 
 The `persistence` module establishes persistence on systems using various techniques.
@@ -310,3 +312,4 @@ run Bypass-UAC agent_id=abc123-4567-8901-2345-67890abcdef1 method=UacMethodTcmse
 - For cross-platform modules, ensure the appropriate method/technique is selected for the target OS
 - Some techniques require specific privileges or services to be running on target systems
 - Credentials should be formatted properly as shown in the examples
+
