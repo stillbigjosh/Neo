@@ -37,6 +37,7 @@ _A modular server-client architecture post-exploitation framework built for coll
 ### Prerequisites
 - Linux Machine
 - Python 3.*
+- Golang
 - Virtual environment (recommended)
 - OpenSSL for HTTPS certificates
 
