@@ -1,8 +1,5 @@
-<p align="center"><h4 align="center">**The NeoC2 Framework**</h4></p>
-
-<p align=center>
-  <a href="https://github.com/stillbigjosh/Neo"><img alt="Release" src="https://img.shields.io/badge/Release-1.1.3-blue.svg"/></a>
-</p>
+# The NeoC2 Framework 
+<a href="https://github.com/stillbigjosh/Neo"><img alt="Release" src="https://img.shields.io/badge/Release-1.1.3-blue.svg"/></a>
 
 _A modular server-client architecture post-exploitation framework built for collaborative agent management in red team operations and security testing. Enables flexibility by allowing operators to add their own modules._
 
