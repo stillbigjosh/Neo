@@ -13,7 +13,7 @@ _A modular server-client architecture post-exploitation framework built for coll
 
 ### Managers
 - The Agent Manager: Core component coordinating communication between agents and other framework components.
-- Modules manager: Manages post-exploitation modules and commands. Operators can also build/bring own modules and plug it in to the c2.
+- Modules manager: Manages post-exploitation modules that can be executed on agents. 
 - Role and User Manager: Co-ordinates role-based access control (RBAC) with admin/operator/viewer roles 
 - Audit logger: Tracks user actions and permissions
 - Multiplayer session management: allows multiple operators to work simultaneously
