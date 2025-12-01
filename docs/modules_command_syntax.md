@@ -64,42 +64,6 @@ run persistence agent_id=abc123-4567-8901-2345-67890abcdef1 method=launchd paylo
 ```
 
 
-### Screenshot Module
-
-The `screenshot` (external module with a Python-wrapper) executes a PowerShell timed screenshot capture that saves screenshots to a specified path.
-
-#### Required Options:
-- `agent_id`: ID of the agent to run the screenshot capture on
-
-#### Optional Options:
-- `path`: Path where screenshots will be saved (default: `%TEMP%`)
-- `interval`: Interval in seconds between taking screenshots (default: "30")
-- `end_time`: Time when the script should stop running (format: HH:MM, e.g., 14:00) (default: "23:59")
-
-#### Examples:
-
-**Basic Screenshot:**
-```
-run screenshot agent_id=abc123-4567-8901-2345-67890abcdef1
-```
-
-**Screenshot with Custom Path and Interval:**
-```
-run screenshot agent_id=abc123-4567-8901-2345-67890abcdef1 path=C:\Users\Public interval=60
-```
-
-**Screenshot with End Time:**
-```
-run screenshot agent_id=abc123-4567-8901-2345-67890abcdef1 path=%TEMP% interval=20 end_time=18:00
-```
-
-**Screenshot with Custom Settings:**
-```
-run screenshot agent_id=abc123-4567-8901-2345-67890abcdef1 path=C:\Temp interval=45 end_time=16:30
-```
-
-
-
 ### PowerView Module
 
 The `PowerView` (external module with a Python-wrapper) executes a PowerShell PowerView script for network enumeration and domain assessment. PowerView contains numerous functions for Active Directory reconnaissance and mapping trust relationships within a domain environment.
