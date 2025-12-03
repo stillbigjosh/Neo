@@ -44,6 +44,8 @@ Blog PART 1: Learning: Neo Command & Control Framework (Part 1) Tutorial & Usage
 
 Blog PART 2: Learning: Neo Command & Control Framework (Part 2) Tutorial & Usage guide [https://stillbigjosh.medium.com/learning-neo-command-control-framework-part-2-tutorial-usage-guide-f2891b44a96d](https://stillbigjosh.medium.com/learning-neo-command-control-framework-part-2-tutorial-usage-guide-f2891b44a96d)
 
+Blog PART 3: Bypassing Windows 11 Defender with NeoC2 & MSFVenom [https://stillbigjosh.medium.com/bypass-windows-11-defender-with-neoc2-msfvenom-part-3-e61cbe055bde](https://stillbigjosh.medium.com/bypass-windows-11-defender-with-neoc2-msfvenom-part-3-e61cbe055bde)
+
 
 ### Contributions
 This project is accepting contributions and under active development. You can reach out to @stillbigjosh or Join discussions https://github.com/stillbigjosh/Neo/discussions
