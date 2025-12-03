@@ -41,7 +41,7 @@ Profiles define communication characteristics for agents:
       "Accept": "application/json",
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
     },
-    "heartbeat_interval": 60,
+    "heartbeat_interval": 10,
     "http_get": {
       "headers": {
         "Accept": "application/json, text/plain, */*",
@@ -60,19 +60,21 @@ Profiles define communication characteristics for agents:
     },
     "jitter": 0.2,
     "protocol": "https",
-    "sleep_time": 60,
     "p2p_enabled": false,
     "p2p_port": 8888,
-    "kill_date": "2025-12-31T23:59:59Z",
+    "kill_date": "2027-12-31T23:59:59Z",
     "working_hours": {
-      "start_hour": 9,
-      "end_hour": 17,
+      "start_hour": 0,
+      "end_hour": 24,
       "timezone": "UTC",
-      "days": [1, 2, 3, 4, 5]
+      "days": [1, 2, 3, 4, 5, 6, 7]
+    },
+    "redirector": {
+      "redirector_host": "0.0.0.0",
+      "redirector_port": 80
     }
   }
 }
-
 ```
  
  ### Load Profile to DB
@@ -116,6 +118,22 @@ listener create <listener_name> https <port> <ip> profile_name=<profile_name>
 4. Days are numbered from 1-7 (Monday=1, Sunday=7), with Sunday represented as both 0 (Go's default) and 7 (in configuration).
 5. Hours are specified in 24-hour format (0-23).
 
+### Redirector
+
+1. Add redirector settings to your C2 profile under the redirector key:
+```json
+ "redirector": {
+      "redirector_host": "0.0.0.0",
+      "redirector_port": 80
+    }
+
+```
+
+2. How it works:
+Use the --redirector flag when generating payloads
+- Without `--redirector`: Agent connects directly to C2 server
+- With `--redirector`: Agent connects to the redirector host/port specified in the profile instead of the C2 server
+- All other agent behavior remains the same
 
 ## Listener Management
 

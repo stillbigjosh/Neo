@@ -1776,13 +1776,15 @@ Options:
   --obfuscate          - Enable payload obfuscation
   --disable-sandbox    - Disable sandbox/antidebugging checks
   --output <filename>  - Save payload to file (optional)
-  --linux              - Compile payload to Linux binary 
+  --linux              - Compile payload to Linux binary
   --windows            - Compile payload to Windows binary
+  --redirector         - Use redirector host and port from profile instead of C2 URL
 
 Examples:
   payload phantom_hawk_agent myhttps__listener --obfuscate --disable-sandbox
   payload phantom_hawk_agent myhttps_listener --linux
   payload go_agent myhttps_listener --windows
+  payload go_agent myhttps_listener --windows --redirector
             """, 'info'
 
         payload_type = command_parts[1].lower()
@@ -1793,7 +1795,8 @@ Examples:
             'disable_sandbox': False,
             'output': None,
             'linux': False,
-            'windows': False
+            'windows': False,
+            'redirector': False
         }
 
         i = 3
@@ -1807,6 +1810,8 @@ Examples:
                 options['linux'] = True
             elif option == '--windows':
                 options['windows'] = True
+            elif option == '--redirector':
+                options['redirector'] = True
             elif option == '--output' and i + 1 < len(command_parts):
                 options['output'] = command_parts[i + 1]
                 i += 1
@@ -1838,7 +1843,8 @@ Examples:
                 payload_type,
                 obfuscate=options['obfuscate'],
                 disable_sandbox=options['disable_sandbox'],
-                platform=platform
+                platform=platform,
+                use_redirector=options['redirector']
             )
 
             if payload_type == 'go_agent':
@@ -1880,7 +1886,9 @@ Examples:
                                     listener['id'],
                                     payload_type,
                                     obfuscate=options['obfuscate'],
-                                    disable_sandbox=options['disable_sandbox']
+                                    disable_sandbox=options['disable_sandbox'],
+                                    platform=platform,
+                                    use_redirector=options['redirector']
                                 )
                                 payload_code = generated_result
                                 with open(temp_file_path, 'w') as temp_file:
@@ -1891,7 +1899,9 @@ Examples:
                                 listener['id'],
                                 payload_type,
                                 obfuscate=options['obfuscate'],
-                                disable_sandbox=options['disable_sandbox']
+                                disable_sandbox=options['disable_sandbox'],
+                                platform=platform,
+                                use_redirector=options['redirector']
                             )
                             payload_code = generated_result
                             with open(temp_file_path, 'w') as temp_file:

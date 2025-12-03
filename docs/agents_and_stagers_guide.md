@@ -26,13 +26,15 @@ The Go Agent is a second stage exe compiled, multi-functional agent with feature
 - **Sanbox & Debugger Detection**: Self deletes in sandboxed environment
 - **Working hours & Kill dates**: The Go-agent incorporates a profile configurable kill-dates and working-hours restrictions
 - **Process Injection**: Shellcode injection into notepad.exe or explorer.exe with pinject
+- **Redirector Support**: Allows operators to define and manage external infrastructure that points to the internal listeners.
+
 
 ### Limitations
 - Larger payload size due to comprehensive feature set
 
 ### Usage
 ```
-NeoC2 > payload go_agent <listener_name> [--disable-sandbox] [--linux] [--windows]
+NeoC2 > payload go_agent <listener_name> [--disable-sandbox] [--windows] [--redirector]
 NeoC2 [INTERACTIVE:abc123] > [upload, download, tty_shell, pinject, sleep, kill, interact, run]
 ```
 
@@ -40,10 +42,10 @@ NeoC2 [INTERACTIVE:abc123] > [upload, download, tty_shell, pinject, sleep, kill,
 ## Phantom Hawk Agent 
 
 ### Description
-Phantom Hawk is a Python variant.
+Phantom Hawk is a Python variant with limited capability.
 
 ### Tested
-- Windows x64
+- Windows x64 (Compile to exe on a Windows host)
 - Linux Debian
 
 ### Capabilities
@@ -54,17 +56,19 @@ Phantom Hawk is a Python variant.
 - **TTY Shell Enabled**: Enter a full TTY Shell 
 - **Polymorphic Obfuscation**: Randomized variable and function names to evade static analysis
 - **Jitter & Sleep Obfuscation**: Configurable sleep intervals with jitter during agent generation and in deployment
-- **Cross-Platform**: Works on Windows, Linux, and macOS 
+- **Cross-Platform**: Works on Windows, Linux 
 - **Module Execution Capability**: Runs extensible modules from C2
-- **P2P Agent Communication**: Configurable Agent command forwarding to other Agents in same network.
+- **P2P Agent Communication**: Configurable Agent command forwarding to other Agents in same network (Under development)
 - **Sanbox & Debugger Detection**: Self deletes in sandboxed environment
 
 ### Limitations
-- Larger payload size due to comprehensive feature set
+- No working hours/kill-date support
+- It doesn't support process injection 
+- No redirector support 
 
 ### Usage
 ```
-NeoC2 > payload phantom_hawk <listener_id> [--obfuscate] [--disable-sandbox] [--linux] [--windows]
+NeoC2 > payload phantom_hawk <listener_id> [--obfuscate] [--disable-sandbox] [--linux]
 NeoC2 [INTERACTIVE:abc123] > [upload, download, tty_shell, sleep, kill, interact, run]
 ```
 

