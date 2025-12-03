@@ -41,7 +41,7 @@ NeoC2 [INTERACTIVE:abc123] > [upload, download, tty_shell, pinject, sleep, kill,
 ## Phantom Hawk Agent 
 
 ### Description
-Phantom Hawk is a Python variant.
+Phantom Hawk is a Python variant with limited capability.
 
 ### Tested
 - Windows x64 (Compile to exe on a Windows host)
