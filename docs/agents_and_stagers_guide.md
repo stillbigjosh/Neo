@@ -26,7 +26,8 @@ The Go Agent is a second stage exe compiled, multi-functional agent with feature
 - **Sanbox & Debugger Detection**: Self deletes in sandboxed environment
 - **Working hours & Kill dates**: The Go-agent incorporates a profile configurable kill-dates and working-hours restrictions
 - **Process Injection**: Shellcode injection into notepad.exe or explorer.exe with pinject
-- **Redirector Support**: Supports using a rediector address for operational security
+- **Redirector Support**: Supports using a rediector address for operational security. Allows operators to define and manage external infrastructure that points to the internal listeners.
+
 
 ### Limitations
 - Larger payload size due to comprehensive feature set
