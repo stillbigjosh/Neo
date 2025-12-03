@@ -1781,10 +1781,8 @@ Options:
   --redirector         - Use redirector host and port from profile instead of C2 URL
 
 Examples:
-  payload phantom_hawk_agent myhttps__listener --obfuscate --disable-sandbox
-  payload phantom_hawk_agent myhttps_listener --linux
-  payload go_agent myhttps_listener --windows
-  payload go_agent myhttps_listener --windows --redirector
+  payload phantom_hawk <listener_id> [--obfuscate] [--disable-sandbox] [--linux]
+  payload go_agent <listener_name> [--disable-sandbox] [--windows] [--redirector]
             """, 'info'
 
         payload_type = command_parts[1].lower()
