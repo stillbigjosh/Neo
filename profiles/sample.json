@@ -41,6 +41,10 @@
       "end_hour": 24,
       "timezone": "UTC",
       "days": [1, 2, 3, 4, 5, 6, 7]
+    },
+    "redirector": {
+      "redirector_host": "0.0.0.0",
+      "redirector_port": 80
     }
   }
 }

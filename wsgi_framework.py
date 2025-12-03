@@ -249,6 +249,10 @@ class NeoC2Framework:
                         "end_hour": 24,       # End of working hours
                         "timezone": "UTC",    # Timezone for working hours
                         "days": [1, 2, 3, 4, 5, 6, 7]  # Days of week: 1=Monday, 2=Tuesday, ... 7=Sunday
+                    },
+                    "redirector": {
+                        "redirector_host": "0.0.0.0",  # Default redirector host
+                        "redirector_port": 80          # Default redirector port
                     }
                 }
 
@@ -332,6 +336,10 @@ class NeoC2Framework:
                     "end_hour": 24,
                     "timezone": "UTC",
                     "days": [1, 2, 3, 4, 5, 6, 7]
+                }),
+                "redirector": config.get('redirector', {
+                    "redirector_host": "0.0.0.0",
+                    "redirector_port": 80
                 })
             }
 
