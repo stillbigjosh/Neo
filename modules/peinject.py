@@ -22,7 +22,7 @@ def get_info():
                 "required": True
             },
             "pe_file": {
-                "description": "Path to the PE file to inject on Neo C2 server",
+                "description": "Path to the PE file to inject on Neo C2 server.",
                 "required": True
             }
         },
