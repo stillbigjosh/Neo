@@ -29,8 +29,6 @@ from teamserver.audit_logger import AuditLogger
 
 from evasion.amsi_bypass import AMSIBypass
 from evasion.etw_bypass import ETWBypass
-from evasion.process_injection import ProcessInjection
-from evasion.sleep_obfuscation import SleepObfuscation
 
 from communication.encryption import EncryptionManager
 
@@ -604,6 +602,121 @@ class RemoteCLIServer:
         except Exception as e:
             return f"Error running pinject: {str(e)}", 'error'
 
+    def handle_peinject_command(self, command_parts, session):
+        module_name = "peinject"
+
+        if len(command_parts) < 2:
+            return "USAGE: peinject <pe_file> [agent_id=<agent_id>]", 'error'
+
+        try:
+            db = session.agent_manager.db if session.agent_manager else self.db
+            module_manager = self.module_manager
+
+            options = {}
+
+            if '=' in command_parts[1]:
+                for part in command_parts[1:]:
+                    if '=' in part:
+                        key, value = part.split('=', 1)
+                        options[key] = value
+            else:
+                pe_file_input = command_parts[1]
+                options['pe_file'] = pe_file_input
+
+                for part in command_parts[2:]:
+                    if '=' in part:
+                        key, value = part.split('=', 1)
+                        options[key] = value
+
+            if session.interactive_mode and session.current_agent and 'agent_id' not in options:
+                options['agent_id'] = session.current_agent
+
+            wait_timeout = int(options.get('wait_timeout', 0))
+
+            module_manager.load_all_modules()
+            module_manager.load_modules_from_db()
+
+            loaded_modules_dict = getattr(module_manager, 'loaded_modules', {})
+
+            if module_name not in loaded_modules_dict:
+                import importlib.util
+                module_path = os.path.join("modules", f"{module_name}.py")
+                if os.path.exists(module_path):
+                    spec = importlib.util.spec_from_file_location(module_name, module_path)
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+
+                    if hasattr(module, 'get_info'):
+                        module_info = module.get_info()
+                    else:
+                        module_info = {}
+
+                    loaded_modules_dict[module_name] = {
+                        'module': module,
+                        'info': module_info,
+                        'path': module_path
+                    }
+                else:
+                    return f"Module not found: {module_name}", 'error'
+
+            if module_name in loaded_modules_dict:
+                module_data = loaded_modules_dict[module_name]
+                module = module_data['module']
+                info = module_data.get('info', {})
+
+                if hasattr(module, 'execute'):
+                    required_options = [opt for opt, opt_info in info.get('options', {}).items() if opt_info.get('required', False)]
+                    missing = [opt for opt in required_options if opt not in options]
+                    if missing:
+                        return f"Missing required options: {', '.join(missing)}", 'error'
+
+                    agent_id = options.get('agent_id')
+                    if agent_id:
+                        if session.agent_manager.is_agent_locked_interactively(agent_id):
+                            lock_info = session.agent_manager.get_interactive_lock_info(agent_id)
+                            if lock_info and lock_info['operator'] != session.username:
+                                return f"Agent {agent_id} is currently in exclusive interactive mode with operator: {lock_info['operator']}. Access denied.", 'error'
+
+                    original_agent = session.current_agent
+                    try:
+                        result = module.execute(options, session)
+                        if 'success' in result:
+                            status = 'success' if result['success'] else 'error'
+                            output = result.get('output', result.get('error', 'Unknown error'))
+                        else:
+                            output = result.get('output', 'No output')
+                            status = result.get('status', 'unknown')
+
+                        if status == 'success' and wait_timeout > 0 and 'task_id' in result:
+                            task_id = result['task_id']
+                            agent_id = options.get('agent_id')
+                            if not agent_id:
+                                return f"Task {task_id} queued, but cannot monitor without agent_id", 'error'
+
+                            import time
+                            start_time = time.time()
+                            while time.time() - start_time < wait_timeout:
+                                task_data = db.execute(
+                                    "SELECT status, result FROM agent_tasks WHERE id = ? AND agent_id = ?",
+                                    (task_id, agent_id)
+                                ).fetchone()
+                                if task_data and task_data['status'] == 'completed':
+                                    return f"Task {task_id} completed: {task_data['result']}", 'success'
+                                time.sleep(1)
+
+                            return f"Task {task_id} queued but not completed within {wait_timeout} seconds (status: {task_data['status'] if task_data else 'unknown'})", 'warning'
+
+                        return output, status
+                    finally:
+                        session.current_agent = original_agent
+                else:
+                    return f"Module '{module_name}' does not have an execute function", 'error'
+            else:
+                return f"Could not load module: {module_name}", 'error'
+
+        except Exception as e:
+            return f"Error running peinject: {str(e)}", 'error'
+
     def handle_agent_command(self, command_parts, session):
         if len(command_parts) < 2:
             return help.get_agent_help_display(), 'info'
@@ -931,35 +1044,8 @@ class RemoteCLIServer:
                             return f"Failed to queue Evasion {action} task for agent {session.current_agent}", 'error'
                     else:
                         return command, 'success'
-                elif evasion_type == 'process_injection':
-                    evasion = ProcessInjection(NeoC2Config())
-                    target_pid = options.get('target_pid', '')
-                    payload_path = options.get('payload_path', '')
-                    command = evasion.inject(target_pid, payload_path)
-                    session.evasion_enabled = True
-                    if session.current_agent:
-                        task_id = agent_manager.add_task(session.current_agent, command)
-                        if task_id:
-                            return f"Evasion {action} task {task_id} queued for agent {session.current_agent}", 'success'
-                        else:
-                            return f"Failed to queue Evasion {action} task for agent {session.current_agent}", 'error'
-                    else:
-                        return command, 'success'
-                elif evasion_type == 'sleep_obfuscation':
-                    evasion = SleepObfuscation(NeoC2Config())
-                    technique = options.get('technique', '')
-                    command = evasion.obfuscate(technique)
-                    session.evasion_enabled = True
-                    if session.current_agent:
-                        task_id = agent_manager.add_task(session.current_agent, command)
-                        if task_id:
-                            return f"Evasion {action} task {task_id} queued for agent {session.current_agent}", 'success'
-                        else:
-                            return f"Failed to queue Evasion {action} task for agent {session.current_agent}", 'error'
-                    else:
-                        return command, 'success'
                 else:
-                    return f"Unsupported evasion type: {evasion_type}. Supported: amsi_bypass, etw_bypass, process_injection, sleep_obfuscation", 'error'
+                    return f"Unsupported evasion type: {evasion_type}. Supported: amsi_bypass, etw_bypass", 'error'
             
             elif action == 'disable':
                 if evasion_type == 'amsi_bypass':
@@ -985,30 +1071,8 @@ class RemoteCLIServer:
                             return f"Failed to queue Evasion {action} task for agent {session.current_agent}", 'error'
                     else:
                         return command, 'success'
-                elif evasion_type == 'process_injection':
-                    command = "# Process injection disabled"
-                    session.evasion_enabled = False
-                    if session.current_agent:
-                        task_id = agent_manager.add_task(session.current_agent, command)
-                        if task_id:
-                            return f"Evasion {action} task {task_id} queued for agent {session.current_agent}", 'success'
-                        else:
-                            return f"Failed to queue Evasion {action} task for agent {session.current_agent}", 'error'
-                    else:
-                        return command, 'success'
-                elif evasion_type == 'sleep_obfuscation':
-                    command = "# Sleep obfuscation disabled"
-                    session.evasion_enabled = False
-                    if session.current_agent:
-                        task_id = agent_manager.add_task(session.current_agent, command)
-                        if task_id:
-                            return f"Evasion {action} task {task_id} queued for agent {session.current_agent}", 'success'
-                        else:
-                            return f"Failed to queue Evasion {action} task for agent {session.current_agent}", 'error'
-                    else:
-                        return command, 'success'
                 else:
-                    return f"Unsupported evasion type: {evasion_type}. Supported: amsi_bypass, etw_bypass, process_injection, sleep_obfuscation", 'error'
+                    return f"Unsupported evasion type: {evasion_type}. Supported: amsi_bypass, etw_bypass", 'error'
             
             else:
                 return f"Unknown evasion action: {action}. Use: enable, disable", 'error'
@@ -3435,6 +3499,8 @@ EXAMPLES:
                     return self.handle_run_command(command_parts, session)
                 elif base_command == 'pinject':
                     return self.handle_pinject_command(command_parts, session)
+                elif base_command == 'peinject':
+                    return self.handle_peinject_command(command_parts, session)
                 elif base_command == 'agent':
                     return self.handle_agent_command(command_parts, session)
                 elif base_command == 'evasion':
@@ -3789,6 +3855,8 @@ DB Inactive:       {stats['db_inactive_agents']}
             return self.handle_run_command(command_parts, session)
         elif base_command == 'pinject':
             return self.handle_pinject_command(command_parts, session)
+        elif base_command == 'peinject':
+            return self.handle_peinject_command(command_parts, session)
         elif base_command == 'agent':
             return self.handle_agent_command(command_parts, session)
         elif base_command == 'evasion':
@@ -4106,7 +4174,7 @@ DB Inactive:       {stats['db_inactive_agents']}
     
     def _is_framework_command(self, base_cmd):
         framework_commands = {
-            'agent', 'listener', 'modules', 'run', 'pinject', 'evasion', 'encryption',
+            'agent', 'listener', 'modules', 'run', 'pinject', 'peinject', 'evasion', 'encryption',
             'download', 'upload', 'stager', 'profile', 'payload', 'coff-loader',
             'interact', 'event', 'task', 'result', 'addtask', 'back', 'exit',
             'quit', 'clear', 'help', 'status', 'save', 'protocol', 'interactive',
@@ -4145,6 +4213,7 @@ DB Inactive:       {stats['db_inactive_agents']}
                 'modules': 'modules.list',
                 'run': 'modules.execute',
                 'pinject': 'modules.execute',
+                'peinject': 'modules.execute',
                 'task': 'tasks.list',
                 'result': 'results.view',
                 'download': 'tasks.create',
@@ -4209,6 +4278,8 @@ DB Inactive:       {stats['db_inactive_agents']}
                         result, status = self.handle_run_command(command_parts, remote_session)
                     elif base_cmd == 'pinject':
                         result, status = self.handle_pinject_command(command_parts, remote_session)
+                    elif base_cmd == 'peinject':
+                        result, status = self.handle_peinject_command(command_parts, remote_session)
                     elif base_cmd == 'evasion':
                         result, status = self.handle_evasion_command(command_parts, remote_session)
                     elif base_cmd == 'encryption':

