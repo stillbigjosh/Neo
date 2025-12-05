@@ -464,7 +464,10 @@ NeoC2 provides advanced task chaining capabilities, allowing operators to create
 
 ### PInject
 
-In-memory shellcode injection into target processes with the Go-based Agent 
+In-memory shellcode injection 
+
+#### Compatibility
+- Go_agent 
 
 #### Usage
 1. Generate compatible shellcode using msfvenom
@@ -503,10 +506,12 @@ run pinject <shellcode> [agent_id=<agent_id>] # METHOD - 2
 - Any custom raw shellcode
 
 
-### PEinject
+### PEInject
 
-Inject a PE file into a target processes 
+Inject a PE file using Process Hollowing
 
+#### Compatibility
+- Go_agent 
 
 #### Usage
 1. Generate compatible PE payload using msfvenom
