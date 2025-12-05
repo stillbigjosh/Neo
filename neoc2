@@ -96,7 +96,7 @@ elif [[ "$1" == "logs" ]]; then
     fi
 else
     # Show help
-    echo "NeoC2 Command & Control Framework - C2 Service Manager"
+    echo "Neo Command & Control Framework - C2 Service Manager"
     echo
     echo "Usage: neoc2 [command]"
     echo
