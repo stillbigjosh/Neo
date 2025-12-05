@@ -14,55 +14,9 @@ run <module_name> <option>=<value>
 
 ## Examples
 
-Most modules will not be covered by this documentation as this was intended to give the operator an idea on the usage of their own extensible modules.
+Most modules will not be covered by this documentation as this was intended to give the operator an idea on how to run their own extensible modules.
 
 Use `modules list` for a list of both external and built-in modules that might and might not be covered by this guide and pull their usage info with `modules info <name>`
-
-### Persistence Module
-
-The `persistence` module establishes persistence on systems using various techniques.
-
-#### Required Options:
-- `agent_id`: ID of the agent to establish persistence on
-- `method`: Persistence method (registry, startup, cron, launchd, systemd, or service)
-- `payload_path`: Path to the payload/script to persist
-
-#### Optional Options:
-- `name`: Name for the persistence mechanism (default: "SystemUpdate")
-- `interval`: Interval for scheduled tasks (minutes, only for cron/systemd) (default: "60")
-
-#### Examples:
-
-**Linux/macOS Cron Persistence:**
-```
-run persistence agent_id=abc123-4567-8901-2345-67890abcdef1 method=cron payload_path=/tmp/payload.sh
-```
-
-**Windows Registry Persistence:**
-```
-run persistence agent_id=abc123-4567-8901-2345-67890abcdef1 method=registry payload_path=C:\Users\Public\payload.exe
-```
-
-**Windows Startup Folder:**
-```
-run persistence agent_id=abc123-4567-8901-2345-67890abcdef1 method=startup payload_path=C:\Users\Public\payload.exe
-```
-
-**Windows Service:**
-```
-run persistence agent_id=abc123-4567-8901-2345-67890abcdef1 method=service payload_path=C:\Users\Public\payload.exe name=WindowsUpdater
-```
-
-**Linux Systemd Service:**
-```
-run persistence agent_id=abc123-4567-8901-2345-67890abcdef1 method=systemd payload_path=/opt/payload service_interval=30
-```
-
-**macOS LaunchAgent:**
-```
-run persistence agent_id=abc123-4567-8901-2345-67890abcdef1 method=launchd payload_path=/Applications/payload.sh
-```
-
 
 ### PowerView Module
 
