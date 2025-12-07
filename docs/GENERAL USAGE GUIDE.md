@@ -77,14 +77,6 @@ Profiles define communication characteristics for agents:
   }
 }
 ```
- 
- ### Load Profile to DB
- 
-```bash
-profile add <config path>
-# Register profile routes 
-listener create <listener_name> https <port> <ip> profile_name=<profile_name>
-```
 
 ### Kill Date Configuration
 
@@ -135,6 +127,24 @@ Use the --redirector flag when generating payloads
 - Without `--redirector`: Agent connects directly to C2 server
 - With `--redirector`: Agent connects to the redirector host/port specified in the profile instead of the C2 server
 - All other agent behavior remains the same
+
+### Load Profile to DB
+
+Load a config using the `profile` handler and base-command:
+
+```bash
+profile add <config path>
+# Register profile routes 
+listener create <listener_name> https <port> <ip> profile_name=<profile_name>
+```
+
+### List avaiable Profiles
+
+List all available profiles in DB 
+
+```bash
+profile list
+```
 
 ## Listener Management
 
