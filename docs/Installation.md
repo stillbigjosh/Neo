@@ -84,6 +84,8 @@ Building a payload using the listener created from your profile config ensures t
 
 1. Using default listener and profile
 ```
+# Make any required change to the default profile in profiles/default.json
+NeoC2 > profile reload profiles/default.json # OPTIONAL 
 NeoC2 > listener start web_app_default
 # Build payload
 NeoC2 > payload list
