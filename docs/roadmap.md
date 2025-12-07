@@ -4,8 +4,9 @@
 ## Implemented since last release
 1. Polymorphic go_agent generator
 2. Configurable killdate/workingtime
-3. Process Injection
+3. In-memory shellcode Injection
 4. C2 Redirector support
+5. In-memory execution of Windows PE file 
 
 ## Actively Under development
 1. Enhanced and Opsec safe P2P Agent comm
