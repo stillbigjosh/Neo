@@ -1,7 +1,7 @@
 # GENERAL USAGE GUIDE
 
 ## Table of Contents
-- [Profiles](#profiles)
+- [Profile Management](#profile-management)
 - [Listener Management](#listener-management)
 - [Payload Generation](#payload-generation)
 - [Payload Staging](#payload-staging)
@@ -19,7 +19,7 @@
 - [Troubleshooting](#troubleshooting)
 
 
-## Profiles 
+## Profile Management
 
 Profiles define communication characteristics for agents:
 
@@ -149,7 +149,10 @@ profile list
 ### Reload existing Profiles
 
 - During framework initialization, the default profile is automatically written to profiles/default.json
-- Operators can make any changes to this json config and apply the changes by reloading the profile with changes using `profile reload <profile_path> <profile_name>`
+- Operators can make any changes to this json config and apply the changes by reloading the profile with changes using:
+```bash
+profile reload <profile_path> <profile_name>
+```
 - The reload command can be used for any custom profile, and the default profile
 
 ## Listener Management
