@@ -62,15 +62,15 @@ Phantom Hawk is a Python variant with limited capability.
 - **P2P Agent Communication**: Configurable Agent command forwarding to other Agents in same network (Under development)
 - **Sanbox & Debugger Detection**: Self deletes in sandboxed environment
 - **Working hours & Kill dates**: Incorporates a profile configurable kill-dates and working-hours restrictions
+- **Redirector Support**: Allows operators to define and manage external infrastructure that points to the internal listeners.
 
 ### Limitations
 - No shellcode injection capability
 - No Process Hollowing capability
-- No redirector support 
 
 ### Usage
 ```
-NeoC2 > payload phantom_hawk <listener_id> [--obfuscate] [--disable-sandbox] [--linux]
+NeoC2 > payload phantom_hawk <listener_id> [--obfuscate] [--disable-sandbox] [--linux] [--redirector]
 NeoC2 [INTERACTIVE:abc123] > [upload, download, tty_shell, sleep, kill, interact, run]
 ```
 
