@@ -3,7 +3,7 @@ def get_help_display():
 Available NeoC2 Terminal Commands:
 ════════════════════════════════════════════════════════════════
 
-COMMANDS:
+FRAMEWORK:
   listener    - Manage listeners (create, start, stop, delete)
   modules     - Manage modules (list, load, info, check)
   run         - Execute modules
@@ -27,13 +27,15 @@ COMMANDS:
   history     - Show command history
   clear       - Clear terminal
   back	      - Exit interactive mode
-
+  
+OPERATIONS:
   tty_shell   - Start tty shell
   evasion     - AMSI/ETW bypass 
   pinject     - Injects shellcode into notepad.exe & explorer.exe
   peinject    - Injects PE files by Process Hollowing
   upload      - Upload files to agents
-  download    - Download files from agents
+  download    - Download files from agents/C2 server
+  coff-loader - Execute bofs on agent session
   sleep       - Change agent sleep interval
   
 NOTES:
