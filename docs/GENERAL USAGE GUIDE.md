@@ -82,8 +82,8 @@ Profiles define communication characteristics for agents:
 
 - **Field**: `kill_date`
 - **Format**: ISO 8601 format in UTC timezone (`YYYY-MM-DDTHH:MM:SSZ`)
-- **Example**: `"2025-12-31T23:59:59Z"`
-- **Default**: If not specified, defaults to `"2025-12-31T23:59:59Z"`
+- **Example**: `"2027-12-31T23:59:59Z"`
+- **Default**: If not specified, defaults to `"2027-12-31T23:59:59Z"`
 - **Behavior**: When the agent's system time exceeds this date/time, the agent will self-delete
 
 #### Working Hours Configuration
