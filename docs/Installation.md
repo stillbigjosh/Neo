@@ -51,7 +51,7 @@ To run NeoC2 as a background service that starts automatically on boot:
    ```
 
 ### Service Management
-These two global commands: `neoc2` and `neoc2-cli` were made globally accessible after setup. The former for managing the Neo C2 Server running in background as a service, and the latter for remote-ing as a multiplayer client. 
+These two global commands: `neoc2` and `neoc2-cli` were made globally available after setup. The former for managing the Neo C2 Server running in background as a service, and the latter for remote-ing as a multiplayer client. 
 ```bash
 # Global command
 neoc2
