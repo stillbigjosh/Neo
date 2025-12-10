@@ -1910,10 +1910,11 @@ OPTIONS:
   • --linux              - Compile payload to Linux binary
   • --windows            - Compile payload to Windows binary
   • --redirector         - Use redirector host and port from profile instead of C2 URL
+  • --use-failover       - Embed failover C2 URLs from profile into agent
 
 EXAMPLES:
-  • payload phantom_hawk_agent <listener_id> [--obfuscate] [--disable-sandbox] [--linux] [--redirector]
-  • payload go_agent <listener_name> [--disable-sandbox] [--windows] [--redirector]
+  • payload phantom_hawk_agent <listener_id> [--obfuscate] [--disable-sandbox] [--linux] [--redirector] [--use-failover]
+  • payload go_agent <listener_name> [--disable-sandbox] [--windows] [--redirector] [--use-failover]
             """, 'info'
 
         payload_type = command_parts[1].lower()
@@ -1925,7 +1926,8 @@ EXAMPLES:
             'output': None,
             'linux': False,
             'windows': False,
-            'redirector': False
+            'redirector': False,
+            'use_failover': False
         }
 
         i = 3
@@ -1941,6 +1943,8 @@ EXAMPLES:
                 options['windows'] = True
             elif option == '--redirector':
                 options['redirector'] = True
+            elif option == '--use-failover':
+                options['use_failover'] = True
             elif option == '--output' and i + 1 < len(command_parts):
                 options['output'] = command_parts[i + 1]
                 i += 1
@@ -1973,7 +1977,8 @@ EXAMPLES:
                 obfuscate=options['obfuscate'],
                 disable_sandbox=options['disable_sandbox'],
                 platform=platform,
-                use_redirector=options['redirector']
+                use_redirector=options['redirector'],
+                use_failover=options['use_failover']
             )
 
             if payload_type == 'go_agent':
@@ -2017,7 +2022,8 @@ EXAMPLES:
                                     obfuscate=options['obfuscate'],
                                     disable_sandbox=options['disable_sandbox'],
                                     platform=platform,
-                                    use_redirector=options['redirector']
+                                    use_redirector=options['redirector'],
+                                    use_failover=options['use_failover']
                                 )
                                 payload_code = generated_result
                                 with open(temp_file_path, 'w') as temp_file:
@@ -2030,7 +2036,8 @@ EXAMPLES:
                                 obfuscate=options['obfuscate'],
                                 disable_sandbox=options['disable_sandbox'],
                                 platform=platform,
-                                use_redirector=options['redirector']
+                                use_redirector=options['redirector'],
+                                use_failover=options['use_failover']
                             )
                             payload_code = generated_result
                             with open(temp_file_path, 'w') as temp_file:

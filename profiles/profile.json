@@ -45,6 +45,12 @@
     "redirector": {
       "redirector_host": "0.0.0.0",
       "redirector_port": 80
-    }
+    },
+    "failover_urls": [
+      "https://failover1.example.com:443",
+      "https://failover2.example.com:443",
+      "https://backup1.example.com:8443",
+      "https://backup2.example.com:8443"
+    ]
   }
 }

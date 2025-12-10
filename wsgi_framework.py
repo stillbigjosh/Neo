@@ -257,7 +257,13 @@ class NeoC2Framework:
                     "redirector": {
                         "redirector_host": "0.0.0.0",  # Default redirector host
                         "redirector_port": 80          # Default redirector port
-                    }
+                    },
+                    "failover_urls": [
+                        "https://failover1.example.com:443",
+                        "https://failover2.example.com:443",
+                        "https://backup1.example.com:8443",
+                        "https://backup2.example.com:8443"
+                    ]
                 }
 
                 profile_id = str(uuid.uuid4())
@@ -344,7 +350,13 @@ class NeoC2Framework:
                 "redirector": config.get('redirector', {
                     "redirector_host": "0.0.0.0",
                     "redirector_port": 80
-                })
+                }),
+                "failover_urls": config.get('failover_urls', [
+                    "https://failover1.example.com:443",
+                    "https://failover2.example.com:443",
+                    "https://backup1.example.com:8443",
+                    "https://backup2.example.com:8443"
+                ])
             }
 
             with self.db.get_cursor() as cursor:

