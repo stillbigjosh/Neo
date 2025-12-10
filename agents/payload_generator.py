@@ -546,6 +546,7 @@ class PayloadGenerator:
         agent_current_fail_count_field = poly.generate_go_field_name('CurrentFailCount')
         agent_max_fail_count_field = poly.generate_go_field_name('MaxFailCount')
         agent_last_connection_attempt_field = poly.generate_go_field_name('LastConnectionAttempt')
+        agent_in_failover_attempt_field = poly.generate_go_field_name('InFailoverAttempt')
 
         template_path = os.path.join(os.path.dirname(__file__), 'go_agent_template.go')
         with open(template_path, 'r') as f:
@@ -630,6 +631,7 @@ class PayloadGenerator:
         go_code = go_code.replace('{AGENT_CURRENT_FAIL_COUNT_FIELD}', agent_current_fail_count_field)
         go_code = go_code.replace('{AGENT_MAX_FAIL_COUNT_FIELD}', agent_max_fail_count_field)
         go_code = go_code.replace('{AGENT_LAST_CONNECTION_ATTEMPT_FIELD}', agent_last_connection_attempt_field)
+        go_code = go_code.replace('{AGENT_IN_FAILOVER_ATTEMPT_FIELD}', agent_in_failover_attempt_field)
 
         # Extract kill_date and working_hours from profile_config
         kill_date = profile_config.get('kill_date', '2025-12-31T23:59:59Z')

