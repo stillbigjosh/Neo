@@ -17,13 +17,12 @@
 ## To be implemented
 1. Reduce Agent ID / Task ID length to 8 characters
 2. Built-in modules for network reconnaissance and internal enumeration
-3. Multi-server deployment with synchronized state across instances with automatic failover
-4. Agent Traffic-shaping 
-5. Proxying and support for various pivoting protocols
-6. Memory obfuscation and encryption for agent payloads
-7. Support for multiple communication protocols (DNS, ICMP, SSH)
-8. File browser
-9. Support for domain fronting
+3. Enhanced Agent Traffic-shaping 
+4. Built-in Socks Proxying and support for various pivoting protocols
+5. Memory obfuscation and encryption for agent payloads
+6. Support for multiple communication protocols (DNS, ICMP, SSH)
+7. File browser
+8. Support for domain fronting
 
 
 
