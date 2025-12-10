@@ -28,12 +28,17 @@ _A modular server-client architecture post-exploitation framework built for coll
 - Multiple authentication layers (sessions, tokens, roles)
 - Input validation and command injection prevention
 - Configurable HTTP/S endpoint URLs to evade detection
+- Role-Based Access Control
 
 ### Multiplayer Features
 - Real-time collaboration between operators
 - Agent presence tracking
 - Interactive session locking
 - User presence and status management
+
+### Miscellaneous
+- In-memory PE file inejction and execution
+- Shellcode injection
 
 ## Installation:
 NeoC2 works well on Kali Linux. See the [Installations](https://neoc2.readthedocs.io/en/latest/Installation/) docs for instructions. 
