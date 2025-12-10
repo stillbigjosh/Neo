@@ -289,6 +289,7 @@ class PayloadGenerator:
         v_current_c2_url = poly.generate_random_name('current_c2_url_')
         v_current_fail_count = poly.generate_random_name('current_fail_count_')
         v_max_fail_count = poly.generate_random_name('max_fail_count_')
+        v_in_failover_attempt = poly.generate_random_name('in_failover_attempt_')
 
         v_coffloader_b64 = poly.generate_random_name('coffloader_b64_')
 
@@ -414,6 +415,7 @@ class PayloadGenerator:
             v_current_c2_url=v_current_c2_url,
             v_current_fail_count=v_current_fail_count,
             v_max_fail_count=v_max_fail_count,
+            v_in_failover_attempt=v_in_failover_attempt,
             v_kill_date=v_kill_date,
             v_working_hours=v_working_hours,
             kill_date=kill_date,
