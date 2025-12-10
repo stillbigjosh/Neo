@@ -29,15 +29,15 @@ FRAMEWORK:
   back	      - Exit interactive mode
   
 OPERATIONS:
-  tty_shell   - Start tty shell
-  evasion     - AMSI/ETW bypass 
+  coff-loader - Execute bofs on agent session
+  download    - Download files from agents/C2 server
+  evasion     - AMSI/ETW bypass
   pinject     - Injects shellcode into notepad.exe & explorer.exe
   peinject    - Injects PE files by Process Hollowing
-  upload      - Upload files to agents
-  download    - Download files from agents/C2 server
-  coff-loader - Execute bofs on agent session
   sleep       - Change agent sleep interval
-  
+  tty_shell   - Start tty shell
+  upload      - Upload files to agents
+
 NOTES:
   • Parameters in < > are required
   • Parameters in [ ] are optional
