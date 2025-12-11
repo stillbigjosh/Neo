@@ -19,10 +19,9 @@
 2. Built-in modules for network reconnaissance and internal enumeration
 3. Enhanced Agent Traffic-shaping 
 4. Built-in Socks Proxying and support for various pivoting protocols
-5. Memory obfuscation and encryption for agent payloads
-6. Support for multiple communication protocols (DNS, ICMP, SSH)
-7. File browser
-8. Support for domain fronting
-
+5. Support for multiple communication protocols (DNS, ICMP, SSH)
+6. File browser
+7. Support for domain fronting
+8. In-memory .NET execution
 
 
