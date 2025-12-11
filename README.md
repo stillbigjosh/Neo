@@ -22,7 +22,7 @@ _A modular server-client architecture post-exploitation framework built for coll
 
 ### Security Features
 - HTTPS is the primary C2 channel. Listeners exposes configurable REST-style endpoints. All TCP + TLS is handled by the web/listener stack
-- Payloads are pre-registered with agent ID and embedded unique encryption key. The framework validates the secret key and enforces encrypted communication using its own Fernet layer over HTTPS.
+- Implants are pre-registered with agent ID and per-agent symmetric keys (AES-128-CBC + HMAC-SHA256). The framework validates the secret key and enforces encrypted communication using Fernet layer over HTTPS.
 - All tasking and results JSON bodies are Fernet-encrypted per agent
 - Multiple authentication layers (sessions, tokens, roles)
 - Input validation and command injection prevention
