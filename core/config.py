@@ -23,9 +23,10 @@ class NeoC2Config:
             },
             "web": {
                 "enabled": True,
-                "port": int(os.environ.get('MULTI', 7443)),  # Use MULTI env var for web interface port, default to 7443
-                "host": os.environ.get('IP', '0.0.0.0'),  # Use IP environment variable or default
-                "secret_key": "change_me_in_production"
+                "port": int(os.environ.get('MULTI', 7443)),
+                "host": os.environ.get('IP', '0.0.0.0'),
+                "secret_key": "change_me_in_production",
+                "internal_api_token": "secret_internal_token_change_me"
             },
             "cli": {
                 "history_file": "~/.neoc2_history",

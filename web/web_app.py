@@ -287,6 +287,24 @@ class NeoC2Web:
         
         @self.app.route('/api/info')
         def api_info():
+            auth_header = request.headers.get('Authorization')
+            expected_token = self.config.get('web.internal_api_token')
+
+            if expected_token:
+                if auth_header and auth_header.startswith('Bearer '):
+                    token = auth_header.split(' ')[1]
+                    if token == expected_token:
+                        pass
+                    else:
+                        return jsonify({"error": "Unauthorized"}), 403
+                elif request.remote_addr in ['127.0.0.1', '::1']:
+                    pass
+                else:
+                    return jsonify({"error": "Unauthorized"}), 403
+            else:
+                if request.remote_addr not in ['127.0.0.1', '::1']:
+                    return jsonify({"error": "Unauthorized"}), 403
+
             return jsonify({
                 "name": "NeoC2",
                 "version": "1.0.0",
@@ -300,11 +318,29 @@ class NeoC2Web:
         
         @self.app.route('/api/profiles/<profile_name>')
         def api_get_profile(profile_name):
+            auth_header = request.headers.get('Authorization')
+            expected_token = self.config.get('web.internal_api_token')
+
+            if expected_token:
+                if auth_header and auth_header.startswith('Bearer '):
+                    token = auth_header.split(' ')[1]
+                    if token == expected_token:
+                        pass
+                    else:
+                        return jsonify({"error": "Unauthorized"}), 403
+                elif request.remote_addr in ['127.0.0.1', '::1']:
+                    pass
+                else:
+                    return jsonify({"error": "Unauthorized"}), 403
+            else:
+                if request.remote_addr not in ['127.0.0.1', '::1']:
+                    return jsonify({"error": "Unauthorized"}), 403
+
             try:
                 profile = self.db.get_profile_by_name(profile_name)
                 if not profile:
                     return jsonify({"error": "Profile not found"}), 404
-                
+
                 return jsonify({
                     "id": profile['id'],
                     "name": profile['name'],

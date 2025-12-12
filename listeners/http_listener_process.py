@@ -57,7 +57,8 @@ class HTTPListenerProcess:
                 'port': self.port,
                 'profile_name': self.profile_name,
                 'use_https': self.use_https,
-                'web_interface_url': f"{ssl_protocol}://{self.config.get('web.host', '127.0.0.1')}:{self.config.get('web.port', 443)}"
+                'web_interface_url': f"{ssl_protocol}://{self.config.get('web.host', '127.0.0.1')}:{self.config.get('web.port', 443)}",
+                'web_interface_token': self.config.get('web.internal_api_token', '')
             }
             
             config_path = f"/tmp/neoc2_http_listener_{self.id}_config.json"
