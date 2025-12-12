@@ -54,16 +54,21 @@ Blog PART 3: Bypassing Windows 11 Defender with NeoC2 & MSFVenom [https://stillb
 
 
 ### Contributions
-This project is accepting contributions and under active development. You can submit a pull request or reach out to @stillbigjosh or Join discussions https://github.com/stillbigjosh/Neo/discussions
+This project is accepting contributions and under active development. You can submit a pull request or Join discussions https://github.com/stillbigjosh/Neo/discussions
 
 ### Disclaimer
 Users are responsible for ensuring their use of this framework complies with laws, regulations, and corporate policies. The author cannot be held responsible for any malicious utilizations. The Software is intended exclusively for authorised penetration testers and security researchers who have obtained authorisation from the owner of each target system.
 By downloading this software you are accepting the terms of use and the licensing agreement.
-
 
 ### Acknowledgments, Contributors & Involuntary Contributors
 - [@TrustedSec](https://github.com/trustedsec/COFFLoader) For their awesome COFFLoader and BOF collections 
 - [@PowerShellMafia](https://github.com/PowerShellMafia/PowerSploit) For their repository of powershell modules to practice the extendibility of the C2
 
 
+## Support
+
+- **Bug Reports**: [Open an Issue](https://github.com/stillbigjosh/Neo/issues)
+- **Feature Requests**: [Discussions](https://github.com/stillbigjosh/Neo/discussions)
+- **Security Issues**: Contact @stillbigjosh privately 
+  
 _This Project is created and maintained by_ [@stillbigjosh](https://github.com/stillbigjosh)    
