@@ -691,37 +691,6 @@ def handle_disguised_results_analytics():
         return jsonify({"status": "error", "message": "Agent ID required"}), 400
     return handle_agent_results_common(agent_id)
 
-@bp.route('/api/debug/endpoints', methods=['GET'])
-def debug_endpoints():
-    if not endpoint_discovery:
-        return jsonify({"error": "Endpoint discovery not initialized"}), 500
-    
-    all_routes = []
-    for rule in current_app.url_map.iter_rules():
-        if any(path in rule.rule for path in ['/api/agent', '/api/v1', '/api/users']):
-            all_routes.append({
-                'endpoint': rule.rule,
-                'methods': list(rule.methods),
-                'handler': rule.endpoint
-            })
-    
-    return jsonify({
-        'auto_discovered_endpoints': endpoint_discovery.get_known_endpoints(),
-        'all_agent_routes': all_routes
-    })
-
-
-@bp.route('/api/debug/auto-discovery', methods=['GET'])
-def debug_auto_discovery():
-    if not endpoint_discovery:
-        return jsonify({"status": "error", "message": "Auto-discovery not initialized"})
-    
-    return jsonify({
-        "status": "running",
-        "scan_interval": endpoint_discovery.scan_interval,
-        "registered_endpoints": endpoint_discovery.get_known_endpoints(),
-        "total_endpoints": len(endpoint_discovery.known_endpoints)
-    })
 
 
 
