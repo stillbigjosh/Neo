@@ -4,10 +4,13 @@
 _A modular server-client architecture post-exploitation framework built for collaborative agent management in red team operations and security testing. Enables flexibility by allowing operators to add their own modules._
 
 ### Architecture
-- Flask based web application handles all agent's HTTP/S communications
-- Profile-driven Configuration: Malleable profiles for customizing agent behavior and communication patterns
-- Modular Design: Add your own Extensible modules for post-exploitation tasks via Python wrappers
-- Polymorphic Payloads: Generate unique, obfuscated payloads with Anti-sandbox detection capability
+- Teamserver: Integrates the various managers of the command-and-control
+- Flask based web application handles all agent's HTTP/S communication endpoints
+- Listener stack: Runs as a separate processes from the Flask application, acting as internal redirectors, forwards traffic from agents to the web application
+- Remote Client: Separate from the C2 and can be operated from anywhere, allowing you to connect to the C2 via the Multiplayer co-ordinator
+- Polymorphic Payloads: These are unique, obfuscated implants with Anti-sandbox & Anti-debugger capability
+- Malleable profiles: For customizing agent behavior and communication patterns
+- Extensible modules: For post-exploitation tasks. External custom module are made operationally available via a Python-wrapper
 - SQLite-based storage for persistent data storage
 
 ### Managers
@@ -21,8 +24,8 @@ _A modular server-client architecture post-exploitation framework built for coll
 - Reporting handler to make post-operation report writing easy 
 
 ### Security Features
-- HTTPS is the primary C2 channel. Listeners exposes configurable REST-style endpoints. All TCP + TLS is handled by the web/listener stack
-- Implants are pre-registered with agent ID and per-agent symmetric keys (AES-128-CBC + HMAC-SHA256). The framework validates the secret key and enforces encrypted communication using Fernet layer over HTTPS.
+- HTTPS is the primary C2 channel. 
+- Implants are pre-registered with an ID and per-agent symmetric keys (AES-128-CBC + HMAC-SHA256). The framework validates the secret key and enforces encrypted communication using Fernet layer over HTTPS
 - All tasking and results JSON bodies are Fernet-encrypted per agent
 - Multiple authentication layers (sessions, tokens, roles)
 - Input validation and command injection prevention
