@@ -638,19 +638,17 @@ class PayloadGenerator:
         go_code = go_code.replace('{AGENT_LAST_CONNECTION_ATTEMPT_FIELD}', agent_last_connection_attempt_field)
         go_code = go_code.replace('{AGENT_IN_FAILOVER_ATTEMPT_FIELD}', agent_in_failover_attempt_field)
 
-        # Generate Go representation of profile headers
         # Convert the profile headers dictionary to Go map literal format
         go_headers_parts = []
         for key, value in profile_headers.items():
-            # Escape quotes in header values
             escaped_value = value.replace('"', '\\"')
             go_headers_parts.append(f'"{key}": "{escaped_value}"')
         go_headers_literal = "{" + ", ".join(go_headers_parts) + "}"
 
-        # Replace the hardcoded headers in the struct initialization
+        # Replace the hardcoded headers in the struct initialization to Opsec Safe profile_config header
         go_code = go_code.replace('map[string]string{"User-Agent": "Go C2 Agent"}', f"map[string]string{go_headers_literal}")
 
-        # Extract endpoints from profile_config to replace hardcoded defaults in struct initialization
+        # Extract endpoints from profile_config to replace hardcoded defaults
         endpoints = profile_config.get('endpoints', {})
         register_uri = endpoints.get('register', '/api/users/register')
         tasks_uri = endpoints.get('tasks', '/api/users/{agent_id}/profile')
@@ -683,7 +681,6 @@ class PayloadGenerator:
         go_code = go_code.replace('{WORKING_HOURS_START_HOUR}', str(working_hours.get('start_hour', 9)))
         go_code = go_code.replace('{WORKING_HOURS_END_HOUR}', str(working_hours.get('end_hour', 17)))
         go_code = go_code.replace('{WORKING_HOURS_TIMEZONE}', working_hours.get('timezone', 'UTC'))
-        # Convert the days list to a Go slice literal (remove square brackets and add them back in the template)
         days_list = working_hours.get('days', [1, 2, 3, 4, 5])
         days_str = ', '.join(map(str, days_list))
         go_code = go_code.replace('{WORKING_HOURS_DAYS}', days_str)
@@ -695,7 +692,6 @@ class PayloadGenerator:
 
         # Replace failover URLs placeholder
         if use_failover and failover_urls:
-            # Convert the failover URLs list to a Go array literal
             go_failover_urls = ', '.join([f'"{url}"' for url in failover_urls])
             go_code = go_code.replace('{FAILOVER_URLS}', f'[]string{{{go_failover_urls}}}')
             go_code = go_code.replace('{USE_FAILOVER}', 'true')
