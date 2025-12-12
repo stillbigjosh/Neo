@@ -703,8 +703,6 @@ Each framework and operations command has a autocompletion menu. Use the Tab Key
 
 ```
 curl ip:443/health
-curl ip:443/api/debug/auto-discovery
-curl ip:443/api/debug/endpoints
 ```
 
 ### Useful CLI Commands for Troubleshooting
