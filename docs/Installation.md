@@ -7,7 +7,7 @@
 
 ## How to install
 
-### Prerequisites
+#### Prerequisites
 - Linux Machine
 - Python 3.*
 - Golang 1.*
@@ -21,7 +21,7 @@ git clone https://github.com/stillbigjosh/Neo.git
 nano .env
 ```
 
-### Environment Variables
+#### Environment Variables
 **Using .env file for service installation**
 - Environment variables are read from the `.env` file 
 ```bash
@@ -34,7 +34,7 @@ DEFAULT_PASSWORD=<your pass>      # REQUIRED - no default provided
 
 - THE CREDENTIALS SET VIA THE ENVIRONMENT VARIABLE IS THE INITIAL/DEFAULT ADMINISTRATOR. 
 
-### Service Installation (Recommended for permanent deployment)
+#### Service Installation (Recommended for permanent deployment)
 To run NeoC2 as a background service that starts automatically on boot:
 1. **Install prerequisites and setup**
    ```
@@ -49,8 +49,10 @@ To run NeoC2 as a background service that starts automatically on boot:
    ```
    neoc2 status
    ```
+5. Post-installation, ensure you change the secret_key and internal_api_token values in `/opt/neoc2/config.json`
 
-### Service Management
+
+#### Service Management
 These two global commands: `neoc2` and `neoc2-cli` were made globally available after setup. The former for managing the Neo C2 Server running in background as a service, and the latter for remote-ing as a multiplayer client. 
 ```bash
 # Global command
@@ -65,12 +67,12 @@ neoc2 restart
 neoc2 logs
 ```
 
-### Default Ports
+#### Default Ports
 - Default HTTP/HTTPS Listener: 443
 - The Flask Web Application and Administrative User Management components of the framework runs on Port 7443 
 - The TeamServer's Remote CLI Manager is exposed on Port 8444
 
-### Start CLI 
+#### Start CLI 
 Default user set via environment variable is Administrator. Other multiplayer operators can login via register via the web and have an Administrator approve and assign a role.
 ```bash
 neoc2-cli --server <IP>:8444 --username <> --password <>
@@ -83,7 +85,7 @@ neoc2-cli --server <IP>:8444 --username <> --password <>
 ## Basic workflow
 Building a payload using the listener created from your profile config ensures that your chosen API endpoints are visible to the Endpoint Auto-detection Background service.
 
-1. Using default listener and profile
+1. Using default listener and profile (In real engagement, use custom profile)
 ```
 # Make any required change to the default profile in profiles/default.json
 NeoC2 > profile reload profiles/default.json # OPTIONAL 
@@ -122,4 +124,7 @@ NeoC2 > agent list
 NeoC2 > interact <agent-id>
 ```
 
+
+
+--
 
