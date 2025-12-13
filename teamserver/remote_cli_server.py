@@ -1904,7 +1904,7 @@ AVAILABLE PAYLOAD TYPES:
   • go_agent             - Go agent compiled to Windows executable
 
 OPTIONS:
-  • --obfuscate          - Enable string obfuscation in phantom_hawk // Randomize XOR key in go_agent
+  • --obfuscate          - Enable string obfuscation 
   • --disable-sandbox    - Disable sandbox/antidebugging checks
   • --output <filename>  - Save payload to file (optional)
   • --linux              - Compile payload to Linux binary
