@@ -41,7 +41,8 @@ NeoC2 [INTERACTIVE:abc123] > [upload, download, tty_shell, pinject, peinject, sl
 ```
 
 ### Additional note
-The secret key used for string obfuscation is a simple XOR key with the value 0x42 (66 in decimal). This key is defined in the Go agent template. This key is used in the runtime deobfuscation where each byte of the obfuscated string is XORed with this key to get the original string back. Ensure you use `--obfuscate` during payload generation, it randomizes this key and randomizes obfuscated bytes to make each agent unique.
+The secret key used for string obfuscation is a simple XOR key with the value 0x42 (66 in decimal) at default. This key is defined in the Go agent template. This key is used in the runtime deobfuscation where each byte of the obfuscated string is XORed with this key to get the original string back. 
+However, To override this default key, ensure you use `--obfuscate` during payload generation, it randomizes this key and randomizes obfuscated bytes to make each agent unique.
 
 ## Phantom Hawk Agent 
 
