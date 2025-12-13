@@ -13,7 +13,7 @@ from core.models import NeoC2DB
 from web.web_app import NeoC2Web
 
 from communication.protocol_manager import ProtocolManager
-from armory.module_manager import ModuleManager
+from teamserver.module_manager import ModuleManager
 from teamserver.session_manager import SessionManager
 from teamserver.user_manager import UserManager
 from teamserver.role_manager import RoleManager
@@ -21,7 +21,7 @@ from teamserver.audit_logger import AuditLogger
 from teamserver.listener_manager import ListenerManager
 from teamserver.agent_manager import AgentManager
 
-from armory.task_orchestrator import TaskOrchestrator
+from teamserver.task_orchestrator import TaskOrchestrator
 
 from teamserver.remote_cli_server import RemoteCLIServer
 

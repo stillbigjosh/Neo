@@ -16,8 +16,8 @@ from core.config import NeoC2Config
 from core.models import NeoC2DB
 
 from communication.protocol_manager import ProtocolManager
-from armory.module_manager import ModuleManager
-from armory.task_orchestrator import TaskOrchestrator
+from teamserver.module_manager import ModuleManager
+from teamserver.task_orchestrator import TaskOrchestrator
 
 from teamserver.session_manager import SessionManager
 from teamserver.user_manager import UserManager

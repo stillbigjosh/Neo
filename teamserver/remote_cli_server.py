@@ -17,7 +17,7 @@ import random
 import string
 from core.models import NeoC2DB
 from core.config import NeoC2Config
-from armory.module_manager import ModuleManager
+from teamserver.module_manager import ModuleManager
 from teamserver.listener_manager import ListenerManager
 from teamserver.agent_manager import AgentManager
 from teamserver import help
@@ -2462,7 +2462,7 @@ EXAMPLES:
 
         try:
             if not hasattr(self, '_task_orchestrator'):
-                from armory.task_orchestrator import TaskOrchestrator
+                from teamserver.task_orchestrator import TaskOrchestrator
                 self._task_orchestrator = TaskOrchestrator(
                     self.module_manager,
                     self.agent_manager,
