@@ -752,7 +752,7 @@ class PayloadGenerator:
 
                 result = subprocess.run([
                     'go', 'build',
-                    '-ldflags', '-s -w',  # Strip symbols but keep console visible for debugging
+                    '-ldflags', '-s -w',
                     '-o', output_filename,
                     '.'
                 ], env=env, capture_output=True, text=True, cwd=temp_dir)
@@ -769,4 +769,4 @@ class PayloadGenerator:
             except subprocess.CalledProcessError as e:
                 raise Exception(f"Failed to compile Go agent: {str(e)}")
             except FileNotFoundError:
-                raise Exception("Go compiler not found. Please install Go and ensure 'go' command is in PATH.")
+                raise Exception("Go compiler not found. Please install Go and ensure 'go' command is in PATH.") # See documentation
