@@ -40,6 +40,8 @@ NeoC2 > payload go_agent <listener_name> [--disable-sandbox] [--windows] [--redi
 NeoC2 [INTERACTIVE:abc123] > [upload, download, tty_shell, pinject, peinject, sleep, kill, interact, run]
 ```
 
+### Additional note
+The secret key used for string obfuscation is a simple XOR key with the value 0x42 (66 in decimal). This key is defined in the Go agent template. This key is used in the runtime deobfuscation where each byte of the obfuscated string is XORed with this key to get the original string back. Ensure you use `--obfuscate` during payload generation, it randomizes this key and randomizes obfuscated bytes to make each agent unique.
 
 ## Phantom Hawk Agent 
 
