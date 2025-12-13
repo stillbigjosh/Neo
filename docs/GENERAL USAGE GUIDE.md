@@ -212,7 +212,7 @@ See Agents & Stager Guide (on the sidebar) for complete agent type breakdown and
 
 ## Payload Staging
 
-NeoC2 supports staging payloads directly through the `payload_upload` base-command of the remote client server, allowing operators to deploy binary executables like .exe, .dll, or other file types in addition to Python scripts.
+NeoC2 supports staging payloads directly through the `payload_upload` base-command of the remote client server, allowing operators to deploy binary executables like .exe, .dll, or other file types in addition to Python scripts. The payload to be staged must be present on the command-and-control-sever and its path provided for staging.
 
 ### Capabilities
 - **Multi-Format Support**: Upload EXE, DLL, PY, JS, VBS, BAT, PS1, and other binary/script files
@@ -401,9 +401,9 @@ NeoC2 provides enhanced file operations with automatic handling of encoded conte
 ### File Download 
 - Files are automatically base64-encoded during transfer 
    `download <remote_path>` - queues download task for the agent
-- CLI automatically detects and decodes base64 content for storage
-- Files saved to loot directory with timestamps and sanitized names
-- Download an agent executable or script from C2 Server to your local remote_client machine.
+- The command-and-control automatically detects and decodes base64 content for storage on C2's machine
+- Downloaded Files saved to loot directory with timestamps and sanitized names
+- Remote clients can also `download <logs_path_on_c2>` an agent executable or script from C2 Server to your local remote_client machine mid-operation.
 
 ### File Upload 
 - Local files are base64-encoded before transmission to agent
