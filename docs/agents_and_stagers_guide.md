@@ -29,7 +29,7 @@ The Go Agent is a second stage exe compiled, multi-functional agent with feature
 - **Process Hollowing**: PE files injection into svchost.exe with peinject
 - **Redirector Support**: Allows operators to define and manage external infrastructure that points to the internal listeners
 - **Failover deployment**: Embeds failover C2 servers
-- **String Obfuscation**: Obfuscates DLL imports and Windows API functions to evade static analysis and signature-based detection, which typically inspect the Import Address Table (IAT). At runtime, a XOR deobfuscation routine is used to reconstruct the correct names.
+- **XOR string encryption**: Encrypts DLL imports and Windows API functions strings to evade static analysis and signature-based detection, which typically inspect the Import Address Table (IAT). At runtime, a XOR decryption routine is used to reconstruct the correct names.
 
 ### Limitations
 - Larger payload size due to comprehensive feature set
@@ -41,7 +41,7 @@ NeoC2 [INTERACTIVE:abc123] > [upload, download, tty_shell, pinject, peinject, sl
 ```
 
 ### Additional note
-The secret key used for string obfuscation is a simple XOR key with the value 0x42 (66 in decimal) at default. This key is defined in the Go agent template. This key is used in the runtime deobfuscation where each byte of the obfuscated string is XORed with this key to get the original string back. 
+The secret key used for string encrytion is a simple XOR key with the value 0x42 (66 in decimal) at default. This key is defined in the Go agent template. This key is used in the runtime deobfuscation where each byte of the obfuscated string is XORed with this key to get the original string back. 
 However, To override this default key, ensure you use `--obfuscate` during payload generation, it randomizes this key and randomizes obfuscated bytes to make each agent unique.
 
 ## Phantom Hawk Agent 
