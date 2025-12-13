@@ -1904,7 +1904,7 @@ AVAILABLE PAYLOAD TYPES:
   • go_agent             - Go agent compiled to Windows executable
 
 OPTIONS:
-  • --obfuscate          - Enable payload obfuscation
+  • --obfuscate          - Enable string obfuscation in phantom_hawk // Randomize XOR key in go_agent
   • --disable-sandbox    - Disable sandbox/antidebugging checks
   • --output <filename>  - Save payload to file (optional)
   • --linux              - Compile payload to Linux binary
@@ -1913,8 +1913,8 @@ OPTIONS:
   • --use-failover       - Embed failover C2 URLs from profile into agent
 
 EXAMPLES:
-  • payload phantom_hawk_agent <listener_id> [--obfuscate] [--disable-sandbox] [--linux] [--redirector] [--use-failover]
-  • payload go_agent <listener_name> [--disable-sandbox] [--windows] [--redirector] [--use-failover]
+  • payload phantom_hawk_agent <listener_name> [--obfuscate] [--disable-sandbox] [--linux] [--redirector] [--use-failover]
+  • payload go_agent <listener_name> [--obfuscate] [--disable-sandbox] [--windows] [--redirector] [--use-failover]
             """, 'info'
 
         payload_type = command_parts[1].lower()
