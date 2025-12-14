@@ -1,5 +1,5 @@
 # The NeoC2 Framework 
-<a href="https://github.com/stillbigjosh/Neo"><img alt="Release" src="https://img.shields.io/badge/release-1.3.1-blue.svg"/></a> <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/License-GPL-green.svg"/></a> <a href=""><img alt="Platform" src="https://img.shields.io/badge/platform-Linux-lightgrey.svg"/></a> 
+<a href="https://github.com/stillbigjosh/Neo"><img alt="Release" src="https://img.shields.io/badge/release-1.3.2-blue.svg"/></a> <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/License-GPL-green.svg"/></a> <a href=""><img alt="Platform" src="https://img.shields.io/badge/platform-Linux-lightgrey.svg"/></a> 
 
 _A modular server-client architecture post-exploitation framework built for collaborative agent management in red team operations and security testing. Enables flexibility by allowing operators to add their own modules._
 
@@ -38,6 +38,7 @@ _A modular server-client architecture post-exploitation framework built for coll
 - User presence and status management
 
 ### Miscellaneous Features
+- In-memory BOF execution
 - In-memory PE file injection and execution
 - Shellcode injection
 - C2 Redirector support

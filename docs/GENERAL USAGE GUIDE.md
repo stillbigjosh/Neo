@@ -12,6 +12,7 @@
 - [Evasion Techniques](#evasion-techniques)
 - [File Operations](#file-operations)
 - [Task Chaining](#task-chaining-web-ui-only)
+- [Inline-Execute](#inline-execute)
 - [PInject](#pinject)
 - [PEInject](#peinject)
 - [Persistence](#persistence)
@@ -505,12 +506,38 @@ NeoC2 provides advanced task chaining capabilities, allowing operators to create
    - Service installation
    - File system persistence
 
+
+## Inline-Execute
+
+This implementation enables pure in-memory execution of Beacon Object Files (BOFs) without any disk writes or PowerShell usage. The solution leverages the goffloader library to execute BOFs directly in the agent's memory space.
+
+#### Compatibility
+- Go_agent
+- Windows x64 
+
+#### Usage
+1. Place BOFs in modules/external/bof/ of the C2 Server
+2. Use the module with a BOF path
+3. The agent will in-memory execute the BOF using its COFFloader library
+4. BOF results are captured and sent back through C2 channel to operator
+5. No files written to disk at any stage; complete execution in agent's memory space
+
+### Command syntax
+Execute BOFs using the inline-execute command:
+
+```
+# # In interactive mode, the agent ID is automatically inferred:
+inline-execute <path_to_bof_file> [arguments]
+```
+
+
 ## PInject
 
 In-memory shellcode injection into a remote process
 
 #### Compatibility
 - Go_agent 
+- Windows x64
 
 #### Usage
 1. Generate compatible shellcode using msfvenom
@@ -555,6 +582,7 @@ Inject an unmanaged PE(Portable Executable) using Process Hollowing into a remot
 
 #### Compatibility
 - Go_agent 
+- Windows x64
 
 #### Usage
 1. Generate compatible PE payload using msfvenom

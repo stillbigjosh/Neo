@@ -30,6 +30,7 @@ The Go Agent is a second stage exe compiled, multi-functional agent with feature
 - **Redirector Support**: Allows operators to define and manage external infrastructure that points to the internal listeners
 - **Failover deployment**: Embeds failover C2 servers
 - **XOR string encryption**: Encrypts DLL imports and Windows API functions strings to evade static analysis and signature-based detection, which typically inspect the Import Address Table (IAT). At runtime, a XOR decryption routine is used to reconstruct the correct names.
+- **BOF Execution**: In-memory BOF execution with no disk writes
 
 ### Limitations
 - Larger payload size due to comprehensive feature set
@@ -37,7 +38,7 @@ The Go Agent is a second stage exe compiled, multi-functional agent with feature
 ### Usage
 ```
 NeoC2 > payload go_agent <listener_name> [--disable-sandbox] [--windows] [--redirector] [--use-failover] [--obfuscate]
-NeoC2 [INTERACTIVE:abc123] > [upload, download, tty_shell, pinject, peinject, sleep, kill, interact, run]
+NeoC2 [INTERACTIVE:abc123] > [upload, download, tty_shell, pinject, peinject, sleep, kill, interact, run, inline-execute]
 ```
 
 ### Additional note
