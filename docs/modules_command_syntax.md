@@ -12,7 +12,7 @@ run <module_name> <agent_id> <option>=<value>
 run <module_name> <option>=<value>
 ```
 
-The module examples given here are placeholders, intended to give the operator an idea on how to run their own extensible modules. Read [docs/modules_command_syntax.md](docs/modules_command_syntax.md) for a guide on How to introduce your own modules into the Framework using a Python-wrapper.
+The module examples given here are placeholders, intended to give the operator an idea on how to run their own extensible modules. Read [modules command syntax.md](docs/modules_command_syntax.md) for a guide on How to introduce your own modules into the Framework using a Python-wrapper.
 
 Run `modules list` for a list of both external and built-in modules that might and might not be covered by this guide and pull their usage info with `modules info <name>`
 
