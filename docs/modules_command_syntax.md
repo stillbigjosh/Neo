@@ -12,82 +12,11 @@ run <module_name> <agent_id> <option>=<value>
 run <module_name> <option>=<value>
 ```
 
+The module examples given here are placeholders, intended to give the operator an idea on how to run their own extensible modules. Read [docs/modules_command_syntax.md](docs/modules_command_syntax.md) for a guide on How to introduce your own modules into the Framework using a Python-wrapper.
+
+Run `modules list` for a list of both external and built-in modules that might and might not be covered by this guide and pull their usage info with `modules info <name>`
+
 ## Examples
-
-Most modules will not be covered by this documentation as this was intended to give the operator an idea on how to run their own extensible modules.
-
-Use `modules list` for a list of both external and built-in modules that might and might not be covered by this guide and pull their usage info with `modules info <name>`
-
-### PowerView Module
-
-The `PowerView` (external module with a Python-wrapper) executes a PowerShell PowerView script for network enumeration and domain assessment. PowerView contains numerous functions for Active Directory reconnaissance and mapping trust relationships within a domain environment.
-
-#### Required Options:
-- `agent_id`: ID of the agent to run PowerView enumeration on
-
-#### Optional Options:
-- `function`: The PowerView function to execute (default: "Get-Domain"). Available functions include many for domain enumeration: Get-Domain, Get-DomainController, Get-DomainUser, Get-DomainGroup, Get-DomainComputer, Get-DomainGPO, Get-DomainOU, Get-DomainSite, Get-DomainSubnet, Get-DomainTrust, Get-Forest, Get-ForestDomain, Get-ForestGlobalCatalog, Find-DomainUserLocation, Find-DomainGroupMember, Find-DomainShare, Find-LocalAdminAccess, Get-NetSession, Get-NetLoggedon, Invoke-UserHunter, Invoke-ProcessHunter, Invoke-EventHunter, Invoke-ShareFinder, Invoke-FileFinder, Get-DNSServerZone, Get-DomainDNSRecord, Get-NetForestTrust, Get-ADObject, Get-NetGroupMember, Get-NetUser, Get-NetComputer, Get-NetDomainController, Get-NetGPO, Get-NetGPOGroup, Get-DFSshare, Get-NetShare, Get-NetLocalGroupMember, Find-ComputerField, Find-UserField, Get-NetDomainTrust, Get-NetForestTrust, Find-GPOLocation, Get-DomainPolicyData, Get-DomainUserEvent, Get-DomainProcess, Get-DomainUserPermission, Find-ManagedSecurityGroups, Get-DomainTrustMapping, Get-NetDomain
-- `arguments`: Additional arguments to pass to the PowerView function (optional)
-
-#### Examples:
-
-**Basic PowerView Domain Information:**
-```
-run PowerView agent_id=abc123-4567-8901-2345-67890abcdef1
-```
-
-**PowerView with Specific Function:**
-```
-run PowerView agent_id=abc123-4567-8901-2345-67890abcdef1 function=Get-DomainUser
-```
-
-**PowerView with Arguments:**
-```
-run PowerView agent_id=abc123-4567-8901-2345-67890abcdef1 function=Get-DomainComputer arguments="-Properties OperatingSystem,LastLogonDate"
-```
-
-**PowerView with User Location:**
-```
-run PowerView agent_id=abc123-4567-8901-2345-67890abcdef1 function=Find-DomainUserLocation
-```
-
-
-### Invoke-Portscan Module
-
-The `Invoke-Portscan` (external module with a Python-wrapper) executes a PowerShell script to perform network port scanning. This is commonly used for enumerating open ports and services on target systems.
-
-#### Required Options:
-- `agent_id`: ID of the agent to run Invoke-Portscan on
-- `computer_name`: Target computer name or IP address to scan (supports multiple targets separated by commas)
-- `port`: Port or port range to scan (e.g., 80, 1-1000, 22,80,443)
-
-#### Optional Options:
-- `ports`: Alternative parameter for specifying ports (for compatibility)
-- `timeout`: Timeout in milliseconds for each connection attempt (default: 1000)
-- `ping`: Perform ping sweep before port scanning (true/false) (default: false)
-- `all_protocols`: Include all protocols in the scan (true/false) (default: false)
-
-#### Examples:
-
-**Basic Port Scan:**
-```
-run Invoke-Portscan agent_id=abc123-4567-8901-2345-67890abcdef1 computer_name=192.168.1.1 port=1-1000
-```
-
-**Port Scan with Specific Ports:**
-```
-run Invoke-Portscan agent_id=abc123-4567-8901-2345-67890abcdef1 computer_name=192.168.1.10 port=22,80,443
-```
-
-**Port Scan with Ping Sweep:**
-```
-run Invoke-Portscan agent_id=abc123-4567-8901-2345-67890abcdef1 computer_name=192.168.1.0/24 port=80 ping=true
-```
-
-**Port Scan with Custom Timeout and All Protocols:**
-```
-run Invoke-Portscan agent_id=abc123-4567-8901-2345-67890abcdef1 computer_name=10.0.0.1 port=1-100 timeout=2000 all_protocols=true
-```
 
 ### Get-ComputerDetail Module
 
@@ -122,72 +51,6 @@ run Get-ComputerDetail agent_id=abc123-4567-8901-2345-67890abcdef1 computer_name
 ```
 run Get-ComputerDetail agent_id=abc123-4567-8901-2345-67890abcdef1 computer_name=192.168.1.10 credentialed_access=DOMAIN\\admin:password123 property=HardwareInfo
 ```
-
-### Bypass-UAC Module
-
-The `Bypass-UAC` (external module with a Python-wrapper) executes a PowerShell UAC bypass technique using various methods to escape medium integrity level and gain elevated privileges. This module leverages multiple UAC bypass techniques from PowerSploit.
-
-#### Required Options:
-- `agent_id`: ID of the agent to run Bypass-UAC on
-- `method`: The UAC bypass method to execute (UacMethodSysprep, ucmDismMethod, UacMethodMMC2, UacMethodTcmsetup, UacMethodNetOle32)
-
-#### Optional Options:
-- `custom_dll`: Absolute path to custom proxy DLL for the bypass (optional)
-
-#### Examples:
-
-**Basic Bypass-UAC with default method:**
-```
-run Bypass-UAC agent_id=abc123-4567-8901-2345-67890abcdef1 method=UacMethodTcmsetup
-```
-
-**Bypass-UAC with Sysprep method:**
-```
-run Bypass-UAC agent_id=abc123-4567-8901-2345-67890abcdef1 method=UacMethodSysprep
-```
-
-**Bypass-UAC with DISM method:**
-```
-run Bypass-UAC agent_id=abc123-4567-8901-2345-67890abcdef1 method=ucmDismMethod
-```
-### HostEnum Module
-
-The `HostEnum` (external module with a Python-wrapper) executes a PowerShell comprehensive host enumeration and situational awareness script. It performs local host and/or domain enumeration to gather system information, installed applications, network configuration, processes, services, registry entries, users, groups, security products, and more.
-
-#### Required Options:
-- `agent_id`: ID of the agent to run HostEnum on
-
-#### Optional Options:
-- `switch`: The HostEnum switch to execute (All, Local, Domain, Privesc, Quick) (default: "Local")
-- `html_report`: Generate an HTML report (true/false) (default: "false")
-
-#### Examples:
-
-**Basic HostEnum with Local switch:**
-```
-run HostEnum agent_id=abc123-4567-8901-2345-67890abcdef1 switch=Local
-```
-
-**HostEnum with Domain enumeration:**
-```
-run HostEnum agent_id=abc123-4567-8901-2345-67890abcdef1 switch=Domain
-```
-
-**HostEnum with Privesc enumeration:**
-```
-run HostEnum agent_id=abc123-4567-8901-2345-67890abcdef1 switch=Privesc
-```
-
-**HostEnum with both Local and Domain:**
-```
-run HostEnum agent_id=abc123-4567-8901-2345-67890abcdef1 switch=All
-```
-
-**HostEnum with HTML Report:**
-```
-run HostEnum agent_id=abc123-4567-8901-2345-67890abcdef1 switch=Local html_report=true
-```
-
 
 
 ## Notes
