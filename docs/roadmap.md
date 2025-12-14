@@ -10,8 +10,8 @@
 - [x] Failover server deployment support
 
 ## Actively Under development
-- [ ] Enhanced and Opsec safe P2P Agent comm
 - [ ] Agent-register alerting system via the multiplayer agent manager to the remote_cli.py
+- [ ] In-memory .NET execution
 - [ ] In-memory COFF/BOF Loader
 
 ## To be implemented
@@ -22,11 +22,12 @@
 - [ ] Support for multiple communication protocols (DNS, ICMP, SSH)
 - [ ] File browser
 - [ ] Support for domain fronting
-- [ ] In-memory .NET execution
 - [ ] Enhanced lateral movement techniques
 - [ ] URI endpoint rotation in malleable profiles
 - [ ] Runtime obfuscation
 - [ ] Stealth communication channels
+- [ ] Enhanced and Opsec safe P2P Agent comm
+
 
 ## Premium
 Some fatures are intended to be developed as a premium feature. More details on this later on.
