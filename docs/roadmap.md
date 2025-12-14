@@ -21,6 +21,7 @@
 - [ ] Built-in Socks Proxying and support for various pivoting protocols
 - [ ] Support for multiple communication protocols (DNS, ICMP, SSH)
 - [ ] File browser
+- [ ] Large powershell scripts broken down in chunks in-memory to bypass characater limit
 - [ ] Support for domain fronting
 - [ ] Enhanced lateral movement techniques
 - [ ] URI endpoint rotation in malleable profiles
