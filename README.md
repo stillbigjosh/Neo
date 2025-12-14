@@ -37,8 +37,8 @@ _A modular server-client architecture post-exploitation framework built for coll
 - Interactive session locking
 - User presence and status management
 
-### Miscellaneous
-- In-memory PE file inejction and execution
+### Miscellaneous Features
+- In-memory PE file injection and execution
 - Shellcode injection
 - C2 Redirector support
 - Multi-server failover deloyment support
