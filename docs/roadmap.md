@@ -8,11 +8,11 @@
 - [x] C2 Redirector support
 - [x] In-memory execution of Windows PE file
 - [x] Failover server deployment support
+- [x] In-memory COFF/BOF Execution
 
 ## Actively Under development
 - [ ] Agent-register alerting system via the multiplayer agent manager to the remote_cli.py
 - [ ] In-memory .NET execution
-- [ ] In-memory COFF/BOF Loader
 
 ## To be implemented
 - [ ] Reduce Agent ID / Task ID length to 8 characters
