@@ -456,93 +456,107 @@ func executeCommandHidden(command string) (string, error) {
 	defer syscall.CloseHandle(syscall.Handle(pi.Process))
 	defer syscall.CloseHandle(syscall.Handle(pi.Thread))
 
+	// Set up channels to read stdout and stderr concurrently to prevent pipe buffer overflow
+	stdoutChan := make(chan []byte)
+	stderrChan := make(chan []byte)
+
+	// Read stdout concurrently
+	go func() {
+		var stdoutBytes []byte
+		var buffer [4096]byte
+		var bytesRead uint32
+		totalRead := 0
+		const maxSize = 1024 * 1024 // 1MB limit - same as non-Windows version
+
+		for {
+			// Check if we've reached the size limit
+			if totalRead >= maxSize {
+				stdoutBytes = append(stdoutBytes, []byte("\n[OUTPUT TRUNCATED: Max size reached]")...)
+				break
+			}
+
+			ret, _, _ := procReadFile.Call(
+				stdoutRead,
+				uintptr(unsafe.Pointer(&buffer[0])),
+				uintptr(len(buffer)),
+				uintptr(unsafe.Pointer(&bytesRead)),
+				0,
+			)
+
+			// Only continue if we successfully read data and haven't exceeded size
+			if ret == 0 || bytesRead == 0 {
+				break
+			}
+
+			// Check if adding this chunk would exceed our size limit
+			if totalRead + int(bytesRead) > maxSize {
+				// Only add what fits within our limit
+				remaining := maxSize - totalRead
+				stdoutBytes = append(stdoutBytes, buffer[:remaining]...)
+				stdoutBytes = append(stdoutBytes, []byte("\n[OUTPUT TRUNCATED: Max size reached]")...)
+				break
+			}
+
+			stdoutBytes = append(stdoutBytes, buffer[:bytesRead]...)
+			totalRead += int(bytesRead)
+		}
+		stdoutChan <- stdoutBytes
+	}()
+
+	// Read stderr concurrently
+	go func() {
+		var stderrBytes []byte
+		var buffer [4096]byte
+		var bytesRead uint32
+		totalRead := 0
+		const maxSize = 1024 * 1024 // 1MB limit - same as non-Windows version
+
+		for {
+			// Check if we've reached the size limit
+			if totalRead >= maxSize {
+				stderrBytes = append(stderrBytes, []byte("\n[OUTPUT TRUNCATED: Max size reached]")...)
+				break
+			}
+
+			ret, _, _ := procReadFile.Call(
+				stderrRead,
+				uintptr(unsafe.Pointer(&buffer[0])),
+				uintptr(len(buffer)),
+				uintptr(unsafe.Pointer(&bytesRead)),
+				0,
+			)
+
+			// Only continue if we successfully read data and haven't exceeded size
+			if ret == 0 || bytesRead == 0 {
+				break
+			}
+
+			// Check if adding this chunk would exceed our size limit
+			if totalRead + int(bytesRead) > maxSize {
+				// Only add what fits within our limit
+				remaining := maxSize - totalRead
+				stderrBytes = append(stderrBytes, buffer[:remaining]...)
+				stderrBytes = append(stderrBytes, []byte("\n[OUTPUT TRUNCATED: Max size reached]")...)
+				break
+			}
+
+			stderrBytes = append(stderrBytes, buffer[:bytesRead]...)
+			totalRead += int(bytesRead)
+		}
+		stderrChan <- stderrBytes
+	}()
+
 	// Wait for the process to complete with a timeout to prevent hanging
-	result, err := syscall.WaitForSingleObject(syscall.Handle(pi.Process), 30000) // 30 second timeout
+	result, err := syscall.WaitForSingleObject(syscall.Handle(pi.Process), 60000) // 60 second timeout
 	if err != nil || result == syscall.WAIT_TIMEOUT {
 		// If timeout occurs, try to terminate the process gracefully
 		syscall.TerminateProcess(syscall.Handle(pi.Process), 255)
-		return fmt.Sprintf("[ERROR] Command execution timed out after 30 seconds"), nil
+		return fmt.Sprintf("[ERROR] Command execution timed out after 60 seconds"), nil
 	}
 
-	// Initialize buffers to read output
-	var stdoutBytes []byte
-	var stderrBytes []byte
-	var buffer [4096]byte
-	var bytesRead uint32
-
-	// Read from stdout pipe with a size limit to prevent excessive memory usage
-	const maxSize = 1024 * 1024 // 1MB limit - adjust as needed
-	totalRead := 0
-
-	for {
-		// Check if we've reached the size limit
-		if totalRead >= maxSize {
-			stdoutBytes = append(stdoutBytes, []byte("\n[OUTPUT TRUNCATED: Max size reached]")...)
-			break
-		}
-
-		ret, _, _ := procReadFile.Call(
-			stdoutRead,
-			uintptr(unsafe.Pointer(&buffer[0])),
-			uintptr(len(buffer)),
-			uintptr(unsafe.Pointer(&bytesRead)),
-			0,
-		)
-
-		// Only continue if we successfully read data and haven't exceeded size
-		if ret == 0 || bytesRead == 0 {
-			break
-		}
-
-		// Check if adding this chunk would exceed our size limit
-		if totalRead + int(bytesRead) > maxSize {
-			// Only add what fits within our limit
-			remaining := maxSize - totalRead
-			stdoutBytes = append(stdoutBytes, buffer[:remaining]...)
-			stdoutBytes = append(stdoutBytes, []byte("\n[OUTPUT TRUNCATED: Max size reached]")...)
-			break
-		}
-
-		stdoutBytes = append(stdoutBytes, buffer[:bytesRead]...)
-		totalRead += int(bytesRead)
-	}
-
-	// Reset counter for stderr
-	totalRead = 0
-
-	// Read from stderr pipe with a size limit
-	for {
-		// Check if we've reached the size limit
-		if totalRead >= maxSize {
-			stderrBytes = append(stderrBytes, []byte("\n[OUTPUT TRUNCATED: Max size reached]")...)
-			break
-		}
-
-		ret, _, _ := procReadFile.Call(
-			stderrRead,
-			uintptr(unsafe.Pointer(&buffer[0])),
-			uintptr(len(buffer)),
-			uintptr(unsafe.Pointer(&bytesRead)),
-			0,
-		)
-
-		// Only continue if we successfully read data and haven't exceeded size
-		if ret == 0 || bytesRead == 0 {
-			break
-		}
-
-		// Check if adding this chunk would exceed our size limit
-		if totalRead + int(bytesRead) > maxSize {
-			// Only add what fits within our limit
-			remaining := maxSize - totalRead
-			stderrBytes = append(stderrBytes, buffer[:remaining]...)
-			stderrBytes = append(stderrBytes, []byte("\n[OUTPUT TRUNCATED: Max size reached]")...)
-			break
-		}
-
-		stderrBytes = append(stderrBytes, buffer[:bytesRead]...)
-		totalRead += int(bytesRead)
-	}
+	// Get the output from both channels
+	stdoutBytes := <-stdoutChan
+	stderrBytes := <-stderrChan
 
 	// Close the read handles
 	syscall.CloseHandle(syscall.Handle(stdoutRead))
@@ -1188,11 +1202,11 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_EXECUTE_FUNC}(command string) string {
 		}()
 
 		select {
-		case <-time.After(30 * time.Second): // 30 second timeout
+		case <-time.After(60 * time.Second): // 60 second timeout to match Windows version
 			if cmd.Process != nil {
 				cmd.Process.Kill()
 			}
-			return "[ERROR] Command execution timed out after 30 seconds"
+			return "[ERROR] Command execution timed out after 60 seconds"
 		case err := <-done:
 			if err != nil {
 				return fmt.Sprintf("[ERROR] Command execution failed: %v", err)
