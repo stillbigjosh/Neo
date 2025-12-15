@@ -1,5 +1,5 @@
 # The NeoC2 Framework 
-<a href="https://github.com/stillbigjosh/Neo"><img alt="Release" src="https://img.shields.io/badge/release-1.2.1-blue.svg"/></a> <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/License-GPL-green.svg"/></a> <a href=""><img alt="Platform" src="https://img.shields.io/badge/platform-Linux-lightgrey.svg"/></a> 
+<a href="https://github.com/stillbigjosh/Neo"><img alt="Release" src="https://img.shields.io/badge/release-1.3.2-blue.svg"/></a> <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/License-GPL-green.svg"/></a> <a href=""><img alt="Platform" src="https://img.shields.io/badge/platform-Linux-lightgrey.svg"/></a> 
 
 _A modular server-client architecture post-exploitation framework built for collaborative agent management in red team operations and security testing. Enables flexibility by allowing operators to add their own modules._
 
@@ -37,8 +37,9 @@ _A modular server-client architecture post-exploitation framework built for coll
 - Interactive session locking
 - User presence and status management
 
-### Miscellaneous
-- In-memory PE file inejction and execution
+### Miscellaneous Features
+- In-memory BOF execution
+- In-memory PE file injection and execution
 - Shellcode injection
 - C2 Redirector support
 - Multi-server failover deloyment support
@@ -64,7 +65,8 @@ Users are responsible for ensuring their use of this framework complies with law
 By downloading this software you are accepting the terms of use and the licensing agreement.
 
 ### Acknowledgments, Contributors & Involuntary Contributors
-- [@TrustedSec](https://github.com/trustedsec/COFFLoader) For their awesome COFFLoader and BOF collections 
+- [@TrustedSec](https://github.com/trustedsec/COFFLoader) For their awesome COFFLoader and BOF collections
+- [@Praetorian](https://github.com/praetorian-inc) For making BOF loading functionality possible within the Go ecosystem
 - [@PowerShellMafia](https://github.com/PowerShellMafia/PowerSploit) For their repository of powershell modules to practice the extendibility of the C2
 
 ### Support

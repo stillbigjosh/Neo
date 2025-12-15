@@ -1,3 +1,3 @@
 """
-PowerSploit modules for NeoC2 framework
+PLace your external extensible Modules here for NeoC2 Framework
 """

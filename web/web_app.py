@@ -12,7 +12,7 @@ import threading
 from core.config import NeoC2Config
 from core.models import NeoC2DB
 from communication.protocol_manager import ProtocolManager
-from armory.module_manager import ModuleManager
+from teamserver.module_manager import ModuleManager
 
 
 from core.payload_storage import get_uploaded_payload, set_uploaded_payload, clear_uploaded_payload

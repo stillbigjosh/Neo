@@ -8,11 +8,11 @@
 - [x] C2 Redirector support
 - [x] In-memory execution of Windows PE file
 - [x] Failover server deployment support
+- [x] In-memory COFF/BOF Execution
 
 ## Actively Under development
-- [ ] Enhanced and Opsec safe P2P Agent comm
 - [ ] Agent-register alerting system via the multiplayer agent manager to the remote_cli.py
-- [ ] In-memory COFF/BOF Loader
+- [ ] In-memory .NET execution
 
 ## To be implemented
 - [ ] Reduce Agent ID / Task ID length to 8 characters
@@ -21,7 +21,14 @@
 - [ ] Built-in Socks Proxying and support for various pivoting protocols
 - [ ] Support for multiple communication protocols (DNS, ICMP, SSH)
 - [ ] File browser
+- [ ] Large powershell scripts broken down in chunks in-memory to bypass characater limit
 - [ ] Support for domain fronting
-- [ ] In-memory .NET execution
+- [ ] Enhanced lateral movement techniques
+- [ ] URI endpoint rotation in malleable profiles
+- [ ] Runtime obfuscation
+- [ ] Stealth communication channels
+- [ ] Enhanced and Opsec safe P2P Agent comm
 
 
+## Premium
+Some fatures are intended to be developed as a premium feature. More details on this later on.

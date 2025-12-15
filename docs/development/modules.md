@@ -1,30 +1,43 @@
-# Building Modules for the NeoC2 Framework
+# Modules for the NeoC2 Framework
 
-## Module Structure and Types
+- [General Syntax](#general-syntax)
+- [Module Types](#module-types)
+- [Creating a Basic Module](#creating-a-basic-module)
 
-The NeoC2 framework supports several categories of modules:
-
-1. **External modules**: PowerShell and shell scripts located in the `modules/external/` directory
-2. **Python wrapper modules**: Python files that interface with external scripts
-3. **Native modules**: Pure Python modules that execute directly
-4. **Linux modules**: Shell scripts and Python modules for Linux targets
-
-## Module Directory Structure
+## General Syntax
 
 ```
-modules/
-├── external/                 # External PowerShell/Shell scripts
-│   ├── bof/                 # Beacon Object Files
-│   ├── scripts/             # Additional scripts
-│   └── *.ps1                # PowerShell scripts
-├── linux/                   # Linux-specific scripts
-├── __init__.py              # Module package initialization
-├── *.py                     # Python module files
+modules list                  # List available modules
+modules load <module_name>    # Load a specific module to DB
+modules info <module_name>    # Get module information
+modules check <module_name>   # Check module compatibility
+run <module_name> <agent_id> <option>=<value>
+# In interactive mode, the agent ID is automatically inferred
 ```
+
+## Module Types:
+
+The NeoC2 framework is extendible with:
+
+1. **Windows Beacon Object Files**: via the Framework's [inline-execute](../usage_guide/specialized_modules.md/#inline-execute) module
+
+2. **Native Windows Portable Executables**: via the Framework's [PEInject](../usage_guide/specialized_modules.md/#peinject) module
+
+3. **Raw Shellcodes**: via the Framework's [PInject](../usage_guide/specialized_modules.md/#pinject) module
+
+4. **Windows Powershell scripts**: via the Framework's [PWSH](../usage_guide/specialized_modules.md/#powershell) module
+
+5. **Linux Shell & Python scripts**:
+
 
 ## Creating a Basic Module
 
-Every module must be a Python file that implements two required functions:
+To create a module, the following are required by the Framework:
+
+1. **External modules**: The PowerShell and shell scripts located in the `modules/external/` directory to be executed on the active agent
+2. **Python wrapper modules**: Python files that interface with external scripts
+   
+Every Python wrapper modules must be a Python file that implements two required functions:
 
 ### 1. `get_info()` function
 
@@ -312,16 +325,6 @@ return {
 }
 ```
 
-## Best Practices
-
-1. **Consistent Naming**: Use descriptive names for modules (lowercase with hyphens)
-2. **Descriptive Documentation**: Provide clear descriptions and usage instructions
-3. **Input Validation**: Always validate input parameters
-4. **Error Handling**: Include proper error handling and logging
-5. **MITRE ATT&CK Mapping**: Map your modules to relevant MITRE ATT&CK techniques
-6. **Testing**: Test modules thoroughly before deployment
-7. **Security**: Implement proper input sanitization to prevent injection attacks
-
 ## Module Registration
 
 Modules are automatically loaded when:
@@ -438,3 +441,4 @@ def execute(options, session):
 ```
 
 This example demonstrates the complete module pattern including proper input validation, error handling, and integration with external PowerShell scripts.
+

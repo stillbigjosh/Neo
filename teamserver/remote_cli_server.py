@@ -17,7 +17,7 @@ import random
 import string
 from core.models import NeoC2DB
 from core.config import NeoC2Config
-from armory.module_manager import ModuleManager
+from teamserver.module_manager import ModuleManager
 from teamserver.listener_manager import ListenerManager
 from teamserver.agent_manager import AgentManager
 from teamserver import help
@@ -616,6 +616,356 @@ class RemoteCLIServer:
 
         except Exception as e:
             return f"Error running pinject: {str(e)}", 'error'
+
+    def handle_pwsh_command(self, command_parts, session):
+        module_name = "powershell"
+
+        if len(command_parts) < 2:
+            return "USAGE: pwsh <script_path> [agent_id=<agent_id>] [arguments=<script_arguments>]", 'error'
+
+        try:
+            db = session.agent_manager.db if session.agent_manager else self.db
+            module_manager = self.module_manager
+
+            options = {}
+
+            if '=' in command_parts[1]:
+                for part in command_parts[1:]:
+                    if '=' in part:
+                        key, value = part.split('=', 1)
+                        options[key] = value
+            else:
+                script_path = command_parts[1]
+                options['script_path'] = script_path
+
+                for part in command_parts[2:]:
+                    if '=' in part:
+                        key, value = part.split('=', 1)
+                        options[key] = value
+
+            if session.interactive_mode and session.current_agent and 'agent_id' not in options:
+                options['agent_id'] = session.current_agent
+
+            wait_timeout = int(options.get('wait_timeout', 0))
+
+            module_manager.load_all_modules()
+            module_manager.load_modules_from_db()
+
+            loaded_modules_dict = getattr(module_manager, 'loaded_modules', {})
+
+            if module_name not in loaded_modules_dict:
+                import importlib.util
+                module_path = os.path.join("modules", f"{module_name}.py")
+                if os.path.exists(module_path):
+                    spec = importlib.util.spec_from_file_location(module_name, module_path)
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+
+                    if hasattr(module, 'get_info'):
+                        module_info = module.get_info()
+                    else:
+                        module_info = {}
+
+                    loaded_modules_dict[module_name] = {
+                        'module': module,
+                        'info': module_info,
+                        'path': module_path
+                    }
+                else:
+                    return f"Module not found: {module_name}", 'error'
+
+            if module_name in loaded_modules_dict:
+                module_data = loaded_modules_dict[module_name]
+                module = module_data['module']
+                info = module_data.get('info', {})
+
+                if hasattr(module, 'execute'):
+                    required_options = [opt for opt, opt_info in info.get('options', {}).items() if opt_info.get('required', False)]
+                    missing = [opt for opt in required_options if opt not in options]
+                    if missing:
+                        return f"Missing required options: {', '.join(missing)}", 'error'
+
+                    agent_id = options.get('agent_id')
+                    if agent_id:
+                        if session.agent_manager.is_agent_locked_interactively(agent_id):
+                            lock_info = session.agent_manager.get_interactive_lock_info(agent_id)
+                            if lock_info and lock_info['operator'] != session.username:
+                                return f"Agent {agent_id} is currently in exclusive interactive mode with operator: {lock_info['operator']}. Access denied.", 'error'
+
+                    original_agent = session.current_agent
+                    try:
+                        result = module.execute(options, session)
+                        if 'success' in result:
+                            status = 'success' if result['success'] else 'error'
+                            output = result.get('output', result.get('error', 'Unknown error'))
+                        else:
+                            output = result.get('output', 'No output')
+                            status = result.get('status', 'unknown')
+
+                        if status == 'success' and wait_timeout > 0 and 'task_id' in result:
+                            task_id = result['task_id']
+                            agent_id = options.get('agent_id')
+                            if not agent_id:
+                                return f"Task {task_id} queued, but cannot monitor without agent_id", 'error'
+
+                            import time
+                            start_time = time.time()
+                            while time.time() - start_time < wait_timeout:
+                                task_data = db.execute(
+                                    "SELECT status, result FROM agent_tasks WHERE id = ? AND agent_id = ?",
+                                    (task_id, agent_id)
+                                ).fetchone()
+                                if task_data and task_data['status'] == 'completed':
+                                    return f"Task {task_id} completed: {task_data['result']}", 'success'
+                                time.sleep(1)
+
+                            return f"Task {task_id} queued but not completed within {wait_timeout} seconds (status: {task_data['status'] if task_data else 'unknown'})", 'warning'
+
+                        return output, status
+                    finally:
+                        session.current_agent = original_agent
+                else:
+                    return f"Module '{module_name}' does not have an execute function", 'error'
+            else:
+                return f"Could not load module: {module_name}", 'error'
+
+        except Exception as e:
+            return f"Error running pwsh: {str(e)}", 'error'
+
+    def handle_inline_execute_command(self, command_parts, session):  # Changed function name from handle_coff_loader_command to handle_inline_execute_command
+        module_name = "coff"
+
+        if len(command_parts) < 2:
+            return "USAGE: inline-execute <bof_path> [arguments] [agent_id=<agent_id>]", 'error'
+
+        try:
+            db = session.agent_manager.db if session.agent_manager else self.db
+            module_manager = self.module_manager
+
+            options = {}
+
+            # Parse command arguments - handle both positional and key-value format
+            if '=' in command_parts[1] and 'agent_id=' in command_parts[1]:
+                # Handle format like: inline-execute agent_id=abc-123-def bof_path
+                for part in command_parts[1:]:
+                    if '=' in part:
+                        key, value = part.split('=', 1)
+                        options[key] = value
+            else:
+                # Handle format: inline-execute bof_path [arguments] [agent_id=value]
+                bof_path = command_parts[1]
+                options['bof_path'] = bof_path
+
+                # Look for agent_id in remaining arguments
+                arguments = []
+                i = 2
+                while i < len(command_parts):
+                    part = command_parts[i]
+                    if '=' in part and part.startswith('agent_id='):
+                        key, value = part.split('=', 1)
+                        options['agent_id'] = value
+                    else:
+                        arguments.append(part)
+                    i += 1
+
+                if arguments:
+                    options['arguments'] = ' '.join(arguments)
+
+            # If in interactive mode and no agent_id specified, use the current agent
+            if session.interactive_mode and session.current_agent and 'agent_id' not in options:
+                options['agent_id'] = session.current_agent
+
+            # Validate that we have an agent_id
+            if 'agent_id' not in options:
+                return "No agent_id specified and not in interactive mode", 'error'
+
+            agent_id = options['agent_id']
+            if session.agent_manager.is_agent_locked_interactively(agent_id):
+                lock_info = session.agent_manager.get_interactive_lock_info(agent_id)
+                if lock_info and lock_info['operator'] != session.username:
+                    return f"Agent {agent_id} is currently in exclusive interactive mode with operator: {lock_info['operator']}. Access denied.", 'error'
+
+            module_manager.load_all_modules()
+            module_manager.load_modules_from_db()
+
+            loaded_modules_dict = getattr(module_manager, 'loaded_modules', {})
+
+            if module_name not in loaded_modules_dict:
+                import importlib.util
+                module_path = os.path.join("modules", f"{module_name}.py")
+                if os.path.exists(module_path):
+                    spec = importlib.util.spec_from_file_location(module_name, module_path)
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+
+                    if hasattr(module, 'get_info'):
+                        module_info = module.get_info()
+                    else:
+                        module_info = {}
+
+                    loaded_modules_dict[module_name] = {
+                        'module': module,
+                        'info': module_info,
+                        'path': module_path
+                    }
+                else:
+                    return f"Module not found: {module_name}", 'error'
+
+            if module_name in loaded_modules_dict:
+                module_data = loaded_modules_dict[module_name]
+                module = module_data['module']
+                info = module_data.get('info', {})
+
+                if hasattr(module, 'execute'):
+                    required_options = [opt for opt, opt_info in info.get('options', {}).items() if opt_info.get('required', False)]
+                    missing = [opt for opt in required_options if opt not in options]
+                    if missing:
+                        return f"Missing required options: {', '.join(missing)}", 'error'
+
+                    original_agent = session.current_agent
+                    try:
+                        result = module.execute(options, session)
+                        if 'success' in result:
+                            status = 'success' if result['success'] else 'error'
+                            output = result.get('output', result.get('error', 'Unknown error'))
+
+                            # Return both the output and task ID if available (like pinject)
+                            if 'task_id' in result:
+                                return f"{output} (Task ID: {result['task_id']})", status
+                            else:
+                                return output, status
+                        else:
+                            output = result.get('output', 'No output')
+                            status = result.get('status', 'unknown')
+                            return output, status
+                    finally:
+                        session.current_agent = original_agent
+                else:
+                    return f"Module '{module_name}' does not have an execute function", 'error'
+            else:
+                return f"Could not load module: {module_name}", 'error'
+
+        except Exception as e:
+            return f"Error running inline-execute: {str(e)}", 'error'
+
+    def handle_persist_command(self, command_parts, session):
+        module_name = "persistence"
+
+        if len(command_parts) < 2:
+            return "USAGE: persist <method> <payload_path> [agent_id=<agent_id>] [name=<persistence_name>] [interval=<minutes>]", 'error'
+
+        try:
+            db = session.agent_manager.db if session.agent_manager else self.db
+            module_manager = self.module_manager
+
+            options = {}
+
+            if '=' in command_parts[1]:
+                for part in command_parts[1:]:
+                    if '=' in part:
+                        key, value = part.split('=', 1)
+                        options[key] = value
+            else:
+                method = command_parts[1]
+                options['method'] = method
+
+                if len(command_parts) > 2:
+                    payload_path = command_parts[2]
+                    options['payload_path'] = payload_path
+
+                for part in command_parts[3:]:
+                    if '=' in part:
+                        key, value = part.split('=', 1)
+                        options[key] = value
+
+            if session.interactive_mode and session.current_agent and 'agent_id' not in options:
+                options['agent_id'] = session.current_agent
+
+            wait_timeout = int(options.get('wait_timeout', 0))
+
+            module_manager.load_all_modules()
+            module_manager.load_modules_from_db()
+
+            loaded_modules_dict = getattr(module_manager, 'loaded_modules', {})
+
+            if module_name not in loaded_modules_dict:
+                import importlib.util
+                module_path = os.path.join("modules", f"{module_name}.py")
+                if os.path.exists(module_path):
+                    spec = importlib.util.spec_from_file_location(module_name, module_path)
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+
+                    if hasattr(module, 'get_info'):
+                        module_info = module.get_info()
+                    else:
+                        module_info = {}
+
+                    loaded_modules_dict[module_name] = {
+                        'module': module,
+                        'info': module_info,
+                        'path': module_path
+                    }
+                else:
+                    return f"Module not found: {module_name}", 'error'
+
+            if module_name in loaded_modules_dict:
+                module_data = loaded_modules_dict[module_name]
+                module = module_data['module']
+                info = module_data.get('info', {})
+
+                if hasattr(module, 'execute'):
+                    required_options = [opt for opt, opt_info in info.get('options', {}).items() if opt_info.get('required', False)]
+                    missing = [opt for opt in required_options if opt not in options]
+                    if missing:
+                        return f"Missing required options: {', '.join(missing)}", 'error'
+
+                    agent_id = options.get('agent_id')
+                    if agent_id:
+                        if session.agent_manager.is_agent_locked_interactively(agent_id):
+                            lock_info = session.agent_manager.get_interactive_lock_info(agent_id)
+                            if lock_info and lock_info['operator'] != session.username:
+                                return f"Agent {agent_id} is currently in exclusive interactive mode with operator: {lock_info['operator']}. Access denied.", 'error'
+
+                    original_agent = session.current_agent
+                    try:
+                        result = module.execute(options, session)
+                        if 'success' in result:
+                            status = 'success' if result['success'] else 'error'
+                            output = result.get('output', result.get('error', 'Unknown error'))
+                        else:
+                            output = result.get('output', 'No output')
+                            status = result.get('status', 'unknown')
+
+                        if status == 'success' and wait_timeout > 0 and 'task_id' in result:
+                            task_id = result['task_id']
+                            agent_id = options.get('agent_id')
+                            if not agent_id:
+                                return f"Task {task_id} queued, but cannot monitor without agent_id", 'error'
+
+                            import time
+                            start_time = time.time()
+                            while time.time() - start_time < wait_timeout:
+                                task_data = db.execute(
+                                    "SELECT status, result FROM agent_tasks WHERE id = ? AND agent_id = ?",
+                                    (task_id, agent_id)
+                                ).fetchone()
+                                if task_data and task_data['status'] == 'completed':
+                                    return f"Task {task_id} completed: {task_data['result']}", 'success'
+                                time.sleep(1)
+
+                            return f"Task {task_id} queued but not completed within {wait_timeout} seconds (status: {task_data['status'] if task_data else 'unknown'})", 'warning'
+
+                        return output, status
+                    finally:
+                        session.current_agent = original_agent
+                else:
+                    return f"Module '{module_name}' does not have an execute function", 'error'
+            else:
+                return f"Could not load module: {module_name}", 'error'
+
+        except Exception as e:
+            return f"Error running persist: {str(e)}", 'error'
 
     def handle_peinject_command(self, command_parts, session):
         module_name = "peinject"
@@ -1633,35 +1983,60 @@ class RemoteCLIServer:
     def handle_download_command(self, command_parts, session):
         if len(command_parts) < 2:
             return "Usage: download <agent_id> <remote_file_path> (for agent downloads) OR download <server_file_path> (for server downloads)", "error"
-        
+
         if len(command_parts) == 2:
             file_path = command_parts[1]
-            
+
             if '/' in file_path or '\\' in file_path or file_path.lower().endswith(('.log', '.txt', '.json', '.csv', '.loot', '.dat')):
                 return self._handle_server_file_download(file_path)
             else:
-                return "Usage: download <agent_id> <remote_file_path> (for agent downloads) OR download <server_file_path> (for server downloads)", "error"
-        
+                # Check if in interactive mode and current agent exists, then try to use it
+                if session.interactive_mode and session.current_agent:
+                    agent_id = session.current_agent
+                    remote_path = command_parts[1]
+
+                    if session.agent_manager.is_agent_locked_interactively(agent_id):
+                        lock_info = session.agent_manager.get_interactive_lock_info(agent_id)
+                        if lock_info and lock_info['operator'] != session.username:
+                            return f"Agent {agent_id} is currently in exclusive interactive mode with operator: {lock_info['operator']}. Access denied.", "error"
+
+                    if not session.agent_manager:
+                        return "Agent manager not initialized for this session.", "error"
+
+                    agent_command = remote_path
+
+                    task_result = session.agent_manager.add_download_task(agent_id, agent_command)
+                    if task_result and task_result.get('success'):
+                        task_id = task_result['task_id']
+                        return f" Download task for '{remote_path}' queued for agent {agent_id[:8]}... (Task ID: {task_id})", "success"
+                    else:
+                        error_msg = task_result.get('error', 'Unknown error') if task_result else 'Failed to create task'
+                        return f" Failed to queue download task for agent {agent_id[:8]}: {error_msg}", "error"
+                else:
+                    return "Usage: download <agent_id> <remote_file_path> (for agent downloads) OR download <server_file_path> (for server downloads)", "error"
+
         elif len(command_parts) == 3:
             agent_id = command_parts[1]
-            
+
             if session.agent_manager.is_agent_locked_interactively(agent_id):
                 lock_info = session.agent_manager.get_interactive_lock_info(agent_id)
                 if lock_info and lock_info['operator'] != session.username:
                     return f"Agent {agent_id} is currently in exclusive interactive mode with operator: {lock_info['operator']}. Access denied.", "error"
-            
+
             remote_path = command_parts[2]
 
             if not session.agent_manager:
                 return "Agent manager not initialized for this session.", "error"
 
             agent_command = remote_path
-            
-            task_id = session.agent_manager.add_download_task(agent_id, agent_command)
-            if task_id:
-                return f" Download task for '{remote_path}' queued for agent {agent_id[:8]}...", "success"
+
+            task_result = session.agent_manager.add_download_task(agent_id, agent_command)
+            if task_result and task_result.get('success'):
+                task_id = task_result['task_id']
+                return f" Download task for '{remote_path}' queued for agent {agent_id[:8]}... (Task ID: {task_id})", "success"
             else:
-                return f" Failed to queue download task for agent {agent_id[:8]}...", "error"
+                error_msg = task_result.get('error', 'Unknown error') if task_result else 'Failed to create task'
+                return f" Failed to queue download task for agent {agent_id[:8]}: {error_msg}", "error"
         else:
             return "Usage: download <agent_id> <remote_file_path> (for agent downloads) OR download <server_file_path> (for server downloads)", "error"
 
@@ -1716,18 +2091,23 @@ class RemoteCLIServer:
             return f"Error reading file: {str(e)}", "error"
 
     def handle_upload_command(self, command_parts, session):
-        if len(command_parts) != 4:
-            return "Usage: upload <agent_id> <local_file_path> <remote_file_path>", "error"
-            
-        agent_id = command_parts[1]
-        
+        if len(command_parts) == 3 and session.interactive_mode and session.current_agent:
+            # Handle: upload <local_file_path> <remote_file_path> in interactive mode
+            agent_id = session.current_agent
+            local_path = command_parts[1]
+            remote_path = command_parts[2]
+        elif len(command_parts) == 4:
+            # Handle: upload <agent_id> <local_file_path> <remote_file_path>
+            agent_id = command_parts[1]
+            local_path = command_parts[2]
+            remote_path = command_parts[3]
+        else:
+            return "Usage: upload <agent_id> <local_file_path> <remote_file_path> OR upload <local_file_path> <remote_file_path> (in interactive mode)", "error"
+
         if session.agent_manager.is_agent_locked_interactively(agent_id):
             lock_info = session.agent_manager.get_interactive_lock_info(agent_id)
             if lock_info and lock_info['operator'] != session.username:
                 return f"Agent {agent_id} is currently in exclusive interactive mode with operator: {lock_info['operator']}. Access denied.", "error"
-        
-        local_path = command_parts[2]
-        remote_path = command_parts[3]
 
         if not session.agent_manager:
             return "Agent manager not initialized for this session.", "error"
@@ -1740,14 +2120,19 @@ class RemoteCLIServer:
                 file_content = f.read()
             encoded_content = base64.b64encode(file_content).decode('utf-8')
 
-            agent_command = f"{remote_path} {encoded_content}"
-            
-            task_id = session.agent_manager.add_upload_task(agent_id, agent_command)
-            if task_id:
-                return f" Upload task for '{os.path.basename(local_path)}' queued for agent {agent_id[:8]}...", "success"
+            # Format the upload command as expected by the agent: "upload <remote_path> <encoded_content>"
+            agent_command = f"upload {remote_path} {encoded_content}"
+
+            # Use the existing add_task method to create the proper task
+            task_result = session.agent_manager.add_task(agent_id, agent_command)
+
+            if task_result and task_result.get('success'):
+                task_id = task_result['task_id']
+                return f" Upload task for '{os.path.basename(local_path)}' -> '{remote_path}' queued for agent {agent_id[:8]}... (Task ID: {task_id})", "success"
             else:
-                return f" Failed to queue upload task for agent {agent_id[:8]}...", "error"
-                
+                error_msg = task_result.get('error', 'Unknown error') if task_result else 'Failed to create task'
+                return f" Failed to queue upload task for agent {agent_id[:8]}: {error_msg}", "error"
+
         except Exception as e:
             return f" An error occurred during file upload preparation: {e}", "error"
 
@@ -1904,7 +2289,7 @@ AVAILABLE PAYLOAD TYPES:
   • go_agent             - Go agent compiled to Windows executable
 
 OPTIONS:
-  • --obfuscate          - Enable payload obfuscation
+  • --obfuscate          - Enable string obfuscation 
   • --disable-sandbox    - Disable sandbox/antidebugging checks
   • --output <filename>  - Save payload to file (optional)
   • --linux              - Compile payload to Linux binary
@@ -1913,8 +2298,8 @@ OPTIONS:
   • --use-failover       - Embed failover C2 URLs from profile into agent
 
 EXAMPLES:
-  • payload phantom_hawk_agent <listener_id> [--obfuscate] [--disable-sandbox] [--linux] [--redirector] [--use-failover]
-  • payload go_agent <listener_name> [--disable-sandbox] [--windows] [--redirector] [--use-failover]
+  • payload phantom_hawk_agent <listener_name> [--obfuscate] [--disable-sandbox] [--linux] [--redirector] [--use-failover]
+  • payload go_agent <listener_name> [--obfuscate] [--disable-sandbox] [--windows] [--redirector] [--use-failover]
             """, 'info'
 
         payload_type = command_parts[1].lower()
@@ -2377,57 +2762,6 @@ UPLOADED PAYLOAD STATUS:
             self.logger.warning("Could not validate file type with python-magic, continuing with upload")
             pass
 
-    def handle_inline_execute_command(self, command_parts, session):
-
-        if len(command_parts) < 3:
-            return "Usage: coff-loader <agent_id> <bof_path> [arguments]", 'error'
-        
-        agent_id = command_parts[1]
-        
-        if session.agent_manager.is_agent_locked_interactively(agent_id):
-            lock_info = session.agent_manager.get_interactive_lock_info(agent_id)
-            if lock_info and lock_info['operator'] != session.username:
-                return f"Agent {agent_id} is currently in exclusive interactive mode with operator: {lock_info['operator']}. Access denied.", 'error'
-        
-        bof_path = command_parts[2]
-        
-        agent = session.agent_manager.get_agent(agent_id)
-        if not agent:
-            return f"Agent {agent_id} not found", 'error'
-        
-        arguments = []
-        if len(command_parts) > 3:
-            arguments = command_parts[3:]
-        
-        options = {
-            'agent_id': agent_id,
-            'bof_path': bof_path,
-            'arguments': ' '.join(arguments) if arguments else ''
-        }
-        
-        if not session.module_manager:
-            return "Module manager not initialized", 'error'
-        
-        loaded_modules_dict = getattr(session.module_manager, 'loaded_modules', {})
-        
-        coff_module = None
-        if 'coff' in loaded_modules_dict:
-            coff_module = loaded_modules_dict['coff']['module']
-        else:
-            module_path = os.path.join('modules', 'coff.py')
-            load_success = session.module_manager.load_module(module_path)
-            if load_success or 'coff' in loaded_modules_dict:
-                if 'coff' in loaded_modules_dict:
-                    coff_module = loaded_modules_dict['coff']['module']
-        
-        if coff_module and hasattr(coff_module, 'execute'):
-            result = coff_module.execute(options, session)
-            if 'success' in result and result['success']:
-                return result.get('output', 'BOF execution task queued successfully'), 'success'
-            else:
-                return result.get('error', 'Unknown error occurred during BOF execution'), 'error'
-        else:
-            return "Could not load COFF module from modules/coff.py", 'error'
 
     def handle_taskchain_command(self, command_parts, session):
         if len(command_parts) < 2:
@@ -2437,6 +2771,7 @@ TASK CHAIN COMMANDS
 
 COMMANDS:
   • taskchain create <agent_id> <module1,module2,module3> [name=chain_name] [execute=true]
+  • taskchain create <module1,module2,module3> [name=chain_name] [execute=true] (in interactive mode)
   • taskchain list [agent_id=<agent_id>] [status=<status>] [limit=<limit>]
   • taskchain status <chain_id>
   • taskchain execute <chain_id>
@@ -2451,6 +2786,7 @@ OPTIONS:
 
 EXAMPLES:
   • taskchain create AGENT001 get_system,whoami,pslist name=priv_escalation
+  • taskchain create get_system,whoami,pslist name=priv_escalation (in interactive mode)
   • taskchain create AGENT001 recon_enum,net_scan execute=true
   • taskchain list
   • taskchain list agent_id=AGENT001 status=pending
@@ -2462,24 +2798,34 @@ EXAMPLES:
 
         try:
             if not hasattr(self, '_task_orchestrator'):
-                from armory.task_orchestrator import TaskOrchestrator
+                from teamserver.task_orchestrator import TaskOrchestrator
                 self._task_orchestrator = TaskOrchestrator(
                     self.module_manager,
                     self.agent_manager,
                     self.db
                 )
-            
+
             orchestrator = self._task_orchestrator
 
             if action == 'create':
-                if len(command_parts) < 4:
-                    return "Usage: taskchain create <agent_id> <module1,module2,module3> [name=chain_name] [execute=true]", 'error'
+                if len(command_parts) < 3:
+                    return "Usage: taskchain create <agent_id> <module1,module2,module3> [name=chain_name] [execute=true] OR taskchain create <module1,module2,module3> (in interactive mode)", 'error'
 
-                agent_id = command_parts[2]
-                modules_str = command_parts[3]
+                if len(command_parts) == 3 and session.interactive_mode and session.current_agent:
+                    # Handle: taskchain create <module1,module2,module3> (in interactive mode)
+                    agent_id = session.current_agent
+                    modules_str = command_parts[2]
+                    command_parts_mod = [command_parts[0], command_parts[1]] + command_parts[2:]  # Update command_parts for option parsing
+                elif len(command_parts) >= 4:
+                    # Handle: taskchain create <agent_id> <module1,module2,module3> [options...]
+                    agent_id = command_parts[2]
+                    modules_str = command_parts[3]
+                    command_parts_mod = command_parts  # Use original
+                else:
+                    return "Usage: taskchain create <agent_id> <module1,module2,module3> [name=chain_name] [execute=true] OR taskchain create <module1,module2,module3> (in interactive mode)", 'error'
 
                 options = {}
-                for part in command_parts[4:]:
+                for part in command_parts_mod[4 if len(command_parts_mod) > 3 else 3:]:
                     if '=' in part:
                         key, value = part.split('=', 1)
                         options[key.lower()] = value.lower()
@@ -2511,7 +2857,7 @@ EXAMPLES:
                     return f"Failed to create chain: {result['error']}", 'error'
 
                 chain_id = result['chain_id']
-                
+
                 output = f"Task chain '{result['chain_name']}' created successfully\n"
                 output += f"Chain ID: {chain_id}\n"
                 output += f"Modules: {', '.join(module_names)}\n"
@@ -3583,6 +3929,10 @@ EXAMPLES:
                     return self.handle_modules_command(command_parts, session)
                 elif base_command == 'run':
                     return self.handle_run_command(command_parts, session)
+                elif base_command == 'pwsh':
+                    return self.handle_pwsh_command(command_parts, session)
+                elif base_command == 'persist':
+                    return self.handle_persist_command(command_parts, session)
                 elif base_command == 'pinject':
                     return self.handle_pinject_command(command_parts, session)
                 elif base_command == 'peinject':
@@ -3841,7 +4191,7 @@ DB Inactive:       {stats['db_inactive_agents']}
                     return 'Clear command only works in local CLI', 'info'
                 elif base_command == 'payload':
                     return self.handle_payload_command(command_parts, session)
-                elif base_command == 'coff-loader':
+                elif base_command == 'inline-execute':
                     return self.handle_inline_execute_command(command_parts, session)
                 elif base_command == 'interact':
                     # Handle the interact command (alias for agent interact)
@@ -3953,6 +4303,10 @@ DB Inactive:       {stats['db_inactive_agents']}
             return self.handle_modules_command(command_parts, session)
         elif base_command == 'run':
             return self.handle_run_command(command_parts, session)
+        elif base_command == 'pwsh':
+            return self.handle_pwsh_command(command_parts, session)
+        elif base_command == 'persist':
+            return self.handle_persist_command(command_parts, session)
         elif base_command == 'pinject':
             return self.handle_pinject_command(command_parts, session)
         elif base_command == 'peinject':
@@ -3971,7 +4325,7 @@ DB Inactive:       {stats['db_inactive_agents']}
             return self.handle_upload_command(command_parts, session)
         elif base_command == 'payload':
             return self.handle_payload_command(command_parts, session)
-        elif base_command == 'coff-loader':
+        elif base_command == 'inline-execute':
             return self.handle_inline_execute_command(command_parts, session)
         elif base_command == 'interact':
             if len(command_parts) < 2:
@@ -4274,8 +4628,8 @@ DB Inactive:       {stats['db_inactive_agents']}
     
     def _is_framework_command(self, base_cmd):
         framework_commands = {
-            'agent', 'listener', 'modules', 'run', 'pinject', 'peinject', 'evasion', 'encryption',
-            'download', 'upload', 'stager', 'profile', 'payload', 'coff-loader',
+            'agent', 'listener', 'modules', 'run', 'pwsh', 'persist', 'pinject', 'peinject', 'evasion', 'encryption',
+            'download', 'upload', 'stager', 'profile', 'payload', 'inline-execute',
             'interact', 'event', 'task', 'result', 'addtask', 'back', 'exit',
             'quit', 'clear', 'help', 'status', 'save', 'protocol', 'interactive',
             'taskchain', 'beacon'
@@ -4329,7 +4683,9 @@ DB Inactive:       {stats['db_inactive_agents']}
                 'stager': 'modules.list',
                 'evasion': 'agents.interact',
                 'taskchain': 'modules.execute',
-                'coff-loader': 'modules.execute',  # coff-loader command requires modules.execute permission
+                'pwsh': 'modules.execute',  # pwsh command requires modules.execute permission
+                'persist': 'modules.execute',  # persist command requires modules.execute permission
+                'inline-execute': 'modules.execute',  # inline-execute command requires modules.execute permission
                 'help': 'agents.list',  # Help command should be available to all roles with basic access
             }
             
@@ -4380,6 +4736,10 @@ DB Inactive:       {stats['db_inactive_agents']}
                         result, status = self.handle_pinject_command(command_parts, remote_session)
                     elif base_cmd == 'peinject':
                         result, status = self.handle_peinject_command(command_parts, remote_session)
+                    elif base_cmd == 'pwsh':
+                        result, status = self.handle_pwsh_command(command_parts, remote_session)
+                    elif base_cmd == 'persist':
+                        result, status = self.handle_persist_command(command_parts, remote_session)
                     elif base_cmd == 'evasion':
                         result, status = self.handle_evasion_command(command_parts, remote_session)
                     elif base_cmd == 'encryption':
@@ -4415,32 +4775,38 @@ DB Inactive:       {stats['db_inactive_agents']}
                         result = output.strip()
                         status = 'success'
                     elif base_cmd == 'task':
-                        if len(command_parts) < 2:
-                            result = "Usage: task <agent_id> pending tasks would be shown here"
+                        if len(command_parts) == 1 and remote_session.interactive_mode and remote_session.current_agent:
+                            # Handle: task (in interactive mode - show current agent tasks)
+                            agent_id = remote_session.current_agent
+                        elif len(command_parts) >= 2:
+                            # Handle: task <agent_id> [other_args]
+                            agent_id = command_parts[1]
+                        else:
+                            result = "Usage: task <agent_id> OR task (in interactive mode)"
+                            status = 'info'
+                            return {'output': result, 'status': status}
+
+                        tasks = self.db.execute('''
+                            SELECT id, command, status, created_at, task_type
+                            FROM agent_tasks
+                            WHERE agent_id = ? AND status IN ('pending', 'sent')
+                            ORDER BY created_at ASC
+                        ''', (agent_id,)).fetchall()
+
+                        if not tasks:
+                            result = f"No pending tasks for agent {agent_id}"
                             status = 'info'
                         else:
-                            agent_id = command_parts[1]
-                            tasks = self.db.execute('''
-                                SELECT id, command, status, created_at, task_type
-                                FROM agent_tasks
-                                WHERE agent_id = ? AND status IN ('pending', 'sent')
-                                ORDER BY created_at ASC
-                            ''', (agent_id,)).fetchall()
-
-                            if not tasks:
-                                result = f"No pending tasks for agent {agent_id}"
-                                status = 'info'
-                            else:
-                                output = f"Pending Tasks for Agent {agent_id}:\n"
+                            output = f"Pending Tasks for Agent {agent_id}:\n"
+                            output += "-" * 80 + "\n"
+                            for task in tasks:
+                                output += f"Task ID: {task['id']}\n"
+                                output += f"Command: {task['command'][:20]}{'...' if len(task['command']) > 20 else ''}\n"
+                                output += f"Status: {task['status']} ({task['task_type']})\n"
+                                output += f"Created: {task['created_at']}\n"
                                 output += "-" * 80 + "\n"
-                                for task in tasks:
-                                    output += f"Task ID: {task['id']}\n"
-                                    output += f"Command: {task['command'][:20]}{'...' if len(task['command']) > 20 else ''}\n"
-                                    output += f"Status: {task['status']} ({task['task_type']})\n"
-                                    output += f"Created: {task['created_at']}\n"
-                                    output += "-" * 80 + "\n"
-                                result = output
-                                status = 'success'
+                            result = output
+                            status = 'success'
                     elif base_cmd == 'result':
                         if len(command_parts) < 2:
                             result = "Usage: result <agent_id> OR result list OR result <task_id>"
@@ -4465,7 +4831,7 @@ DB Inactive:       {stats['db_inactive_agents']}
                                     output += "-" * 80 + "\n"
                                 result = output
                                 status = 'success'
-                        elif len(command_parts) == 2:
+                        elif len(command_parts) == 2 and command_parts[1].replace('-', '').replace('_', '').isalnum():
                             task_id = command_parts[1]
 
                             if not task_id.replace('-', '').replace('_', '').isalnum():
@@ -4512,6 +4878,27 @@ DB Inactive:       {stats['db_inactive_agents']}
                                 except Exception as e:
                                     result = f"Error retrieving task result: {str(e)}"
                                     status = 'error'
+                        elif len(command_parts) == 1 and remote_session.interactive_mode and remote_session.current_agent:
+                            # Handle: result (in interactive mode - show current agent results)
+                            agent_id = remote_session.current_agent
+                            limit = 50  # Default limit
+                            results = self.agent_manager.get_agent_results(agent_id, limit)
+
+                            if not results:
+                                result = f"No results found for current agent"
+                                status = 'info'
+                            else:
+                                output = f"Results for Current Agent ({agent_id}):\n"
+                                output += "-" * 80 + "\n"
+                                for res in results:
+                                    output += f"Task ID:      {res['task_id']}\n"
+                                    output += f"Command:      {res['command']}\n"
+                                    output += f"Created:      {res['created_at']}\n"
+                                    output += f"Completed:    {res['completed_at']}\n"
+                                    output += f"Result:       {res['result'][:100]}{'...' if len(res['result']) > 100 else ''}\n"
+                                    output += "-" * 80 + "\n"
+                                result = output
+                                status = 'success'
                         else:
                             agent_id = command_parts[1]
                             limit = int(command_parts[2]) if len(command_parts) > 2 else 50
@@ -4533,30 +4920,37 @@ DB Inactive:       {stats['db_inactive_agents']}
                                 result = output
                                 status = 'success'
                     elif base_cmd == 'addtask':
-                        if len(command_parts) < 3:
-                            result = "Usage: addtask <agent_id> <command>"
+                        if len(command_parts) < 2:
+                            result = "Usage: addtask <agent_id> <command> OR addtask <command> (in interactive mode)"
                             status = 'error'
-                        else:
+                        elif len(command_parts) == 2 and remote_session.interactive_mode and remote_session.current_agent:
+                            # Handle: addtask <command> in interactive mode
+                            agent_id = remote_session.current_agent
+                            command_to_send = command_parts[1]
+                        elif len(command_parts) >= 3:
+                            # Handle: addtask <agent_id> <command>
                             agent_id = command_parts[1]
-                            
-                            if self.is_agent_locked_interactively(agent_id):
-                                lock_info = self.get_interactive_lock_info(agent_id)
-                                if lock_info and lock_info['operator'] != remote_session.username:
-                                    result = f"Agent {agent_id} is currently in exclusive interactive mode with operator: {lock_info['operator']}. Access denied.", 'error'
-                                    status = 'error'
-                                    return {'output': result, 'status': status}
-                            
                             command_to_send = ' '.join(command_parts[2:])
+                        else:
+                            result = "Usage: addtask <agent_id> <command> OR addtask <command> (in interactive mode)"
+                            status = 'error'
 
-                            task_result = self.agent_manager.add_task(agent_id, command_to_send)
-                            if task_result and task_result.get('success'):
-                                task_id = task_result['task_id']
-                                result = f"[+] Task created successfully!\n    Task ID:  {task_id}\n    Agent:    {agent_id}\n    Command:  {command_to_send[:20]}{'...' if len(command_to_send) > 20 else ''}"
-                                status = 'success'
-                            else:
-                                error_msg = task_result.get('error', 'Unknown error') if task_result else 'Failed to create task'
-                                result = f"Failed to create task: {error_msg}"
+                        if self.is_agent_locked_interactively(agent_id):
+                            lock_info = self.get_interactive_lock_info(agent_id)
+                            if lock_info and lock_info['operator'] != remote_session.username:
+                                result = f"Agent {agent_id} is currently in exclusive interactive mode with operator: {lock_info['operator']}. Access denied.", 'error'
                                 status = 'error'
+                                return {'output': result, 'status': status}
+
+                        task_result = self.agent_manager.add_task(agent_id, command_to_send)
+                        if task_result and task_result.get('success'):
+                            task_id = task_result['task_id']
+                            result = f"[+] Task created successfully!\n    Task ID:  {task_id}\n    Agent:    {agent_id}\n    Command:  {command_to_send[:20]}{'...' if len(command_to_send) > 20 else ''}"
+                            status = 'success'
+                        else:
+                            error_msg = task_result.get('error', 'Unknown error') if task_result else 'Failed to create task'
+                            result = f"Failed to create task: {error_msg}"
+                            status = 'error'
                     elif base_cmd == 'save':
                         if len(command_parts) < 2:
                             result = "Usage: save <task_id>"
@@ -4657,7 +5051,7 @@ DB Inactive:       {stats['db_inactive_agents']}
                         result, status = self.handle_payload_command(command_parts, remote_session)
                     elif base_cmd == 'payload_upload':
                         result, status = self.handle_payload_upload_command(command_parts, remote_session)
-                    elif base_cmd == 'coff-loader':
+                    elif base_cmd == 'inline-execute':
                         result, status = self.handle_inline_execute_command(command_parts, remote_session)
                     elif base_cmd == 'interact':
                         if len(command_parts) < 2:
@@ -4688,6 +5082,10 @@ DB Inactive:       {stats['db_inactive_agents']}
                 result, status = self.handle_modules_command(command_parts, remote_session)
             elif base_cmd == 'run':
                 result, status = self.handle_run_command(command_parts, remote_session)
+            elif base_cmd == 'pwsh':
+                result, status = self.handle_pwsh_command(command_parts, remote_session)
+            elif base_cmd == 'persist':
+                result, status = self.handle_persist_command(command_parts, remote_session)
             elif base_cmd == 'evasion':
                 result, status = self.handle_evasion_command(command_parts, remote_session)
             elif base_cmd == 'encryption':
@@ -4723,32 +5121,38 @@ DB Inactive:       {stats['db_inactive_agents']}
                 result = output.strip()
                 status = 'success'
             elif base_cmd == 'task':
-                if len(command_parts) < 2:
-                    result = "Usage: task <agent_id> pending tasks would be shown here"
+                if len(command_parts) == 1 and remote_session.interactive_mode and remote_session.current_agent:
+                    # Handle: task (in interactive mode - show current agent tasks)
+                    agent_id = remote_session.current_agent
+                elif len(command_parts) >= 2:
+                    # Handle: task <agent_id> [other_args]
+                    agent_id = command_parts[1]
+                else:
+                    result = "Usage: task <agent_id> OR task (in interactive mode)"
+                    status = 'info'
+                    return {'output': result, 'status': status}
+
+                tasks = self.db.execute('''
+                    SELECT id, command, status, created_at, task_type
+                    FROM agent_tasks
+                    WHERE agent_id = ? AND status IN ('pending', 'sent')
+                    ORDER BY created_at ASC
+                ''', (agent_id,)).fetchall()
+
+                if not tasks:
+                    result = f"No pending tasks for agent {agent_id}"
                     status = 'info'
                 else:
-                    agent_id = command_parts[1]
-                    tasks = self.db.execute('''
-                        SELECT id, command, status, created_at, task_type
-                        FROM agent_tasks
-                        WHERE agent_id = ? AND status IN ('pending', 'sent')
-                        ORDER BY created_at ASC
-                    ''', (agent_id,)).fetchall()
-                    
-                    if not tasks:
-                        result = f"No pending tasks for agent {agent_id}"
-                        status = 'info'
-                    else:
-                        output = f"Pending Tasks for Agent {agent_id}:\n"
+                    output = f"Pending Tasks for Agent {agent_id}:\n"
+                    output += "-" * 80 + "\n"
+                    for task in tasks:
+                        output += f"Task ID: {task['id']}\n"
+                        output += f"Command: {task['command'][:20]}{'...' if len(task['command']) > 20 else ''}\n"
+                        output += f"Status: {task['status']} ({task['task_type']})\n"
+                        output += f"Created: {task['created_at']}\n"
                         output += "-" * 80 + "\n"
-                        for task in tasks:
-                            output += f"Task ID: {task['id']}\n"
-                            output += f"Command: {task['command'][:20]}{'...' if len(task['command']) > 20 else ''}\n"
-                            output += f"Status: {task['status']} ({task['task_type']})\n"
-                            output += f"Created: {task['created_at']}\n"
-                            output += "-" * 80 + "\n"
-                        result = output
-                        status = 'success'
+                    result = output
+                    status = 'success'
             elif base_cmd == 'result':
                 if len(command_parts) < 2:
                     result = "Usage: result <agent_id> OR result list OR result <task_id>"
@@ -4773,9 +5177,9 @@ DB Inactive:       {stats['db_inactive_agents']}
                             output += "-" * 80 + "\n"
                         result = output
                         status = 'success'
-                elif len(command_parts) == 2:
+                elif len(command_parts) == 2 and command_parts[1].replace('-', '').replace('_', '').isalnum():
                     task_id = command_parts[1]
-                    
+
                     if not task_id.replace('-', '').replace('_', '').isalnum():
                         result = f"Invalid task ID format: {task_id}"
                         status = 'error'
@@ -4799,7 +5203,7 @@ DB Inactive:       {stats['db_inactive_agents']}
                             else:
                                 task_dict = dict(task)
                                 task_result = task_dict.get('result', 'No result available')
-                                
+
                                 output = f"Task Details:\n"
                                 output += "-" * 80 + "\n"
                                 output += f"Task ID:      {task_dict['id']}\n"
@@ -4814,17 +5218,38 @@ DB Inactive:       {stats['db_inactive_agents']}
                                 output += "-" * 80 + "\n"
                                 output += f"Complete Result:\n{task_result}\n"
                                 output += "-" * 80 + "\n"
-                                
+
                                 result = output
                                 status = 'success'
                         except Exception as e:
                             result = f"Error retrieving task result: {str(e)}"
                             status = 'error'
+                elif len(command_parts) == 1 and remote_session.interactive_mode and remote_session.current_agent:
+                    # Handle: result (in interactive mode - show current agent results)
+                    agent_id = remote_session.current_agent
+                    limit = 50  # Default limit
+                    results = self.agent_manager.get_agent_results(agent_id, limit)
+
+                    if not results:
+                        result = f"No results found for current agent"
+                        status = 'info'
+                    else:
+                        output = f"Results for Current Agent ({agent_id}):\n"
+                        output += "-" * 80 + "\n"
+                        for res in results:
+                            output += f"Task ID:      {res['task_id']}\n"
+                            output += f"Command:      {res['command']}\n"
+                            output += f"Created:      {res['created_at']}\n"
+                            output += f"Completed:    {res['completed_at']}\n"
+                            output += f"Result:       {res['result'][:100]}{'...' if len(res['result']) > 100 else ''}\n"
+                            output += "-" * 80 + "\n"
+                        result = output
+                        status = 'success'
                 else:
                     agent_id = command_parts[1]
                     limit = int(command_parts[2]) if len(command_parts) > 2 else 50
                     results = self.agent_manager.get_agent_results(agent_id, limit)
-                    
+
                     if not results:
                         result = f"No results found for agent {agent_id}"
                         status = 'info'
@@ -4841,30 +5266,37 @@ DB Inactive:       {stats['db_inactive_agents']}
                         result = output
                         status = 'success'
             elif base_cmd == 'addtask':
-                if len(command_parts) < 3:
-                    result = "Usage: addtask <agent_id> <command>"
+                if len(command_parts) < 2:
+                    result = "Usage: addtask <agent_id> <command> OR addtask <command> (in interactive mode)"
                     status = 'error'
-                else:
+                elif len(command_parts) == 2 and remote_session.interactive_mode and remote_session.current_agent:
+                    # Handle: addtask <command> in interactive mode
+                    agent_id = remote_session.current_agent
+                    command_to_send = command_parts[1]
+                elif len(command_parts) >= 3:
+                    # Handle: addtask <agent_id> <command>
                     agent_id = command_parts[1]
-                    
-                    if self.is_agent_locked_interactively(agent_id):
-                        lock_info = self.get_interactive_lock_info(agent_id)
-                        if lock_info and lock_info['operator'] != remote_session.username:
-                            result = f"Agent {agent_id} is currently in exclusive interactive mode with operator: {lock_info['operator']}. Access denied."
-                            status = 'error'
-                            return {'output': result, 'status': status}
-                    
                     command_to_send = ' '.join(command_parts[2:])
-                    
-                    task_result = self.agent_manager.add_task(agent_id, command_to_send)
-                    if task_result and task_result.get('success'):
-                        task_id = task_result['task_id']
-                        result = f"[+] Task created successfully!\n    Task ID:  {task_id}\n    Agent:    {agent_id}\n    Command:  {command_to_send[:20]}{'...' if len(command_to_send) > 20 else ''}"
-                        status = 'success'
-                    else:
-                        error_msg = task_result.get('error', 'Unknown error') if task_result else 'Failed to create task'
-                        result = f"Failed to create task: {error_msg}"
+                else:
+                    result = "Usage: addtask <agent_id> <command> OR addtask <command> (in interactive mode)"
+                    status = 'error'
+
+                if self.is_agent_locked_interactively(agent_id):
+                    lock_info = self.get_interactive_lock_info(agent_id)
+                    if lock_info and lock_info['operator'] != remote_session.username:
+                        result = f"Agent {agent_id} is currently in exclusive interactive mode with operator: {lock_info['operator']}. Access denied."
                         status = 'error'
+                        return {'output': result, 'status': status}
+
+                task_result = self.agent_manager.add_task(agent_id, command_to_send)
+                if task_result and task_result.get('success'):
+                    task_id = task_result['task_id']
+                    result = f"[+] Task created successfully!\n    Task ID:  {task_id}\n    Agent:    {agent_id}\n    Command:  {command_to_send[:20]}{'...' if len(command_to_send) > 20 else ''}"
+                    status = 'success'
+                else:
+                    error_msg = task_result.get('error', 'Unknown error') if task_result else 'Failed to create task'
+                    result = f"Failed to create task: {error_msg}"
+                    status = 'error'
             elif base_cmd == 'save':
                 if len(command_parts) < 2:
                     result = "Usage: save <task_id>"
@@ -4949,7 +5381,7 @@ DB Inactive:       {stats['db_inactive_agents']}
                 result, status = self.handle_payload_command(command_parts, remote_session)
             elif base_cmd == 'payload_upload':
                 result, status = self.handle_payload_upload_command(command_parts, remote_session)
-            elif base_cmd == 'coff-loader':
+            elif base_cmd == 'inline-execute':
                 result, status = self.handle_inline_execute_command(command_parts, remote_session)
             elif base_cmd == 'interact':
                 # Handle the interact command (alias for agent interact)

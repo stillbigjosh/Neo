@@ -741,11 +741,15 @@ class AgentManager:
     
     
     def add_result(self, agent_id, task_id, result):
+        import os
+        import base64
+        import time
+        from datetime import datetime
         agent = self.get_agent(agent_id)  # Changed from self.agents.get()
         if not agent:
             self.logger.warning(f"Agent {agent_id} not found")
             return False
-    
+
         decrypted_result = self._decrypt_data(agent_id, result)
         if decrypted_result is not None:
             processed_result = decrypted_result
@@ -754,26 +758,91 @@ class AgentManager:
             processed_result = result
             self.logger.debug(f"Result for task {task_id} from agent {agent_id} appears to be unencrypted, using as-is")
 
+        # Check the original task type to determine if this is a download task
+        original_task = self.db.execute(
+            "SELECT command, task_type FROM agent_tasks WHERE id = ?", (task_id,)
+        ).fetchone()
+
+        # Check if this is a download task
+        is_download_task = False
+        original_command = None
+        if original_task:
+            original_command = original_task['command']
+            if original_task['task_type'] == 'download' or (original_task['command'] and original_task['command'].startswith('download ')):
+                is_download_task = True
+
+        # If it's a download task, process the base64 result and save to loot directory
+        if is_download_task and processed_result:
+            try:
+                # Create loot directory if it doesn't exist
+                loot_dir = os.path.join(os.getcwd(), "loot")
+                os.makedirs(loot_dir, exist_ok=True)
+
+                # Extract original file path to create a meaningful filename
+                original_file_path = "unknown_file"
+                if original_command and original_command.startswith('download '):
+                    original_file_path = original_command[9:]  # Remove 'download ' prefix
+                    # Sanitize the path for use in filename
+                    original_file_path = os.path.basename(original_file_path).replace('/', '_').replace('\\', '_')
+
+                # Generate a timestamp-based filename
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                file_extension = os.path.splitext(original_file_path)[1] if os.path.splitext(original_file_path)[1] else ".dat"
+
+                # If the result looks like base64, try to decode it
+                if processed_result.startswith('[ERROR]') or processed_result.startswith('[ERROR'):
+                    # This is an error message, not base64 content
+                    loot_filename = f"download_error_{timestamp}_{original_file_path.replace('.', '_')}.txt"
+                    loot_path = os.path.join(loot_dir, loot_filename)
+                    with open(loot_path, 'w') as f:
+                        f.write(processed_result)
+                    loot_result_msg = f"Download error saved to: {loot_path}"
+                else:
+                    # Try to decode as base64
+                    try:
+                        decoded_data = base64.b64decode(processed_result)
+                        loot_filename = f"download_{timestamp}_{original_file_path}"
+                        loot_path = os.path.join(loot_dir, loot_filename)
+
+                        with open(loot_path, 'wb') as f:
+                            f.write(decoded_data)
+
+                        loot_result_msg = f"Downloaded file saved to: {loot_path} ({len(decoded_data)} bytes)"
+                    except Exception:
+                        # If decoding fails, save as-is
+                        loot_filename = f"download_raw_{timestamp}_{original_file_path.replace('.', '_')}.txt"
+                        loot_path = os.path.join(loot_dir, loot_filename)
+                        with open(loot_path, 'w') as f:
+                            f.write(processed_result)
+                        loot_result_msg = f"Raw download content saved to: {loot_path}"
+
+                # Update the result to indicate where the file was saved
+                processed_result = f"[DOWNLOAD COMPLETED] {loot_result_msg}\nOriginal remote path: {original_file_path}\nResult was automatically saved to prevent base64 display in results."
+
+            except Exception as e:
+                self.logger.error(f"Error processing download task result: {str(e)}")
+                # Keep original behavior if there's an error processing the download
+
         existing_task = self.db.execute(
             "SELECT status FROM agent_tasks WHERE id = ?", (task_id,)
         ).fetchone()
-        
+
         if existing_task and existing_task['status'] == 'completed':
             self.logger.info(f"[!] Task {task_id} is already marked as completed, skipping duplicate processing")
             return True  # Return True to indicate it's handled (even if duplicate)
-    
+
         with agent.lock:
             for task in agent.tasks:
                 if task['id'] == task_id:
                     task['status'] = 'completed'
                     task['result'] = processed_result
                     task['completed_at'] = datetime.now()
-                
+
                     self.db.execute('''
                         UPDATE agent_tasks SET status = ?, result = ?, completed_at = ?
                         WHERE id = ?
                     ''', ('completed', processed_result, task['completed_at'], task_id))
-                
+
                     if self.audit_logger:
                         self.audit_logger.log_event(
                             user_id="system",  # System event
@@ -787,16 +856,16 @@ class AgentManager:
                             }),
                             ip_address=agent.ip_address if agent else "unknown"
                         )
-                
+
                     self.logger.info(f"Result received from agent {agent_id} for task {task_id}")
                     return True
-        
+
             try:
                 self.db.execute('''
                     UPDATE agent_tasks SET status = ?, result = ?, completed_at = ?
                     WHERE id = ? AND agent_id = ?
                 ''', ('completed', processed_result, datetime.now(), task_id, agent_id))
-                
+
                 if self.audit_logger:
                     self.audit_logger.log_event(
                         user_id="system",  # System event
@@ -810,7 +879,7 @@ class AgentManager:
                         }),
                         ip_address="unknown"  # We don't have agent object here
                     )
-                
+
                 self.logger.info(f"Result received from agent {agent_id} for task {task_id} (DB only)")
                 return True
             except Exception as e:
