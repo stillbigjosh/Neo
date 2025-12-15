@@ -2,12 +2,15 @@
 
 ## Module Structure and Types
 
-The NeoC2 framework supports several categories of modules:
+The NeoC2 framework is extendible with:
 
-1. **External modules**: PowerShell and shell scripts located in the `modules/external/` directory
-2. **Python wrapper modules**: Python files that interface with external scripts
-3. **Native modules**: Pure Python modules that execute directly
-4. **Linux modules**: Shell scripts and Python modules for Linux targets
+1. **Windows Beacon Object Files**: via the Framework's [inline-execute](GENERAL%20USAGE%20GUIDE.md/#inline-execute) module
+2. **Native Windows Portable Executables**: via the Framework's [PEInject](GENERAL%20USAGE%20GUIDE.md/#inline-execute) module
+
+And the following are extendible via Operator's own Python-wrapper - See [Creating a Basic Module](#creating-a-basic-module)
+3. **Windows Powershell scripts**
+4. **Linux Shell scripts**
+5. **Linux Python scripts**
 
 ## Module Directory Structure
 
@@ -24,7 +27,12 @@ modules/
 
 ## Creating a Basic Module
 
-Every module must be a Python file that implements two required functions:
+To create a module, the following are required by the Framework:
+
+1. **External modules**: The PowerShell and shell scripts located in the `modules/external/` directory to be executed on the active agent
+2. **Python wrapper modules**: Python files that interface with external scripts
+   
+Every Python wrapper modules must be a Python file that implements two required functions:
 
 ### 1. `get_info()` function
 
