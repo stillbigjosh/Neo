@@ -20,7 +20,6 @@ Manage agents and stagers within your environment.
 Understand how to extend and tailor the framework to your needs.
 
 *   [**Modules**](modules.md)
-*   [**Modules Command Syntax**](modules_command_syntax.md)
 
 ### Advanced Features
 Guides covering advanced functionality and setups.
