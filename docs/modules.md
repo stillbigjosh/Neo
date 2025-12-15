@@ -1,4 +1,4 @@
-# Building Modules for the NeoC2 Framework
+# Modules for the NeoC2 Framework
 
 ## Module Structure and Types
 
@@ -325,16 +325,6 @@ return {
     "error": "Descriptive error message"
 }
 ```
-
-## Best Practices
-
-1. **Consistent Naming**: Use descriptive names for modules (lowercase with hyphens)
-2. **Descriptive Documentation**: Provide clear descriptions and usage instructions
-3. **Input Validation**: Always validate input parameters
-4. **Error Handling**: Include proper error handling and logging
-5. **MITRE ATT&CK Mapping**: Map your modules to relevant MITRE ATT&CK techniques
-6. **Testing**: Test modules thoroughly before deployment
-7. **Security**: Implement proper input sanitization to prevent injection attacks
 
 ## Module Registration
 
