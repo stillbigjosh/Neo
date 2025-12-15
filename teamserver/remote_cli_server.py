@@ -2005,11 +2005,13 @@ class RemoteCLIServer:
 
                     agent_command = remote_path
 
-                    task_id = session.agent_manager.add_download_task(agent_id, agent_command)
-                    if task_id:
-                        return f" Download task for '{remote_path}' queued for agent {agent_id[:8]}...", "success"
+                    task_result = session.agent_manager.add_download_task(agent_id, agent_command)
+                    if task_result and task_result.get('success'):
+                        task_id = task_result['task_id']
+                        return f" Download task for '{remote_path}' queued for agent {agent_id[:8]}... (Task ID: {task_id})", "success"
                     else:
-                        return f" Failed to queue download task for agent {agent_id[:8]}...", "error"
+                        error_msg = task_result.get('error', 'Unknown error') if task_result else 'Failed to create task'
+                        return f" Failed to queue download task for agent {agent_id[:8]}: {error_msg}", "error"
                 else:
                     return "Usage: download <agent_id> <remote_file_path> (for agent downloads) OR download <server_file_path> (for server downloads)", "error"
 
@@ -2028,11 +2030,13 @@ class RemoteCLIServer:
 
             agent_command = remote_path
 
-            task_id = session.agent_manager.add_download_task(agent_id, agent_command)
-            if task_id:
-                return f" Download task for '{remote_path}' queued for agent {agent_id[:8]}...", "success"
+            task_result = session.agent_manager.add_download_task(agent_id, agent_command)
+            if task_result and task_result.get('success'):
+                task_id = task_result['task_id']
+                return f" Download task for '{remote_path}' queued for agent {agent_id[:8]}... (Task ID: {task_id})", "success"
             else:
-                return f" Failed to queue download task for agent {agent_id[:8]}...", "error"
+                error_msg = task_result.get('error', 'Unknown error') if task_result else 'Failed to create task'
+                return f" Failed to queue download task for agent {agent_id[:8]}: {error_msg}", "error"
         else:
             return "Usage: download <agent_id> <remote_file_path> (for agent downloads) OR download <server_file_path> (for server downloads)", "error"
 
@@ -2124,7 +2128,7 @@ class RemoteCLIServer:
 
             if task_result and task_result.get('success'):
                 task_id = task_result['task_id']
-                return f" Upload task for '{os.path.basename(local_path)}' -> '{remote_path}' queued for agent {agent_id[:8]}...", "success"
+                return f" Upload task for '{os.path.basename(local_path)}' -> '{remote_path}' queued for agent {agent_id[:8]}... (Task ID: {task_id})", "success"
             else:
                 error_msg = task_result.get('error', 'Unknown error') if task_result else 'Failed to create task'
                 return f" Failed to queue upload task for agent {agent_id[:8]}: {error_msg}", "error"
