@@ -75,17 +75,6 @@ save 2
 download logs/task_2_20251128_224240.txt
 ```
 
-## Event Monitoring
-
-All C2 operations are logged. This information can be retrieved using the event handler:
-
-```
-event
-event list
-event search
-event stats
-```
-
 ## Task Chaining
 
 NeoC2 provides advanced task chaining capabilities, allowing operators to create sequential workflows of multiple modules that execute in a predetermined order on target agents.
@@ -139,22 +128,3 @@ NeoC2 provides advanced task chaining capabilities, allowing operators to create
 - **Export/Import**: Share chains between operators
 - **Audit Trail**: Track chain creation and execution history
 
-### Example Task Chains
-
-1. **Reconnaissance Chain**:
-   - System information gathering
-   - Network configuration enumeration
-   - User account discovery
-   - Credential harvesting (if applicable)
-
-2. **Evasion Chain**:
-   - AMSI bypass activation
-   - ETW disabling
-   - Sleep obfuscation configuration
-   - Process injection setup
-
-3. **Persistence Chain**:
-   - Registry key modification
-   - Scheduled task creation
-   - Service installation
-   - File system persistence
