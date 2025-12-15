@@ -13,7 +13,7 @@ INFRASTRUCTURE MANAGEMENT:
 AGENT MANAGEMENT:
   agent       - Manage agents (list, interact, info, kill)
   beacon      - Active HTTP/S Agents
-  interact    - Interact with a beacon
+  interact    - Eneter Interactive mode with a beacon
   interactive - Check if session is in interactive mode
   sleep       - Change agent sleep interval
 
@@ -21,7 +21,7 @@ MODULES & EXECUTION:
   modules     - Manage modules (list, load, info, check)
   run         - Execute modules
   task        - Pending agent tasks
-  addtask     - Add a task to an agent directly
+  addtask     - Add a queued task to an agent directly
   result      - View task results
   taskchain   - Task Orchestration
 
