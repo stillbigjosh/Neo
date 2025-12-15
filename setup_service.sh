@@ -26,7 +26,6 @@ fi
 
 echo "Step 1: Making service scripts executable..."
 chmod +x "/opt/neoc2/c2_service.py"
-chmod +x "/opt/neoc2/start_service.sh"
 chmod +x "/opt/neoc2/neoc2-cli"
 
 echo "Step 2: Installing systemd service file..."
