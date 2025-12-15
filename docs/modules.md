@@ -1,6 +1,6 @@
 # Modules for the NeoC2 Framework
 
-- [General Synatx](#general-syntax)
+- [General Syntax](#general-syntax)
 - [Module Structure and Types](#module-structure-and-types)
 - [Example External Module](#example-external-module)
 
@@ -478,7 +478,7 @@ The module example given here is a placeholder, intended to help the operator un
 
 ### Get-ComputerDetail Module
 
-The `Get-ComputerDetail` (external module with a Python-wrapper) executes a PowerShell script to gather comprehensive system information including OS details, hardware specs, network configuration, and running processes.
+The PowerSploit's `Get-ComputerDetail` (external powershell module with a Python-wrapper) executes a PowerShell script to gather comprehensive system information including OS details, hardware specs, network configuration, and running processes.
 
 #### Required Options:
 - `agent_id`: ID of the agent to run Get-ComputerDetail on
