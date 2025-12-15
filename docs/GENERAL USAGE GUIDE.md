@@ -478,7 +478,12 @@ NeoC2 provides advanced task chaining capabilities, allowing operators to create
 
 ## Powershell
 
-This `pwsh` module helps run their own extendible powershell scripts on a Windows machine
+This `pwsh` module helps operators run their own extendible powershell scripts on a Windows machine
+
+### Compatibility:
+- Go_agent
+- Phantom Hawk agent
+- Windows x64
 
 ### Basic Usage:
 
@@ -595,6 +600,13 @@ run peinject pe_file=<payload_path> [agent_id=<agent_id>] # METHOD - 2 (Non-inte
 ## Persist
 
 This module helps operators establishes persistence on systems using various techniques `modules info persistence`
+
+### Compatibility:
+- Go_agent
+- Phantom Hawk agent
+- Windows x64
+- Linux debian
+- MacOS
 
 #### Required Options:
 - `agent_id`: ID of the agent to establish persistence on
