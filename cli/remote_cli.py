@@ -77,7 +77,7 @@ class NeoC2RemoteCLI:
 
     def _completer(self, text, state):
         commands = [
-            'help', 'agent', 'listener', 'modules', 'run', 'pinject', 'peinject', 'evasion', 'encryption',
+            'help', 'agent', 'listener', 'modules', 'run', 'pwsh', 'persist', 'pinject', 'peinject', 'evasion', 'encryption',
             'profile', 'protocol', 'stager', 'download', 'upload', 'interactive',
             'exit', 'quit', 'clear', 'status', 'task', 'result', 'save', 'addtask',
             'harvest', 'inline-execute'
