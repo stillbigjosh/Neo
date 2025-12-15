@@ -526,7 +526,7 @@ This implementation enables pure in-memory execution of Beacon Object Files (BOF
 Execute BOFs using the inline-execute command:
 
 ```
-# # In interactive mode, the agent ID is automatically inferred:
+# In interactive mode, the agent ID is automatically inferred:
 inline-execute <path_to_bof_file> [arguments]
 ```
 
