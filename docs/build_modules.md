@@ -5,12 +5,18 @@
 The NeoC2 framework is extendible with:
 
 1. **Windows Beacon Object Files**: via the Framework's [inline-execute](GENERAL%20USAGE%20GUIDE.md/#inline-execute) module
-2. **Native Windows Portable Executables**: via the Framework's [PEInject](GENERAL%20USAGE%20GUIDE.md/#inline-execute) module
 
-And the following are extendible via Operator's own Python-wrapper - See [Creating a Basic Module](#creating-a-basic-module)
-3. **Windows Powershell scripts**
-4. **Linux Shell scripts**
-5. **Linux Python scripts**
+2. **Native Windows Portable Executables**: via the Framework's [PEInject](GENERAL%20USAGE%20GUIDE.md/#peinject) module
+
+3. **Raw Shellcodes**: via the Framework's [PInject](GENERAL%20USAGE%20GUIDE.md/#pinject) module
+
+And the following are extendible via Operator's own Python-wrapper - See [Creating a Basic Module](#creating-a-basic-module):
+
+4. **Windows Powershell scripts**
+
+5. **Linux Shell scripts**
+
+6. **Linux Python scripts**
 
 ## Module Directory Structure
 
