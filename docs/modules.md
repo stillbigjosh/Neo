@@ -1,33 +1,21 @@
 # Modules for the NeoC2 Framework
 
 - [General Syntax](#general-syntax)
-- [Module Structure and Types](#module-structure-and-types)
+- [Module Types](#module-types)
+- [Creating a Basic Module](#creating-a-basic-module)
 
 ## General Syntax
 
-### Available Modules
-
 ```
 modules list                  # List available modules
-modules load <module_name>    # Load a specific module
+modules load <module_name>    # Load a specific module to DB
 modules info <module_name>    # Get module information
-run <module_name> [options]   # Execute a module
-```
-
-### Example Module Usage
-
-```
+modules check <module_name>   # Check module compatibility
 run <module_name> <agent_id> <option>=<value>
-
-# In interactive mode, the agent ID is automatically inferred:
-run <module_name> <option>=<value>
-
-# Load and run persistence module
-modules load persistence
-run persistence agent_id=<id> method=registry payload_path=C:\payload.exe name=WindowsUpdate
+# In interactive mode, the agent ID is automatically inferred
 ```
 
-## Module Structure and Types
+## Module Types:
 
 The NeoC2 framework is extendible with:
 
@@ -41,19 +29,6 @@ The NeoC2 framework is extendible with:
 
 5. **Linux Shell & Python scripts**:
 
-
-## Module Directory Structure
-
-```
-modules/
-├── external/                 # External PowerShell/Shell scripts
-│   ├── bof/                 # Beacon Object Files
-│   ├── scripts/             # Additional scripts
-│   └── *.ps1                # PowerShell scripts
-├── linux/                   # Linux-specific scripts
-├── __init__.py              # Module package initialization
-├── *.py                     # Python module files
-```
 
 ## Creating a Basic Module
 
