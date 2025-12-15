@@ -3,7 +3,7 @@ def get_help_display():
 Available NeoC2 Terminal Commands:
 ════════════════════════════════════════════════════════════════
 
-FRAMEWORK:
+Framework:
   listener    - Manage listeners (create, start, stop, delete)
   modules     - Manage modules (list, load, info, check)
   run         - Execute modules
@@ -28,13 +28,15 @@ FRAMEWORK:
   clear       - Clear terminal
   back	      - Exit interactive mode
   
-OPERATIONS:
-  download    - Download files from agents/C2 server
-  upload      - Upload files to agents
+Operations:
   evasion     - AMSI/ETW bypass
+  upload      - Upload files to agents
+  download    - Download files from agents/C2 server
+  persist     - Persist an executable or script
   inline-execute - Execute bofs on agent session
+  peinject    - Injects PE files by Process Hollowing into svchost.exe
   pinject     - Injects shellcode into notepad.exe or explorer.exe
-  peinject    - Injects PE files by Process Hollowing into svchost.exe 
+  pwsh        - Execute powershell script on agent session
   sleep       - Change agent sleep interval
   tty_shell   - Start tty shell
 
