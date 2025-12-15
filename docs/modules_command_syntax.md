@@ -14,7 +14,7 @@ run <module_name> <option>=<value>
 
 The module example given here is a placeholder, intended to help the operator understand how to run their extensible modules. 
 
-Read [modules.md](docs/modules.md) for a guide on the modularity of the framework.
+Read [modules.md](#docs/modules.md) for a guide on the modularity of the framework.
 
 Run `modules list` for a list of both external and built-in modules that might and might not be covered by this guide and pull their usage info with `modules info <name>`
 
