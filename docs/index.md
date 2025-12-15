@@ -17,9 +17,9 @@ Manage agents and stagers within your environment.
 *   [**Agents and Stagers Guide**](agents_and_stagers_guide.md)
 
 ### Building & Customization
-Understand how to build modules and interact with command syntax.
+Understand how to extend and tailor the framework to your needs.
 
-*   [**Build Modules**](build_modules.md)
+*   [**Modules**](modules.md)
 *   [**Modules Command Syntax**](modules_command_syntax.md)
 
 ### Advanced Features
