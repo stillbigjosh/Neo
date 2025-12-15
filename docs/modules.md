@@ -2,7 +2,6 @@
 
 - [General Syntax](#general-syntax)
 - [Module Structure and Types](#module-structure-and-types)
-- [Example External Module](#example-external-module)
 
 ## General Syntax
 
@@ -471,45 +470,3 @@ def execute(options, session):
 
 This example demonstrates the complete module pattern including proper input validation, error handling, and integration with external PowerShell scripts.
 
-
-## Example External Module
-
-The module example given here is a placeholder, intended to help the operator understand how to run their extensible modules. 
-
-### Get-ComputerDetail Module
-
-The PowerSploit's `Get-ComputerDetail` (external powershell module with a Python-wrapper) executes a PowerShell script to gather comprehensive system information including OS details, hardware specs, network configuration, and running processes.
-
-#### Required Options:
-- `agent_id`: ID of the agent to run Get-ComputerDetail on
-
-#### Optional Options:
-- `computer_name`: Target computer name or IP address to enumerate (default: localhost)
-- `credentialed_access`: Use alternate credentials for remote enumeration (format: domain\\username:password)
-- `property`: Specific property to retrieve (optional, if not specified, all properties will be returned)
-
-#### Examples:
-
-**Basic Computer Detail Enumeration:**
-```
-run Get-ComputerDetail agent_id=abc123-4567-8901-2345-67890abcdef1
-```
-
-**Remote Computer Detail Enumeration:**
-```
-run Get-ComputerDetail agent_id=abc123-4567-8901-2345-67890abcdef1 computer_name=192.168.1.10
-```
-
-**Computer Detail with Specific Property:**
-```
-run Get-ComputerDetail agent_id=abc123-4567-8901-2345-67890abcdef1 computer_name=192.168.1.10 property=OSInfo
-```
-
-**Computer Detail with Credentials:**
-```
-run Get-ComputerDetail agent_id=abc123-4567-8901-2345-67890abcdef1 computer_name=192.168.1.10 credentialed_access=DOMAIN\\admin:password123 property=HardwareInfo
-```
-
-
-
---
