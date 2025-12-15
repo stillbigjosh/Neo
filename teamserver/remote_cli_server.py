@@ -2116,13 +2116,18 @@ class RemoteCLIServer:
                 file_content = f.read()
             encoded_content = base64.b64encode(file_content).decode('utf-8')
 
-            agent_command = f"{remote_path} {encoded_content}"
+            # Format the upload command as expected by the agent: "upload <remote_path> <encoded_content>"
+            agent_command = f"upload {remote_path} {encoded_content}"
 
-            task_id = session.agent_manager.add_upload_task(agent_id, agent_command)
-            if task_id:
-                return f" Upload task for '{os.path.basename(local_path)}' queued for agent {agent_id[:8]}...", "success"
+            # Use the existing add_task method to create the proper task
+            task_result = session.agent_manager.add_task(agent_id, agent_command)
+
+            if task_result and task_result.get('success'):
+                task_id = task_result['task_id']
+                return f" Upload task for '{os.path.basename(local_path)}' -> '{remote_path}' queued for agent {agent_id[:8]}...", "success"
             else:
-                return f" Failed to queue upload task for agent {agent_id[:8]}...", "error"
+                error_msg = task_result.get('error', 'Unknown error') if task_result else 'Failed to create task'
+                return f" Failed to queue upload task for agent {agent_id[:8]}: {error_msg}", "error"
 
         except Exception as e:
             return f" An error occurred during file upload preparation: {e}", "error"
