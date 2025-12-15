@@ -37,13 +37,10 @@ The NeoC2 framework is extendible with:
 
 3. **Raw Shellcodes**: via the Framework's [PInject](GENERAL%20USAGE%20GUIDE.md/#pinject) module
 
-And the following are extendible via Operator's own Python-wrapper - See [Creating a Basic Module](#creating-a-basic-module):
+4. **Windows Powershell scripts**: via the Framework's [PWSH](GENERAL%20USAGE%20GUIDE.md/#powershell) module
 
-4. **Windows Powershell scripts**
+5. **Linux Shell & Python scripts**:
 
-5. **Linux Shell scripts**
-
-6. **Linux Python scripts**
 
 ## Module Directory Structure
 
