@@ -232,7 +232,7 @@ NeoC2 > stager generate linux_binary host=<c2_host> port=<c2_port> protocol=http
 
 ## Task Management
 
-NeoC2 implements a sophisticated task management system:
+Tasks are commands executed on an active agent session. NeoC2 implements a sophisticated task management system:
 
 ### Task Types
 
