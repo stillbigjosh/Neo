@@ -8,11 +8,13 @@
 ```
 run <module_name> <agent_id> <option>=<value>
 
-# IN INTERACTIVE MODE - OPERATORS DO NOT HAVE TO SPECIFY agent_id THE CUURENT AGENT IS AUTOMATICALLY USED
+# In interactive mode, the agent ID is automatically inferred:
 run <module_name> <option>=<value>
 ```
 
-The module example given here are placeholders, intended to give the operator an idea on how to run their own extensible modules. Read [modules command syntax.md](docs/modules_command_syntax.md) for a guide on How to introduce your own modules into the Framework using a Python-wrapper.
+The module example given here is a placeholder, intended to help the operator understand how to run their extensible modules. 
+
+Read [modules.md](docs/modules.md) for a guide on the modularity of the framework.
 
 Run `modules list` for a list of both external and built-in modules that might and might not be covered by this guide and pull their usage info with `modules info <name>`
 
