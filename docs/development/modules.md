@@ -19,13 +19,13 @@ run <module_name> <agent_id> <option>=<value>
 
 The NeoC2 framework is extendible with:
 
-1. **Windows Beacon Object Files**: via the Framework's [inline-execute](GENERAL%20USAGE%20GUIDE.md/#inline-execute) module
+1. **Windows Beacon Object Files**: via the Framework's [inline-execute](../usage_guide/specialized_modules.md/#inline-execute) module
 
-2. **Native Windows Portable Executables**: via the Framework's [PEInject](GENERAL%20USAGE%20GUIDE.md/#peinject) module
+2. **Native Windows Portable Executables**: via the Framework's [PEInject](../usage_guide/specialized_modules.md/#peinject) module
 
-3. **Raw Shellcodes**: via the Framework's [PInject](GENERAL%20USAGE%20GUIDE.md/#pinject) module
+3. **Raw Shellcodes**: via the Framework's [PInject](../usage_guide/specialized_modules.md/#pinject) module
 
-4. **Windows Powershell scripts**: via the Framework's [PWSH](GENERAL%20USAGE%20GUIDE.md/#powershell) module
+4. **Windows Powershell scripts**: via the Framework's [PWSH](../usage_guide/specialized_modules.md/#powershell) module
 
 5. **Linux Shell & Python scripts**:
 

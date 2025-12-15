@@ -1,40 +1,39 @@
 # Overview
 
-
-A modular server-client architecture post-exploitation framework built for collaborative agent management in red team operations and security testing. Enables flexibility by allowing operators to add their own modules. 
+A modular server-client architecture post-exploitation framework built for collaborative agent management in red team operations and security testing. Enables flexibility by allowing operators to add their own modules.
 
 ---
 
 ## Getting Started
 
-*  [**Installation**](Installation.md): Start here for installations 
+*  [**Installation**](getting_started/Installation.md): Start here for installations
 
-*   [**General Usage Guide**](GENERAL%20USAGE%20GUIDE.md): Overview of the platform's features and basic usage instructions. 
+### Core Concepts
 
-### Agents & Stagers
-Manage agents and stagers within your environment.
+*   [**Agents & Stagers**](core_concepts/agents_and_stagers_guide.md): Manage agents and stagers within your environment
+*   [**Profiles & Listeners**](usage_guide/profiles_and_listeners.md): Configure communication profiles and HTTP listeners
 
-*   [**Agents and Stagers Guide**](agents_and_stagers_guide.md)
+### Usage Guide
 
-### Building & Customization
-Understand how to extend and tailor the framework to your needs.
-
-*   [**Modules**](modules.md)
+*   [**Agent Management**](usage_guide/agent_management.md): Managing agent lifecycles and interactive sessions
+*   [**Payload Generation**](usage_guide/payload_generation.md): Creating and deploying agent payloads
+*   [**Task Management**](usage_guide/task_management.md): Executing commands and managing task results
+*   [**Security & Evasion**](usage_guide/security_and_evasion.md): Evasion techniques and security features
+*   [**Specialized Modules**](usage_guide/specialized_modules.md): Advanced module operations (PowerShell, BOF, shellcode injection, etc.)
+*   [**Troubleshooting**](usage_guide/troubleshooting.md): Common issues and debugging
 
 ### Advanced Features
-Guides covering advanced functionality and setups.
 
-*   [**Multiplayer**](multiplayer.md): Collaboration and shared usage.
-*   [**P2P Readme**](p2preadme.md): Information on peer-to-peer functionality.
-*   [**Task Orchestration**](taskorchestration.md): Managing and automating tasks.
-*   [**Reporting**](reporting.md): Learn about generating and viewing reports.
+*   [**Multiplayer**](advanced_features/multiplayer.md): Collaboration and shared usage
+*   [**Task Orchestration**](advanced_features/taskorchestration.md): Automated task chaining
+*   [**Reporting**](advanced_features/reporting.md): Generating and viewing reports
+*   [**P2P Communication**](advanced_features/p2preadme.md): Peer-to-peer agent communication
 
----
+### Development & Customization
 
-## Project Information
-
-*   [**Roadmap**](roadmap.md): See what's coming next for the project.
+*   [**Module Development**](development/modules.md): Creating custom modules for the framework
+*   [**Roadmap**](development/roadmap.md): See what's coming next for the project
 
 ---
 
-If you have any issues, please reach out to @stillbigjosh 
+If you have any issues, please reach out to @stillbigjosh
