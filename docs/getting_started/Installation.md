@@ -114,8 +114,10 @@ NeoC2 > listener start <listener_name>
 # Build payload 
 NeoC2 > payload <agent_type> <listener_name>
 ```
-USE `neoc2 logs` TO MONITOR NEW AGENT REGISTERS ON A SEPARATE TERMINAL
 
+The Neo Remote Server automatically alerts all connected clients when an agent registers, like so: `[+] NEW AGENT: ID=c272-xxxx HOST=xxxx USER=root IP=127.0.0.1 OS=xxxx`
+
+You can List active agents and interact: 
 
 ```
 # List active agents
