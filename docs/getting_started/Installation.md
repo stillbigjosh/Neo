@@ -115,19 +115,28 @@ NeoC2 > listener start <listener_name>
 NeoC2 > payload <agent_type> <listener_name>
 ```
 
+#### Agent Register
+
 The Neo C2 Server automatically alerts all connected clients when a deployed implant is active or registers: `[+] NEW AGENT: ID=c272-xxxx HOST=xxxx USER=root IP=127.0.0.1 OS=xxxx`
 
-List active agents and interact: 
+#### List active agents
 
 ```
-# List active agents
 NeoC2 > beacon
 NeoC2 > agent list
-# Interact with agent
-NeoC2 > interact <agent-id>
+```
+
+#### Modes
+
+The Neo C2 has two operation mode based on its [task management system](usage_guide/task_management.md): 
+
+- Default queued mode: Tasks are stored in the database and retrieved by agents during their regular polling cycles
+
+- Interactive mode: Tasks and Modules bypasses the standard queue and communicate directly with agents in real-time via the interactive API
+```
+interact <agent_id>
 ```
 
 
 
---
 
