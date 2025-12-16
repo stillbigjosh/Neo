@@ -9,9 +9,10 @@
 - [x] In-memory execution of Windows PE file
 - [x] Failover server deployment support
 - [x] In-memory COFF/BOF Execution
+- [x] Powershell module handler 
+- [x] Agent-register alerting system via the multiplayer agent manager to the remote_cli.py
 
 ## Actively Under development
-- [ ] Agent-register alerting system via the multiplayer agent manager to the remote_cli.py
 - [ ] In-memory .NET execution
 
 ## To be implemented
@@ -23,7 +24,7 @@
 - [ ] File browser
 - [ ] Large powershell scripts broken down in chunks in-memory to bypass characater limit
 - [ ] Support for domain fronting
-- [ ] Enhanced lateral movement techniques
+- [ ] Lateral movement module
 - [ ] URI endpoint rotation in malleable profiles
 - [ ] Runtime obfuscation
 - [ ] Stealth communication channels
