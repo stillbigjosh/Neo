@@ -87,7 +87,7 @@ def execute(options, session):
             task_id = task_result['task_id']
             return {
                 "success": True,
-                "output": f"PowerShell script execution task {task_id} queued for agent {agent_id}",
+                "output": f"[x] PowerShell script execution task {task_id} queued for agent {agent_id}",
                 "task_id": task_id,
                 "command": command
             }

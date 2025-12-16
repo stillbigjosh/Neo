@@ -122,7 +122,7 @@ def execute(options, session):
         if task_id:
             result = {
                 "success": True,
-                "output": f"BOF execution task queued for agent {agent_id}",
+                "output": f"[x] BOF execution task queued for agent {agent_id}",
                 "task_id": task_id,
                 "bof_command": bof_command,
                 "bof_path": bof_full_path,

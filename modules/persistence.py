@@ -99,7 +99,7 @@ def execute(options, session):
         if task_id:
             return {
                 "success": True,
-                "output": f"Persistence task {task_id} queued for agent {agent_id} using method: {method}",
+                "output": f"[x] Persistence task {task_id} queued for agent {agent_id} using method: {method}",
                 "task_id": task_id,
                 "method": method,
                 "name": name

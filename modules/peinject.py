@@ -82,7 +82,7 @@ def execute(options, session):
         if task_id:
             return {
                 "success": True,
-                "output": f"PE injection task {task_id} queued for agent {agent_id}",
+                "output": f"[x] PE injection task {task_id} queued for agent {agent_id}",
                 "task_id": task_id,
                 "target_process": "explorer.exe"
             }

@@ -80,7 +80,7 @@ def execute(options, session):
         if task_id:
             return {
                 "success": True,
-                "output": f"Process injection task {task_id} queued for agent {agent_id}",
+                "output": f"[x] Process injection task {task_id} queued for agent {agent_id}",
                 "task_id": task_id,
                 "target_process": "notepad.exe"
             }
