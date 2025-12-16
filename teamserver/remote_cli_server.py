@@ -443,14 +443,14 @@ class RemoteCLIServer:
     def handle_run_command(self, command_parts, session):
         if len(command_parts) < 2:
             return help.get_run_help_display(), 'info'
-        
+
         module_name = command_parts[1]
-        
+
         try:
             db = session.agent_manager.db if session.agent_manager else self.db
-            
+
             module_manager = self.module_manager
-            
+
             options = {}
             for part in command_parts[2:]:
                 if '=' in part:
@@ -461,12 +461,12 @@ class RemoteCLIServer:
                 options['agent_id'] = session.current_agent
 
             wait_timeout = int(options.get('wait_timeout', 0))
-            
+
             module_manager.load_all_modules()
             module_manager.load_modules_from_db()
-            
+
             loaded_modules_dict = getattr(module_manager, 'loaded_modules', {})
-            
+
             if module_name not in loaded_modules_dict:
                 module_path = os.path.join("modules", f"{module_name}.py")
                 if os.path.exists(module_path):
@@ -474,63 +474,109 @@ class RemoteCLIServer:
                     loaded_modules_dict = getattr(module_manager, 'loaded_modules', {})
                 else:
                     return f"Module not found: {module_name}", 'error'
-            
+
             if module_name in loaded_modules_dict:
                 module_data = loaded_modules_dict[module_name]
                 module = module_data['module']
                 info = module_data.get('info', {})  # Get module info for validation
-                
+
                 if hasattr(module, 'execute'):
                     required_options = [opt for opt, opt_info in info.get('options', {}).items() if opt_info.get('required', False)]
                     missing = [opt for opt in required_options if opt not in options]
                     if missing:
                         return f"Missing required options: {', '.join(missing)}", 'error'
-                    
+
                     agent_id = options.get('agent_id')
                     if agent_id:
                         if session.agent_manager.is_agent_locked_interactively(agent_id):
                             lock_info = session.agent_manager.get_interactive_lock_info(agent_id)
                             if lock_info and lock_info['operator'] != session.username:
                                 return f"Agent {agent_id} is currently in exclusive interactive mode with operator: {lock_info['operator']}. Access denied.", 'error'
-                    
+
                     original_agent = session.current_agent
                     try:
-                        result = module.execute(options, session)
-                        if 'success' in result:
-                            status = 'success' if result['success'] else 'error'
-                            output = result.get('output', result.get('error', 'Unknown error'))
+                        # Check if we're in interactive mode and if the module should be executed interactively
+                        if session.interactive_mode and session.current_agent and agent_id == session.current_agent:
+                            # Determine the command to execute by inspecting what the module would do
+                            # For this, we need to modify the approach - let's first call the module
+                            # to get the command it would queue, then execute it interactively instead
+
+                            # Temporarily set a flag to indicate this is for interactive execution
+                            session.is_interactive_execution = True
+
+                            result = module.execute(options, session)
+
+                            # Remove the flag after execution
+                            if hasattr(session, 'is_interactive_execution'):
+                                delattr(session, 'is_interactive_execution')
+
+                            if 'success' in result and result['success'] and 'command' in result:
+                                # This is a command that should be executed interactively
+                                command_to_execute = result['command']
+
+                                # Execute the command via the interactive API instead of queuing it
+                                interactive_result, error = session.agent_manager.send_interactive_command(
+                                    session.current_agent, command_to_execute, timeout=120
+                                )
+
+                                if error:
+                                    return f"Error executing interactive command: {error}", 'error'
+
+                                if interactive_result is not None:
+                                    formatted_result = str(interactive_result).strip()
+                                    if len(formatted_result) > 10000:  # Truncate very long results
+                                        formatted_result = formatted_result[:10000] + "\n... (truncated)"
+
+                                    return f"[+] Interactive module execution completed:\n{formatted_result}", 'success'
+                                else:
+                                    return "No response from agent", 'warning'
+                            else:
+                                # If the module doesn't return a command to execute, use the original result
+                                if 'success' in result:
+                                    status = 'success' if result['success'] else 'error'
+                                    output = result.get('output', result.get('error', 'Unknown error'))
+                                else:
+                                    output = result.get('output', 'No output')
+                                    status = result.get('status', 'unknown')
+                                return output, status
                         else:
-                            output = result.get('output', 'No output')
-                            status = result.get('status', 'unknown')
-                        
-                        if status == 'success' and wait_timeout > 0 and 'task_id' in result:
-                            task_id = result['task_id']
-                            agent_id = options.get('agent_id')
-                            if not agent_id:
-                                return f"Task {task_id} queued, but cannot monitor without agent_id", 'error'
-                            
-                            # Poll task status
-                            import time
-                            start_time = time.time()
-                            while time.time() - start_time < wait_timeout:
-                                task_data = db.execute(
-                                    "SELECT status, result FROM agent_tasks WHERE id = ? AND agent_id = ?",
-                                    (task_id, agent_id)
-                                ).fetchone()
-                                if task_data and task_data['status'] == 'completed':
-                                    return f"Task {task_id} completed: {task_data['result']}", 'success'
-                                time.sleep(1)  # Poll every second
-                            
-                            return f"Task {task_id} queued but not completed within {wait_timeout} seconds (status: {task_data['status'] if task_data else 'unknown'})", 'warning'
-                        
-                        return output, status
+                            # Normal execution (not in interactive mode)
+                            result = module.execute(options, session)
+                            if 'success' in result:
+                                status = 'success' if result['success'] else 'error'
+                                output = result.get('output', result.get('error', 'Unknown error'))
+                            else:
+                                output = result.get('output', 'No output')
+                                status = result.get('status', 'unknown')
+
+                            if status == 'success' and wait_timeout > 0 and 'task_id' in result:
+                                task_id = result['task_id']
+                                agent_id = options.get('agent_id')
+                                if not agent_id:
+                                    return f"Task {task_id} queued, but cannot monitor without agent_id", 'error'
+
+                                # Poll task status
+                                import time
+                                start_time = time.time()
+                                while time.time() - start_time < wait_timeout:
+                                    task_data = db.execute(
+                                        "SELECT status, result FROM agent_tasks WHERE id = ? AND agent_id = ?",
+                                        (task_id, agent_id)
+                                    ).fetchone()
+                                    if task_data and task_data['status'] == 'completed':
+                                        return f"Task {task_id} completed: {task_data['result']}", 'success'
+                                    time.sleep(1)  # Poll every second
+
+                                return f"Task {task_id} queued but not completed within {wait_timeout} seconds (status: {task_data['status'] if task_data else 'unknown'})", 'warning'
+
+                            return output, status
                     finally:
                         session.current_agent = original_agent
                 else:
                     return f"Module '{module_name}' does not have an execute function", 'error'
             else:
                 return f"Could not load module: {module_name}", 'error'
-                
+
         except Exception as e:
             return f"Error running module: {str(e)}", 'error'
 
@@ -611,34 +657,76 @@ class RemoteCLIServer:
 
                     original_agent = session.current_agent
                     try:
-                        result = module.execute(options, session)
-                        if 'success' in result:
-                            status = 'success' if result['success'] else 'error'
-                            output = result.get('output', result.get('error', 'Unknown error'))
+                        # Check if we're in interactive mode and if the module should be executed interactively
+                        if session.interactive_mode and session.current_agent and agent_id == session.current_agent:
+                            # Temporarily set a flag to indicate this is for interactive execution
+                            session.is_interactive_execution = True
+
+                            result = module.execute(options, session)
+
+                            # Remove the flag after execution
+                            if hasattr(session, 'is_interactive_execution'):
+                                delattr(session, 'is_interactive_execution')
+
+                            if 'success' in result and result['success'] and 'command' in result:
+                                # This is a command that should be executed interactively
+                                command_to_execute = result['command']
+
+                                # Execute the command via the interactive API instead of queuing it
+                                interactive_result, error = session.agent_manager.send_interactive_command(
+                                    session.current_agent, command_to_execute, timeout=120
+                                )
+
+                                if error:
+                                    return f"Error executing interactive command: {error}", 'error'
+
+                                if interactive_result is not None:
+                                    formatted_result = str(interactive_result).strip()
+                                    if len(formatted_result) > 10000:  # Truncate very long results
+                                        formatted_result = formatted_result[:10000] + "\n... (truncated)"
+
+                                    return f"[+] Interactive module execution completed:\n{formatted_result}", 'success'
+                                else:
+                                    return "No response from agent", 'warning'
+                            else:
+                                # If the module doesn't return a command to execute, use the original result
+                                if 'success' in result:
+                                    status = 'success' if result['success'] else 'error'
+                                    output = result.get('output', result.get('error', 'Unknown error'))
+                                else:
+                                    output = result.get('output', 'No output')
+                                    status = result.get('status', 'unknown')
+                                return output, status
                         else:
-                            output = result.get('output', 'No output')
-                            status = result.get('status', 'unknown')
+                            # Normal execution (not in interactive mode)
+                            result = module.execute(options, session)
+                            if 'success' in result:
+                                status = 'success' if result['success'] else 'error'
+                                output = result.get('output', result.get('error', 'Unknown error'))
+                            else:
+                                output = result.get('output', 'No output')
+                                status = result.get('status', 'unknown')
 
-                        if status == 'success' and wait_timeout > 0 and 'task_id' in result:
-                            task_id = result['task_id']
-                            agent_id = options.get('agent_id')
-                            if not agent_id:
-                                return f"Task {task_id} queued, but cannot monitor without agent_id", 'error'
+                            if status == 'success' and wait_timeout > 0 and 'task_id' in result:
+                                task_id = result['task_id']
+                                agent_id = options.get('agent_id')
+                                if not agent_id:
+                                    return f"Task {task_id} queued, but cannot monitor without agent_id", 'error'
 
-                            import time
-                            start_time = time.time()
-                            while time.time() - start_time < wait_timeout:
-                                task_data = db.execute(
-                                    "SELECT status, result FROM agent_tasks WHERE id = ? AND agent_id = ?",
-                                    (task_id, agent_id)
-                                ).fetchone()
-                                if task_data and task_data['status'] == 'completed':
-                                    return f"Task {task_id} completed: {task_data['result']}", 'success'
-                                time.sleep(1)
+                                import time
+                                start_time = time.time()
+                                while time.time() - start_time < wait_timeout:
+                                    task_data = db.execute(
+                                        "SELECT status, result FROM agent_tasks WHERE id = ? AND agent_id = ?",
+                                        (task_id, agent_id)
+                                    ).fetchone()
+                                    if task_data and task_data['status'] == 'completed':
+                                        return f"Task {task_id} completed: {task_data['result']}", 'success'
+                                    time.sleep(1)
 
-                            return f"Task {task_id} queued but not completed within {wait_timeout} seconds (status: {task_data['status'] if task_data else 'unknown'})", 'warning'
+                                return f"Task {task_id} queued but not completed within {wait_timeout} seconds (status: {task_data['status'] if task_data else 'unknown'})", 'warning'
 
-                        return output, status
+                            return output, status
                     finally:
                         session.current_agent = original_agent
                 else:
@@ -726,34 +814,76 @@ class RemoteCLIServer:
 
                     original_agent = session.current_agent
                     try:
-                        result = module.execute(options, session)
-                        if 'success' in result:
-                            status = 'success' if result['success'] else 'error'
-                            output = result.get('output', result.get('error', 'Unknown error'))
+                        # Check if we're in interactive mode and if the module should be executed interactively
+                        if session.interactive_mode and session.current_agent and agent_id == session.current_agent:
+                            # Temporarily set a flag to indicate this is for interactive execution
+                            session.is_interactive_execution = True
+
+                            result = module.execute(options, session)
+
+                            # Remove the flag after execution
+                            if hasattr(session, 'is_interactive_execution'):
+                                delattr(session, 'is_interactive_execution')
+
+                            if 'success' in result and result['success'] and 'command' in result:
+                                # This is a command that should be executed interactively
+                                command_to_execute = result['command']
+
+                                # Execute the command via the interactive API instead of queuing it
+                                interactive_result, error = session.agent_manager.send_interactive_command(
+                                    session.current_agent, command_to_execute, timeout=120
+                                )
+
+                                if error:
+                                    return f"Error executing interactive command: {error}", 'error'
+
+                                if interactive_result is not None:
+                                    formatted_result = str(interactive_result).strip()
+                                    if len(formatted_result) > 10000:  # Truncate very long results
+                                        formatted_result = formatted_result[:10000] + "\n... (truncated)"
+
+                                    return f"[+] Interactive module execution completed:\n{formatted_result}", 'success'
+                                else:
+                                    return "No response from agent", 'warning'
+                            else:
+                                # If the module doesn't return a command to execute, use the original result
+                                if 'success' in result:
+                                    status = 'success' if result['success'] else 'error'
+                                    output = result.get('output', result.get('error', 'Unknown error'))
+                                else:
+                                    output = result.get('output', 'No output')
+                                    status = result.get('status', 'unknown')
+                                return output, status
                         else:
-                            output = result.get('output', 'No output')
-                            status = result.get('status', 'unknown')
+                            # Normal execution (not in interactive mode)
+                            result = module.execute(options, session)
+                            if 'success' in result:
+                                status = 'success' if result['success'] else 'error'
+                                output = result.get('output', result.get('error', 'Unknown error'))
+                            else:
+                                output = result.get('output', 'No output')
+                                status = result.get('status', 'unknown')
 
-                        if status == 'success' and wait_timeout > 0 and 'task_id' in result:
-                            task_id = result['task_id']
-                            agent_id = options.get('agent_id')
-                            if not agent_id:
-                                return f"Task {task_id} queued, but cannot monitor without agent_id", 'error'
+                            if status == 'success' and wait_timeout > 0 and 'task_id' in result:
+                                task_id = result['task_id']
+                                agent_id = options.get('agent_id')
+                                if not agent_id:
+                                    return f"Task {task_id} queued, but cannot monitor without agent_id", 'error'
 
-                            import time
-                            start_time = time.time()
-                            while time.time() - start_time < wait_timeout:
-                                task_data = db.execute(
-                                    "SELECT status, result FROM agent_tasks WHERE id = ? AND agent_id = ?",
-                                    (task_id, agent_id)
-                                ).fetchone()
-                                if task_data and task_data['status'] == 'completed':
-                                    return f"Task {task_id} completed: {task_data['result']}", 'success'
-                                time.sleep(1)
+                                import time
+                                start_time = time.time()
+                                while time.time() - start_time < wait_timeout:
+                                    task_data = db.execute(
+                                        "SELECT status, result FROM agent_tasks WHERE id = ? AND agent_id = ?",
+                                        (task_id, agent_id)
+                                    ).fetchone()
+                                    if task_data and task_data['status'] == 'completed':
+                                        return f"Task {task_id} completed: {task_data['result']}", 'success'
+                                    time.sleep(1)
 
-                            return f"Task {task_id} queued but not completed within {wait_timeout} seconds (status: {task_data['status'] if task_data else 'unknown'})", 'warning'
+                                return f"Task {task_id} queued but not completed within {wait_timeout} seconds (status: {task_data['status'] if task_data else 'unknown'})", 'warning'
 
-                        return output, status
+                            return output, status
                     finally:
                         session.current_agent = original_agent
                 else:
@@ -856,20 +986,68 @@ class RemoteCLIServer:
 
                     original_agent = session.current_agent
                     try:
-                        result = module.execute(options, session)
-                        if 'success' in result:
-                            status = 'success' if result['success'] else 'error'
-                            output = result.get('output', result.get('error', 'Unknown error'))
+                        # Check if we're in interactive mode and if the module should be executed interactively
+                        if session.interactive_mode and session.current_agent and agent_id == session.current_agent:
+                            # Temporarily set a flag to indicate this is for interactive execution
+                            session.is_interactive_execution = True
 
-                            # Return both the output and task ID if available (like pinject)
-                            if 'task_id' in result:
-                                return f"{output} (Task ID: {result['task_id']})", status
+                            result = module.execute(options, session)
+
+                            # Remove the flag after execution
+                            if hasattr(session, 'is_interactive_execution'):
+                                delattr(session, 'is_interactive_execution')
+
+                            if 'success' in result and result['success'] and 'command' in result:
+                                # This is a command that should be executed interactively
+                                command_to_execute = result['command']
+
+                                # Execute the command via the interactive API instead of queuing it
+                                interactive_result, error = session.agent_manager.send_interactive_command(
+                                    session.current_agent, command_to_execute, timeout=120
+                                )
+
+                                if error:
+                                    return f"Error executing interactive command: {error}", 'error'
+
+                                if interactive_result is not None:
+                                    formatted_result = str(interactive_result).strip()
+                                    if len(formatted_result) > 10000:  # Truncate very long results
+                                        formatted_result = formatted_result[:10000] + "\n... (truncated)"
+
+                                    return f"[+] Interactive module execution completed:\n{formatted_result}", 'success'
+                                else:
+                                    return "No response from agent", 'warning'
                             else:
-                                return output, status
+                                # If the module doesn't return a command to execute, use the original result
+                                if 'success' in result:
+                                    status = 'success' if result['success'] else 'error'
+                                    output = result.get('output', result.get('error', 'Unknown error'))
+
+                                    # Return both the output and task ID if available (like pinject)
+                                    if 'task_id' in result:
+                                        return f"{output} (Task ID: {result['task_id']})", status
+                                    else:
+                                        return output, status
+                                else:
+                                    output = result.get('output', 'No output')
+                                    status = result.get('status', 'unknown')
+                                    return output, status
                         else:
-                            output = result.get('output', 'No output')
-                            status = result.get('status', 'unknown')
-                            return output, status
+                            # Normal execution (not in interactive mode)
+                            result = module.execute(options, session)
+                            if 'success' in result:
+                                status = 'success' if result['success'] else 'error'
+                                output = result.get('output', result.get('error', 'Unknown error'))
+
+                                # Return both the output and task ID if available (like pinject)
+                                if 'task_id' in result:
+                                    return f"{output} (Task ID: {result['task_id']})", status
+                                else:
+                                    return output, status
+                            else:
+                                output = result.get('output', 'No output')
+                                status = result.get('status', 'unknown')
+                                return output, status
                     finally:
                         session.current_agent = original_agent
                 else:
@@ -961,34 +1139,96 @@ class RemoteCLIServer:
 
                     original_agent = session.current_agent
                     try:
-                        result = module.execute(options, session)
-                        if 'success' in result:
-                            status = 'success' if result['success'] else 'error'
-                            output = result.get('output', result.get('error', 'Unknown error'))
+                        # Check if we're in interactive mode and if the module should be executed interactively
+                        if session.interactive_mode and session.current_agent and agent_id == session.current_agent:
+                            # Temporarily set a flag to indicate this is for interactive execution
+                            session.is_interactive_execution = True
+
+                            result = module.execute(options, session)
+
+                            # Remove the flag after execution
+                            if hasattr(session, 'is_interactive_execution'):
+                                delattr(session, 'is_interactive_execution')
+
+                            if 'success' in result and result['success'] and 'command' in result:
+                                # This is a command that should be executed interactively
+                                command_to_execute = result['command']
+
+                                # Execute the command via the interactive API instead of queuing it
+                                interactive_result, error = session.agent_manager.send_interactive_command(
+                                    session.current_agent, command_to_execute, timeout=120
+                                )
+
+                                if error:
+                                    return f"Error executing interactive command: {error}", 'error'
+
+                                if interactive_result is not None:
+                                    formatted_result = str(interactive_result).strip()
+                                    if len(formatted_result) > 10000:  # Truncate very long results
+                                        formatted_result = formatted_result[:10000] + "\n... (truncated)"
+
+                                    return f"[+] Interactive module execution completed:\n{formatted_result}", 'success'
+                                else:
+                                    return "No response from agent", 'warning'
+                            else:
+                                # If the module doesn't return a command to execute, use the original result
+                                if 'success' in result:
+                                    status = 'success' if result['success'] else 'error'
+                                    output = result.get('output', result.get('error', 'Unknown error'))
+                                else:
+                                    output = result.get('output', 'No output')
+                                    status = result.get('status', 'unknown')
+
+                                if status == 'success' and wait_timeout > 0 and 'task_id' in result:
+                                    task_id = result['task_id']
+                                    agent_id = options.get('agent_id')
+                                    if not agent_id:
+                                        return f"Task {task_id} queued, but cannot monitor without agent_id", 'error'
+
+                                    import time
+                                    start_time = time.time()
+                                    while time.time() - start_time < wait_timeout:
+                                        task_data = db.execute(
+                                            "SELECT status, result FROM agent_tasks WHERE id = ? AND agent_id = ?",
+                                            (task_id, agent_id)
+                                        ).fetchone()
+                                        if task_data and task_data['status'] == 'completed':
+                                            return f"Task {task_id} completed: {task_data['result']}", 'success'
+                                        time.sleep(1)
+
+                                    return f"Task {task_id} queued but not completed within {wait_timeout} seconds (status: {task_data['status'] if task_data else 'unknown'})", 'warning'
+
+                                return output, status
                         else:
-                            output = result.get('output', 'No output')
-                            status = result.get('status', 'unknown')
+                            # Normal execution (not in interactive mode)
+                            result = module.execute(options, session)
+                            if 'success' in result:
+                                status = 'success' if result['success'] else 'error'
+                                output = result.get('output', result.get('error', 'Unknown error'))
+                            else:
+                                output = result.get('output', 'No output')
+                                status = result.get('status', 'unknown')
 
-                        if status == 'success' and wait_timeout > 0 and 'task_id' in result:
-                            task_id = result['task_id']
-                            agent_id = options.get('agent_id')
-                            if not agent_id:
-                                return f"Task {task_id} queued, but cannot monitor without agent_id", 'error'
+                            if status == 'success' and wait_timeout > 0 and 'task_id' in result:
+                                task_id = result['task_id']
+                                agent_id = options.get('agent_id')
+                                if not agent_id:
+                                    return f"Task {task_id} queued, but cannot monitor without agent_id", 'error'
 
-                            import time
-                            start_time = time.time()
-                            while time.time() - start_time < wait_timeout:
-                                task_data = db.execute(
-                                    "SELECT status, result FROM agent_tasks WHERE id = ? AND agent_id = ?",
-                                    (task_id, agent_id)
-                                ).fetchone()
-                                if task_data and task_data['status'] == 'completed':
-                                    return f"Task {task_id} completed: {task_data['result']}", 'success'
-                                time.sleep(1)
+                                import time
+                                start_time = time.time()
+                                while time.time() - start_time < wait_timeout:
+                                    task_data = db.execute(
+                                        "SELECT status, result FROM agent_tasks WHERE id = ? AND agent_id = ?",
+                                        (task_id, agent_id)
+                                    ).fetchone()
+                                    if task_data and task_data['status'] == 'completed':
+                                        return f"Task {task_id} completed: {task_data['result']}", 'success'
+                                    time.sleep(1)
 
-                            return f"Task {task_id} queued but not completed within {wait_timeout} seconds (status: {task_data['status'] if task_data else 'unknown'})", 'warning'
+                                return f"Task {task_id} queued but not completed within {wait_timeout} seconds (status: {task_data['status'] if task_data else 'unknown'})", 'warning'
 
-                        return output, status
+                            return output, status
                     finally:
                         session.current_agent = original_agent
                 else:
@@ -1076,34 +1316,96 @@ class RemoteCLIServer:
 
                     original_agent = session.current_agent
                     try:
-                        result = module.execute(options, session)
-                        if 'success' in result:
-                            status = 'success' if result['success'] else 'error'
-                            output = result.get('output', result.get('error', 'Unknown error'))
+                        # Check if we're in interactive mode and if the module should be executed interactively
+                        if session.interactive_mode and session.current_agent and agent_id == session.current_agent:
+                            # Temporarily set a flag to indicate this is for interactive execution
+                            session.is_interactive_execution = True
+
+                            result = module.execute(options, session)
+
+                            # Remove the flag after execution
+                            if hasattr(session, 'is_interactive_execution'):
+                                delattr(session, 'is_interactive_execution')
+
+                            if 'success' in result and result['success'] and 'command' in result:
+                                # This is a command that should be executed interactively
+                                command_to_execute = result['command']
+
+                                # Execute the command via the interactive API instead of queuing it
+                                interactive_result, error = session.agent_manager.send_interactive_command(
+                                    session.current_agent, command_to_execute, timeout=120
+                                )
+
+                                if error:
+                                    return f"Error executing interactive command: {error}", 'error'
+
+                                if interactive_result is not None:
+                                    formatted_result = str(interactive_result).strip()
+                                    if len(formatted_result) > 10000:  # Truncate very long results
+                                        formatted_result = formatted_result[:10000] + "\n... (truncated)"
+
+                                    return f"[+] Interactive module execution completed:\n{formatted_result}", 'success'
+                                else:
+                                    return "No response from agent", 'warning'
+                            else:
+                                # If the module doesn't return a command to execute, use the original result
+                                if 'success' in result:
+                                    status = 'success' if result['success'] else 'error'
+                                    output = result.get('output', result.get('error', 'Unknown error'))
+                                else:
+                                    output = result.get('output', 'No output')
+                                    status = result.get('status', 'unknown')
+
+                                if status == 'success' and wait_timeout > 0 and 'task_id' in result:
+                                    task_id = result['task_id']
+                                    agent_id = options.get('agent_id')
+                                    if not agent_id:
+                                        return f"Task {task_id} queued, but cannot monitor without agent_id", 'error'
+
+                                    import time
+                                    start_time = time.time()
+                                    while time.time() - start_time < wait_timeout:
+                                        task_data = db.execute(
+                                            "SELECT status, result FROM agent_tasks WHERE id = ? AND agent_id = ?",
+                                            (task_id, agent_id)
+                                        ).fetchone()
+                                        if task_data and task_data['status'] == 'completed':
+                                            return f"Task {task_id} completed: {task_data['result']}", 'success'
+                                        time.sleep(1)
+
+                                    return f"Task {task_id} queued but not completed within {wait_timeout} seconds (status: {task_data['status'] if task_data else 'unknown'})", 'warning'
+
+                                return output, status
                         else:
-                            output = result.get('output', 'No output')
-                            status = result.get('status', 'unknown')
+                            # Normal execution (not in interactive mode)
+                            result = module.execute(options, session)
+                            if 'success' in result:
+                                status = 'success' if result['success'] else 'error'
+                                output = result.get('output', result.get('error', 'Unknown error'))
+                            else:
+                                output = result.get('output', 'No output')
+                                status = result.get('status', 'unknown')
 
-                        if status == 'success' and wait_timeout > 0 and 'task_id' in result:
-                            task_id = result['task_id']
-                            agent_id = options.get('agent_id')
-                            if not agent_id:
-                                return f"Task {task_id} queued, but cannot monitor without agent_id", 'error'
+                            if status == 'success' and wait_timeout > 0 and 'task_id' in result:
+                                task_id = result['task_id']
+                                agent_id = options.get('agent_id')
+                                if not agent_id:
+                                    return f"Task {task_id} queued, but cannot monitor without agent_id", 'error'
 
-                            import time
-                            start_time = time.time()
-                            while time.time() - start_time < wait_timeout:
-                                task_data = db.execute(
-                                    "SELECT status, result FROM agent_tasks WHERE id = ? AND agent_id = ?",
-                                    (task_id, agent_id)
-                                ).fetchone()
-                                if task_data and task_data['status'] == 'completed':
-                                    return f"Task {task_id} completed: {task_data['result']}", 'success'
-                                time.sleep(1)
+                                import time
+                                start_time = time.time()
+                                while time.time() - start_time < wait_timeout:
+                                    task_data = db.execute(
+                                        "SELECT status, result FROM agent_tasks WHERE id = ? AND agent_id = ?",
+                                        (task_id, agent_id)
+                                    ).fetchone()
+                                    if task_data and task_data['status'] == 'completed':
+                                        return f"Task {task_id} completed: {task_data['result']}", 'success'
+                                    time.sleep(1)
 
-                            return f"Task {task_id} queued but not completed within {wait_timeout} seconds (status: {task_data['status'] if task_data else 'unknown'})", 'warning'
+                                return f"Task {task_id} queued but not completed within {wait_timeout} seconds (status: {task_data['status'] if task_data else 'unknown'})", 'warning'
 
-                        return output, status
+                            return output, status
                     finally:
                         session.current_agent = original_agent
                 else:

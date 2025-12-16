@@ -346,6 +346,7 @@ class NeoC2RemoteCLI:
                     'session_id': self.session_id
                 }
 
+            # Show loading animation since module commands in interactive mode still need to wait for results
             loading_stop_event = threading.Event()
             loading_thread = threading.Thread(target=self._show_loading_animation, args=(loading_stop_event,))
             loading_thread.daemon = True
@@ -361,7 +362,7 @@ class NeoC2RemoteCLI:
             # Receive response with a timeout to allow processing agent updates in background
             response = self._receive_command_response_with_agent_updates()
 
-            if 'loading_stop_event' in locals():
+            if loading_thread and loading_stop_event:
                 loading_stop_event.set()
                 loading_thread.join(timeout=0.1)
 

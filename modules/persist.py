@@ -85,35 +85,46 @@ def execute(options, session):
             "error": f"Unknown persistence method: {method}"
         }
     
-    # Check if session has a valid agent_manager
-    if not hasattr(session, 'agent_manager') or session.agent_manager is None:
+    # Check if this is being executed in interactive mode
+    if hasattr(session, 'is_interactive_execution') and session.is_interactive_execution:
+        # Return the command that should be executed interactively
         return {
-            "success": False,
-            "error": "Session does not have an initialized agent_manager"
+            "success": True,
+            "output": f"[x] Persistence establishment prepared for interactive mode using method: {method}",
+            "command": code,
+            "method": method,
+            "name": name
         }
-    
-    # Queue the task on the agent
-    try:
-        agent_manager = session.agent_manager
-        task_id = agent_manager.add_task(agent_id, code)
-        if task_id:
-            return {
-                "success": True,
-                "output": f"[x] Persistence task {task_id} queued for agent {agent_id} using method: {method}",
-                "task_id": task_id,
-                "method": method,
-                "name": name
-            }
-        else:
+    else:
+        # Check if session has a valid agent_manager
+        if not hasattr(session, 'agent_manager') or session.agent_manager is None:
             return {
                 "success": False,
-                "error": f"Failed to queue task for agent {agent_id}"
+                "error": "Session does not have an initialized agent_manager"
             }
-    except Exception as e:
-        return {
-            "success": False,
-            "error": f"Error queuing task: {str(e)}"
-        }
+
+        # Queue the task on the agent
+        try:
+            agent_manager = session.agent_manager
+            task_id = agent_manager.add_task(agent_id, code)
+            if task_id:
+                return {
+                    "success": True,
+                    "output": f"[x] Persistence task {task_id} queued for agent {agent_id} using method: {method}",
+                    "task_id": task_id,
+                    "method": method,
+                    "name": name
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": f"Failed to queue task for agent {agent_id}"
+                }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Error queuing task: {str(e)}"
+            }
 
 def _generate_registry_persistence(payload_path, name):
     return f'''

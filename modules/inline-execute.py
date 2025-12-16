@@ -118,13 +118,13 @@ def execute(options, session):
 
         magic_bytes = bof_content[:4]
 
-        task_id = agent_manager.add_task(agent_id, bof_command)
-        if task_id:
+        # Check if this is being executed in interactive mode
+        if hasattr(session, 'is_interactive_execution') and session.is_interactive_execution:
+            # Return the command that should be executed interactively
             result = {
                 "success": True,
-                "output": f"[x] BOF execution task queued for agent {agent_id}",
-                "task_id": task_id,
-                "bof_command": bof_command,
+                "output": f"[x] BOF execution prepared for interactive mode",
+                "command": bof_command,
                 "bof_path": bof_full_path,
                 "encoded_bof_size": len(encoded_bof)
             }
@@ -135,17 +135,41 @@ def execute(options, session):
                     user_id=getattr(session, 'user_id', 'unknown'),
                     action='bof_execute',
                     resource_type='task',
-                    resource_id=task_id,
-                    details=f"BOF execution queued for agent {agent_id}. Command: bof <base64_data> ({len(encoded_bof)} chars encoded)",
+                    resource_id='interactive',
+                    details=f"BOF execution prepared for interactive mode. Command: bof <base64_data> ({len(encoded_bof)} chars encoded)",
                     ip_address='127.0.0.1'
                 )
 
             return result
         else:
-            return {
-                "success": False,
-                "error": f"Failed to queue BOF execution task for agent {agent_id}"
-            }
+            task_id = agent_manager.add_task(agent_id, bof_command)
+            if task_id:
+                result = {
+                    "success": True,
+                    "output": f"[x] BOF execution task queued for agent {agent_id}",
+                    "task_id": task_id,
+                    "bof_command": bof_command,
+                    "bof_path": bof_full_path,
+                    "encoded_bof_size": len(encoded_bof)
+                }
+
+                session.audit_logger = getattr(session, 'audit_logger', None)
+                if session.audit_logger:
+                    session.audit_logger.log_event(
+                        user_id=getattr(session, 'user_id', 'unknown'),
+                        action='bof_execute',
+                        resource_type='task',
+                        resource_id=task_id,
+                        details=f"BOF execution queued for agent {agent_id}. Command: bof <base64_data> ({len(encoded_bof)} chars encoded)",
+                        ip_address='127.0.0.1'
+                    )
+
+                return result
+            else:
+                return {
+                    "success": False,
+                    "error": f"Failed to queue BOF execution task for agent {agent_id}"
+                }
 
     except Exception as e:
         return {
