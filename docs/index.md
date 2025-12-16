@@ -18,6 +18,7 @@ A modular server-client architecture post-exploitation framework built for colla
 *   [**Agent Management**](usage_guide/agent_management.md): Managing agent lifecycles and interactive sessions
 *   [**Payload Generation**](usage_guide/payload_generation.md): Creating and deploying agent payloads
 *   [**Task Management**](usage_guide/task_management.md): Executing commands and managing task results
+*   [**File Operations**](usage_guide/file_operations.md): File handling
 *   [**Event Monitoring**](usage_guide/event_monitoring.md): Monitoring and logging C2 operations
 *   [**Security & Evasion**](usage_guide/security_and_evasion.md): Evasion techniques and security features
 *   [**Specialized Modules**](usage_guide/specialized_modules.md): Advanced module operations (PowerShell, BOF, shellcode injection, etc.)

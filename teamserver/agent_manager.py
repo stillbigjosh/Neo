@@ -448,19 +448,19 @@ class AgentManager:
             self.logger.debug(f"Generated new secret key for agent {agent_id}")
         
         agent = AgentSession(agent_id, ip_address, hostname, os_info, user, listener_id)
-    
+
         with agent.lock:
             self.agents[agent_id] = agent
-        
+
             try:
                 existing_check = self.db.execute(
                     "SELECT id FROM agents WHERE id = ?", (agent_id,)
                 ).fetchone()
-                
+
                 if existing_check:
                     self.db.execute('''
-                        UPDATE agents 
-                        SET ip_address = ?, hostname = ?, os_info = ?, user = ?, listener_id = ?, 
+                        UPDATE agents
+                        SET ip_address = ?, hostname = ?, os_info = ?, user = ?, listener_id = ?,
                             last_seen = ?, secret_key = ?
                         WHERE id = ?
                     ''', (ip_address, hostname, os_info, user, listener_id, agent.last_seen, secret_key, agent_id))
@@ -469,11 +469,11 @@ class AgentManager:
                         INSERT INTO agents (id, ip_address, hostname, os_info, user, listener_id, first_seen, last_seen, interactive_mode, secret_key)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ''', (agent_id, ip_address, hostname, os_info, user, listener_id, agent.first_seen, agent.last_seen, 0, secret_key))
-                
+
                 self.logger.info(f"Agent registered: {agent_id} from {ip_address}")
-                
+
                 self.agent_secret_keys[agent_id] = Fernet(secret_key.encode())
-                
+
                 if self.audit_logger:
                     self.audit_logger.log_event(
                         user_id="system",  # System event
@@ -489,10 +489,15 @@ class AgentManager:
                         }),
                         ip_address=ip_address
                     )
+
+                # Notify callbacks about the new agent registration (only for new agents, not reconnections)
+                if not existing_check:
+                    self._notify_agent_registration(agent_id, ip_address, hostname, os_info, user, listener_id)
+
             except Exception as e:
                 self.logger.error(f"Error registering agent {agent_id}: {str(e)}")
                 raise e
-    
+
         return agent_id
         
     def get_agent(self, agent_id, update_ip=None):
@@ -1466,3 +1471,26 @@ class AgentManager:
 
     def register_interactive_result_callback(self, callback):
         self.interactive_result_callback = callback
+
+    def register_agent_callback(self, callback):
+        """Register a callback for agent registration events"""
+        self.agent_callback = callback
+
+    def _notify_agent_registration(self, agent_id, ip_address, hostname, os_info, user, listener_id):
+        """Notify registered callbacks about a new agent registration"""
+        if hasattr(self, 'agent_callback') and self.agent_callback:
+            try:
+                agent_data = {
+                    'id': agent_id,
+                    'ip_address': ip_address,
+                    'hostname': hostname,
+                    'os_info': os_info,
+                    'user': user,
+                    'listener_id': listener_id,
+                    'first_seen': datetime.now().isoformat(),
+                    'last_seen': datetime.now().isoformat(),
+                    'status': 'active'
+                }
+                self.agent_callback(agent_data)
+            except Exception as e:
+                self.logger.error(f"Error in agent registration callback: {str(e)}")

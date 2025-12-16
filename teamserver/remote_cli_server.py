@@ -103,7 +103,43 @@ class RemoteCLIServer:
         
         if self.agent_manager:
             self.agent_manager.register_interactive_result_callback(self.broadcast_interactive_result)
+            self.agent_manager.register_agent_callback(self.broadcast_agent_update)
+
+        # Start the agent broadcast thread
+        self._start_agent_broadcast_thread()
     
+    def _start_agent_broadcast_thread(self):
+        """Start a thread to periodically broadcast all agents to all connected clients"""
+        self.agent_broadcast_stop_event = threading.Event()
+        self.agent_broadcast_thread = threading.Thread(target=self._agent_broadcast_worker)
+        self.agent_broadcast_thread.daemon = True
+        self.agent_broadcast_thread.start()
+        self.logger.info("Agent broadcast thread started")
+
+    def _stop_agent_broadcast_thread(self):
+        """Stop the agent broadcast thread"""
+        if hasattr(self, 'agent_broadcast_stop_event'):
+            self.agent_broadcast_stop_event.set()
+        if hasattr(self, 'agent_broadcast_thread') and self.agent_broadcast_thread.is_alive():
+            self.agent_broadcast_thread.join(timeout=2)
+
+    def _agent_broadcast_worker(self):
+        """Worker thread to periodically broadcast all agents to all clients"""
+        while not self.agent_broadcast_stop_event.is_set():
+            try:
+                # Broadcast all agents to all connected clients every 2 seconds (like GUI)
+                self.broadcast_all_agents_to_all_clients()
+
+                # Wait for 2 seconds before next broadcast
+                if self.agent_broadcast_stop_event.wait(timeout=2):
+                    break  # Stop event was set, exit the loop
+
+            except Exception as e:
+                self.logger.error(f"Error in agent broadcast worker: {str(e)}")
+                # Wait a bit before continuing to avoid tight loop on errors
+                if self.agent_broadcast_stop_event.wait(timeout=1):
+                    break
+
     def get_or_create_session(self, user_id, username, agent_manager):
         session_id = str(uuid.uuid4())
         session = TerminalSession(session_id, user_id, username, agent_manager)
@@ -4417,21 +4453,24 @@ DB Inactive:       {stats['db_inactive_agents']}
     def stop(self):
         if not self.running:
             return True
-            
+
         try:
             self.logger.info("Stopping Remote CLI Server...")
             self.running = False
-            
+
             if self.server_socket:
                 self.server_socket.close()
                 self.server_socket = None
-                
+
             for session_id in list(self.active_sessions.keys()):
                 self._close_session(session_id)
-                
+
+            # Stop the agent broadcast thread
+            self._stop_agent_broadcast_thread()
+
             self.logger.info("Remote CLI Server stopped successfully")
             return True
-            
+
         except Exception as e:
             self.logger.error(f"Error stopping Remote CLI server: {str(e)}")
             return False
@@ -4577,6 +4616,11 @@ DB Inactive:       {stats['db_inactive_agents']}
                         self.active_sessions[session_id]['addr'][0], 'remote_cli'
                     )
                 
+                # Get current agents to send to the newly authenticated client
+                current_agents = []
+                if self.agent_manager:
+                    current_agents = self.agent_manager.list_agents()
+
                 return {
                     'success': True,
                     'token': token,
@@ -4585,7 +4629,8 @@ DB Inactive:       {stats['db_inactive_agents']}
                         'id': user_info['id'],
                         'username': user_info['username'],
                         'role': user_info['role_name']
-                    }
+                    },
+                    'agents': current_agents  # Send current agents to the client
                 }
             else:
                 return {'success': False, 'error': 'Authentication failed'}
@@ -5732,20 +5777,83 @@ DB Inactive:       {stats['db_inactive_agents']}
             return self.agent_manager.is_agent_locked_interactively(agent_id)
         return False
 
+    def broadcast_agent_update(self, agent_data):
+        """Broadcast agent update to all connected clients"""
+        # This is for new agent registrations only
+        try:
+            for session_id, session_info in self.active_sessions.items():
+                if session_info.get('authenticated', False):
+                    try:
+                        message = {
+                            'type': 'agent_update',
+                            'agents': [agent_data],  # Single new agent
+                            'timestamp': datetime.now().isoformat()
+                        }
+
+                        client_socket = session_info.get('socket')
+                        if client_socket:
+                            try:
+                                self._send_data(client_socket, message)
+                                self.logger.info(f"[+] Agent update broadcasted to CLI session {session_id[:8]} for agent {agent_data['id']}")
+                            except Exception as e:
+                                self.logger.error(f"[-] Failed to send agent update to CLI session {session_id[:8]}: {str(e)}")
+                                self._close_session(session_id)
+                        else:
+                            self.logger.warning(f"[-] No socket found for session {session_id[:8]}")
+                    except Exception as e:
+                        self.logger.error(f"[-] Error preparing agent update for session {session_id[:8]}: {str(e)}")
+        except Exception as e:
+            self.logger.error(f"[-] Error broadcasting agent update: {str(e)}")
+
+    def broadcast_all_agents_to_all_clients(self):
+        """Broadcast all current agents to all connected clients periodically"""
+        try:
+            # Get all current agents
+            if self.agent_manager:
+                current_agents = self.agent_manager.list_agents()
+
+                # Send to all connected and authenticated clients
+                for session_id, session_info in self.active_sessions.items():
+                    if session_info.get('authenticated', False):
+                        try:
+                            message = {
+                                'type': 'agent_update',
+                                'agents': current_agents,
+                                'timestamp': datetime.now().isoformat()
+                            }
+
+                            client_socket = session_info.get('socket')
+                            if client_socket:
+                                try:
+                                    self._send_data(client_socket, message)
+                                    self.logger.debug(f"[+] All agents broadcasted to CLI session {session_id[:8]}, {len(current_agents)} agents sent")
+                                except Exception as e:
+                                    self.logger.error(f"[-] Failed to send agent list to CLI session {session_id[:8]}: {str(e)}")
+                                    self._close_session(session_id)
+                            else:
+                                self.logger.warning(f"[-] No socket found for session {session_id[:8]}")
+                        except Exception as e:
+                            self.logger.error(f"[-] Error preparing agent list for session {session_id[:8]}: {str(e)}")
+            else:
+                self.logger.warning(f"[-] Agent manager not available for agent broadcast")
+        except Exception as e:
+            self.logger.error(f"[-] Error broadcasting all agents: {str(e)}")
+
+
     def broadcast_interactive_result(self, agent_id, task_id, result):
         try:
             for session_id, session_info in self.active_sessions.items():
-                if (session_info.get('interactive_mode', False) and 
+                if (session_info.get('interactive_mode', False) and
                     session_info.get('current_agent') == agent_id and
                     session_info.get('authenticated', False)):
-                    
+
                     message = {
                         'type': 'interactive_result',
                         'result': result,
                         'agent_id': agent_id,
                         'task_id': task_id
                     }
-                    
+
                     client_socket = session_info.get('socket')
                     if client_socket:
                         try:
@@ -5756,10 +5864,10 @@ DB Inactive:       {stats['db_inactive_agents']}
                             self._close_session(session_id)
                     else:
                         self.logger.warning(f"[-] No socket found for session {session_id[:8]}")
-                    
+
                     break
             else:
                 self.logger.info(f"[!] Interactive result received for agent {agent_id} but no active CLI session found")
-                
+
         except Exception as e:
             self.logger.error(f"[-] Error broadcasting interactive result: {str(e)}")
