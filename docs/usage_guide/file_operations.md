@@ -11,7 +11,7 @@ NeoC2 provides enhanced file operations with automatic handling of encoded conte
 - Remote clients can also `download <server_file_path>` an agent executable or script from C2 Server to your local remote_client machine mid-operation. This is a restricted command which requires higher operator role.
 
 ### File Upload
-- Local files are base64-encoded before transmission to agent
+- Local files are automatically base64-encoded before transmission to agent
 - `upload [agent_id] <local_file_path> <remote_file_path>` - agent receives and decodes the file
 - CLI Integration: Use the `upload` command to send files to agents
 
