@@ -650,7 +650,7 @@ class RemoteCLIServer:
             return f"Error running pinject: {str(e)}", 'error'
 
     def handle_pwsh_command(self, command_parts, session):
-        module_name = "powershell"
+        module_name = "pwsh"
 
         if len(command_parts) < 2:
             return "USAGE: pwsh <script_path> [agent_id=<agent_id>] [arguments=<script_arguments>]", 'error'
@@ -765,7 +765,7 @@ class RemoteCLIServer:
             return f"Error running pwsh: {str(e)}", 'error'
 
     def handle_inline_execute_command(self, command_parts, session):  # Changed function name from handle_coff_loader_command to handle_inline_execute_command
-        module_name = "coff"
+        module_name = "inline-execute"
 
         if len(command_parts) < 2:
             return "USAGE: inline-execute <bof_path> [arguments] [agent_id=<agent_id>]", 'error'
@@ -881,7 +881,7 @@ class RemoteCLIServer:
             return f"Error running inline-execute: {str(e)}", 'error'
 
     def handle_persist_command(self, command_parts, session):
-        module_name = "persistence"
+        module_name = "persist"
 
         if len(command_parts) < 2:
             return "USAGE: persist <method> <payload_path> [agent_id=<agent_id>] [name=<persistence_name>] [interval=<minutes>]", 'error'
