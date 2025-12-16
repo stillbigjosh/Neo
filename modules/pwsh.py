@@ -5,7 +5,7 @@ import re
 
 def get_info():
     return {
-        "name": "powershell",
+        "name": "pwsh",
         "description": "Execute PowerShell scripts on agents by uploading and executing them",
         "type": "execution",
         "platform": "windows",

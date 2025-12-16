@@ -7,7 +7,7 @@ from datetime import datetime
 
 def get_info():
     return {
-        "name": "persistence",
+        "name": "persist",
         "description": "Establish persistence on Windows, Linux, or macOS systems",
         "type": "multi-platform",
         "technique_id": "T1547,T1053",
