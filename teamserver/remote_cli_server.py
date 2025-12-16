@@ -109,7 +109,6 @@ class RemoteCLIServer:
         self._start_agent_broadcast_thread()
     
     def _start_agent_broadcast_thread(self):
-        """Start a thread to periodically broadcast all agents to all connected clients"""
         self.agent_broadcast_stop_event = threading.Event()
         self.agent_broadcast_thread = threading.Thread(target=self._agent_broadcast_worker)
         self.agent_broadcast_thread.daemon = True
@@ -117,17 +116,14 @@ class RemoteCLIServer:
         self.logger.info("Agent broadcast thread started")
 
     def _stop_agent_broadcast_thread(self):
-        """Stop the agent broadcast thread"""
         if hasattr(self, 'agent_broadcast_stop_event'):
             self.agent_broadcast_stop_event.set()
         if hasattr(self, 'agent_broadcast_thread') and self.agent_broadcast_thread.is_alive():
             self.agent_broadcast_thread.join(timeout=2)
 
     def _agent_broadcast_worker(self):
-        """Worker thread to periodically broadcast all agents to all clients"""
         while not self.agent_broadcast_stop_event.is_set():
             try:
-                # Broadcast all agents to all connected clients every 2 seconds (like GUI)
                 self.broadcast_all_agents_to_all_clients()
 
                 # Wait for 2 seconds before next broadcast
