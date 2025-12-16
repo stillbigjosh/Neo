@@ -269,8 +269,6 @@ class NeoC2RemoteCLI:
         return None
 
     def _receive_command_response_with_agent_updates(self):
-        """Wait specifically for a command response while processing agent updates in the background"""
-        # Set a timeout for command response
         start_time = time.time()
         timeout = 30  # 30 second timeout
 
@@ -448,13 +446,10 @@ class NeoC2RemoteCLI:
             print(f"Type 'help' for available commands")
             print(f"{'=' * 80}\n")
 
-        # Start agent refresh thread
         self._start_agent_refresh_thread()
 
-        # Start the receive thread
         self._start_receive_thread()
 
-        # Request initial agent list
         try:
             response = self.send_command("agent list")
             if response and response.get('success'):
@@ -468,7 +463,6 @@ class NeoC2RemoteCLI:
 
         while self.connected:
             try:
-                # Check for any pending agent updates
                 if self.is_interactive_mode:
                     interactive_result = self._try_receive_interactive_result()
                     while interactive_result:
@@ -481,7 +475,6 @@ class NeoC2RemoteCLI:
                         interactive_result = self._try_receive_interactive_result()
 
 
-                # Process any agent updates that have been queued
                 self._process_agent_update_queue()
 
                 if self.is_interactive_mode and self.current_agent:
@@ -651,19 +644,14 @@ class NeoC2RemoteCLI:
             self._handle_agent_update(message)
 
     def _agent_refresh_worker(self):
-        """Worker thread that processes agent updates from queue"""
-        # The server is broadcasting agent updates every 2 seconds,
-        # so this thread needs to process agent update queue periodically
         while not self.agent_refresh_stop_event.is_set():
             try:
-                # Process any queued agent updates
                 self._process_agent_update_queue()
 
                 # Wait for 0.5 seconds before next check (more responsive than 2 seconds)
                 if self.agent_refresh_stop_event.wait(timeout=0.5):
                     break  # Stop event was set, exit the loop
             except Exception as e:
-                # Log but continue - this shouldn't break the entire thread
                 continue  # Continue the loop even if there's an error
 
     def _stop_interactive_result_listener(self):
@@ -677,43 +665,24 @@ class NeoC2RemoteCLI:
             return
 
         with self.agent_update_lock:
-            # Keep track of which agents were already known before this update
             previous_agent_ids = set(self.active_agents.keys())
 
             for agent in agents_data:
                 agent_id = agent.get('id')
                 if agent_id:
-                    # Check if this is a new agent (not previously known)
                     if agent_id not in self.active_agents:
-                        # This is a new agent alert
                         self.display_agent_alert(agent)
 
-                    # Update the active agents list
                     self.active_agents[agent_id] = agent
 
-            # Optionally handle agent disconnections here if needed
-            # For now, we only alert on new connections
 
     def display_agent_alert(self, agent):
-        """Display an alert for a newly registered agent"""
         try:
-            # Create a visual alert message with colors
-            alert_msg = f"\n" + "="*60 + "\n"
-            alert_msg += f" 🛡️  NEW AGENT REGISTERED  🛡️\n"
-            alert_msg += "="*60 + "\n"
-            alert_msg += f"ID:       {agent.get('id', 'N/A')}\n"
-            alert_msg += f"Hostname: {agent.get('hostname', 'N/A')}\n"
-            alert_msg += f"IP:       {agent.get('ip_address', 'N/A')}\n"
-            alert_msg += f"User:     {agent.get('user', 'N/A')}\n"
-            alert_msg += f"OS:       {agent.get('os_info', 'N/A')}\n"
-            alert_msg += f"Time:     {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-            alert_msg += "="*60 + "\n\n"
+            alert_msg = f"\n[+] NEW AGENT: ID={agent.get('id', 'N/A')} HOST={agent.get('hostname', 'N/A')} USER={agent.get('user', 'N/A')} IP={agent.get('ip_address', 'N/A')} OS={agent.get('os_info', 'N/A')} TIME={datetime.now().strftime('%H:%M:%S')}\n"
 
-            # Use sys.stdout to ensure it prints properly without interfering with input
             sys.stdout.write(alert_msg)
             sys.stdout.flush()
 
-            # Optionally play an alert sound using system bell
             sys.stdout.write("\a")  # Terminal bell
             sys.stdout.flush()
 
