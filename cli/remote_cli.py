@@ -201,7 +201,6 @@ class NeoC2RemoteCLI:
             raise e
 
     def _receive_data(self):
-        """Receive any type of data without filtering"""
         try:
             length_bytes = self._receive_exact(4)
             if not length_bytes:
@@ -221,21 +220,18 @@ class NeoC2RemoteCLI:
             raise e
 
     def _start_receive_thread(self):
-        """Start a dedicated thread for receiving messages"""
         self.receive_thread_stop_event.clear()
         self.receive_thread = threading.Thread(target=self._message_receive_worker)
         self.receive_thread.daemon = True
         self.receive_thread.start()
 
     def _stop_receive_thread(self):
-        """Stop the receive thread"""
         if self.receive_thread_stop_event:
             self.receive_thread_stop_event.set()
         if self.receive_thread and self.receive_thread.is_alive():
             self.receive_thread.join(timeout=1)
 
     def _message_receive_worker(self):
-        """Worker thread to continuously receive messages and route them appropriately"""
         while not self.receive_thread_stop_event.is_set():
             try:
                 # Check if there's data available to read
@@ -262,7 +258,6 @@ class NeoC2RemoteCLI:
                 break
 
     def _get_next_message(self):
-        """Get the next message from the received messages queue"""
         with self.received_messages_lock:
             if self.received_messages:
                 return self.received_messages.pop(0)
@@ -426,7 +421,7 @@ class NeoC2RemoteCLI:
 ██║ ╚████║███████╗╚██████╔╝╚██████╗███████╗
 ╚═╝  ╚═══╝╚══════╝ ╚═════╝  ╚═════╝╚══════╝
                                             """, style="bold green"))
-            console.print(f"Neo Remote Command & Control Framework")
+            console.print(f"Neo Remote Command & Control Framework by @stillbigjosh")
             console.print(f"Connected to: {self.server_host}:{self.server_port}")
             console.print(f"User: {self.username}")
             console.print(f"Type 'help' for available commands")
@@ -440,7 +435,7 @@ class NeoC2RemoteCLI:
 ██║ ╚████║███████╗╚██████╔╝╚██████╗███████╗
 ╚═╝  ╚═══╝╚══════╝ ╚═════╝  ╚═════╝╚══════╝
                                             """)
-            print(f"Neo Remote Command & Control Framework")
+            print(f"Neo Remote Command & Control Framework by @stillbigjosh")
             print(f"Connected to: {self.server_host}:{self.server_port}")
             print(f"User: {self.username}")
             print(f"Type 'help' for available commands")
