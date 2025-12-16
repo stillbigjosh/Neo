@@ -71,11 +71,14 @@ Available Listener Commands:
 
 COMMANDS:
   • listener list                     List listeners
-  • listener create <name> <type> <port>    Create listeners
-       Example: listener create myhttp http 443
+  • listener create <name> <type> <port> <ip> <profile_name=>   Create listeners
   • listener start <name>             Start a listener
   • listener stop <name>              Stop an active listener
   • listener delete <name>            Delete a stopped listener
+
+EXAMPLES:
+  • listener create myhttps https 443 127.0.0.1 profile_name=my_htttps_profile
+  • listener start myhttps
 
 TIPS:
   • Use 'listener list' to see existing listeners
