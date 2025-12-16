@@ -115,9 +115,9 @@ NeoC2 > listener start <listener_name>
 NeoC2 > payload <agent_type> <listener_name>
 ```
 
-The Neo Remote Server automatically alerts all connected clients when an agent registers, like so: `[+] NEW AGENT: ID=c272-xxxx HOST=xxxx USER=root IP=127.0.0.1 OS=xxxx`
+The Neo C2 Server automatically alerts all connected clients when a deployed implant is active or registers: `[+] NEW AGENT: ID=c272-xxxx HOST=xxxx USER=root IP=127.0.0.1 OS=xxxx`
 
-You can List active agents and interact: 
+List active agents and interact: 
 
 ```
 # List active agents
