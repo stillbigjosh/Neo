@@ -8,7 +8,7 @@ def get_info():
         "description": "Load and execute Beacon Object Files (BOFs) in-memory using the embedded COFF loader on agents",
         "type": "post-exploitation",
         "platform": "windows",
-        "author": "NeoC2 Framework",
+        "author": "NeoC2 Framework by @stillbigjosh",
         "references": [
             "https://www.cobaltstrike.com/help-beacon-object-files",
             "https://docs.cobaltstrike.com/help-beacon-object-files"

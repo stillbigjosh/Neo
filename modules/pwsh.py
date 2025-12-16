@@ -9,9 +9,9 @@ def get_info():
         "description": "Execute PowerShell scripts on agents by uploading and executing them",
         "type": "execution",
         "platform": "windows",
-        "author": "NeoC2 Framework",
+        "author": "NeoC2 Framework by @stillbigjosh",
         "references": [
-            "https://github.com/NeoC2"
+            "https://github.com/stillbigjosh/NeoC2"
         ],
         "technique_id": "T1059",  # Command and Scripting Interpreter
         "mitre_tactics": ["Execution"],

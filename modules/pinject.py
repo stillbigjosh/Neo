@@ -9,9 +9,9 @@ def get_info():
         "description": "Stealthily inject shellcode into a target process (notepad.exe) on Windows systems without touching disk",
         "type": "exploitation",
         "platform": "windows",
-        "author": "NeoC2 Framework",
+        "author": "NeoC2 Framework by @stillbigjosh",
         "references": [
-            "https://github.com/NeoC2",
+            "https://github.com/stillbigjosh/NeoC2",
             "https://www.rapid7.com/docs/msfvenom/"
         ],
         "technique_id": "T1055",  # Process Injection

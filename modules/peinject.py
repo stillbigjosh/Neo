@@ -9,9 +9,9 @@ def get_info():
         "description": "Stealthily inject a PE file into a target process (svchost.exe) on Windows systems using process hollowing without touching disk",
         "type": "exploitation",
         "platform": "windows",
-        "author": "NeoC2 Framework",
+        "author": "NeoC2 Framework by @stillbigjosh",
         "references": [
-            "https://github.com/NeoC2",
+            "https://github.com/stillbigjosh/Neo",
             "https://www.rapid7.com/docs/msfvenom/"
         ],
         "technique_id": "T1055",  # Process Injection
