@@ -10,7 +10,7 @@
 - [x] Failover server deployment support
 - [x] In-memory COFF/BOF Execution
 - [x] Powershell module handler 
-- [x] Agent-register alerting system via the multiplayer agent manager to the remote_cli.py
+- [x] Active Agent alerting system to all connected clients
 
 ## Actively Under development
 - [ ] In-memory .NET execution
