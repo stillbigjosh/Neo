@@ -67,9 +67,9 @@ Profiles define communication characteristics for agents:
 ```
 #### Endpoints
 
-- `endpoints.register`:Used by the agent to register itself with the C2 server
+- `endpoints.register`: Used by the agent to register itself with the C2 server
 
-- `endpoints.tasks`:Used by the agent to retrieve queued tasks assigned to it, where {agent_id} is replaced with the actual agent identifier
+- `endpoints.tasks`: Used by the agent to retrieve queued tasks assigned to it, where {agent_id} is replaced with the actual agent identifier
 
 - `endpoints.results`: Used by the agent to submit the results of executed tasks back to the C2 server
 
