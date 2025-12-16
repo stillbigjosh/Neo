@@ -155,6 +155,7 @@ class NeoC2Framework:
             if hasattr(self, 'remote_cli_server') and self.remote_cli_server:
                 self.remote_cli_server.agent_manager = self.agent_manager  # Update reference
                 self.agent_manager.register_interactive_result_callback(self.remote_cli_server.broadcast_interactive_result)
+                self.agent_manager.register_agent_callback(self.remote_cli_server.broadcast_agent_update)
             
             logger.info("Multiplayer components initialized successfully")
             

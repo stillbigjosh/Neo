@@ -13,6 +13,8 @@ import readline
 from datetime import datetime
 from pathlib import Path
 import select
+import signal
+import subprocess
 
 try:
     from rich.console import Console
@@ -74,6 +76,28 @@ class NeoC2RemoteCLI:
 
         self.interactive_command_sent = False
         self.interactive_command_start_time = None
+
+        # For handling agent updates and alerts
+        self.active_agents = {}
+        self.agent_update_lock = threading.Lock()
+
+        # For periodic agent updates
+        self.agent_refresh_thread = None
+        self.agent_refresh_stop_event = threading.Event()
+
+        # Queue for handling agent updates without interfering with command responses
+        self.agent_update_queue = []
+        self.agent_queue_lock = threading.Lock()
+
+        # For tracking command responses and correlating them properly
+        self.pending_command_response = None
+        self.response_received = threading.Event()
+
+        # For the message receiving thread
+        self.receive_thread = None
+        self.receive_thread_stop_event = threading.Event()
+        self.received_messages = []
+        self.received_messages_lock = threading.Lock()
 
     def _completer(self, text, state):
         commands = [
@@ -141,6 +165,16 @@ class NeoC2RemoteCLI:
                     print(f"[+] User: {user_info.get('username', 'unknown')}")
                     print(f"[+] Role: {user_info.get('role', 'unknown')}")
 
+                # Handle initial agents data from server (if any were active)
+                agents = response.get('agents', [])
+                if agents:
+                    with self.agent_update_lock:
+                        for agent in agents:
+                            agent_id = agent.get('id')
+                            if agent_id:
+                                self.active_agents[agent_id] = agent
+                    print(f"[+] Received {len(agents)} active agents from server")
+
                 return True
             else:
                 error_msg = response.get('error', 'Authentication failed')
@@ -167,6 +201,7 @@ class NeoC2RemoteCLI:
             raise e
 
     def _receive_data(self):
+        """Receive any type of data without filtering"""
         try:
             length_bytes = self._receive_exact(4)
             if not length_bytes:
@@ -178,10 +213,94 @@ class NeoC2RemoteCLI:
             if not data:
                 return None
 
-            return json.loads(data.decode('utf-8'))
+            message = json.loads(data.decode('utf-8'))
+
+            return message
 
         except Exception as e:
             raise e
+
+    def _start_receive_thread(self):
+        """Start a dedicated thread for receiving messages"""
+        self.receive_thread_stop_event.clear()
+        self.receive_thread = threading.Thread(target=self._message_receive_worker)
+        self.receive_thread.daemon = True
+        self.receive_thread.start()
+
+    def _stop_receive_thread(self):
+        """Stop the receive thread"""
+        if self.receive_thread_stop_event:
+            self.receive_thread_stop_event.set()
+        if self.receive_thread and self.receive_thread.is_alive():
+            self.receive_thread.join(timeout=1)
+
+    def _message_receive_worker(self):
+        """Worker thread to continuously receive messages and route them appropriately"""
+        while not self.receive_thread_stop_event.is_set():
+            try:
+                # Check if there's data available to read
+                ready, _, _ = select.select([self.sock], [], [], 0.1)  # 0.1 second timeout
+
+                if ready:
+                    try:
+                        message = self._receive_data()
+                        if message:
+                            # Add the received message to the message queue
+                            with self.received_messages_lock:
+                                self.received_messages.append(message)
+
+                            # If it's an agent update, also add to agent update queue for processing
+                            if message.get('type') == 'agent_update':
+                                with self.agent_queue_lock:
+                                    self.agent_update_queue.append(message)
+                    except:
+                        # Connection might be lost, break the loop
+                        break
+
+            except Exception as e:
+                # Error in receiving - might indicate connection issue
+                break
+
+    def _get_next_message(self):
+        """Get the next message from the received messages queue"""
+        with self.received_messages_lock:
+            if self.received_messages:
+                return self.received_messages.pop(0)
+        return None
+
+    def _receive_command_response_with_agent_updates(self):
+        """Wait specifically for a command response while processing agent updates in the background"""
+        # Set a timeout for command response
+        start_time = time.time()
+        timeout = 30  # 30 second timeout
+
+        while time.time() - start_time < timeout:
+            try:
+                # First, process any queued agent updates
+                self._process_agent_update_queue()
+
+                # Check if we have any messages in the queue
+                message = self._get_next_message()
+                if message:
+                    # If this is an agent update, add to queue and continue waiting for command response
+                    if message.get('type') == 'agent_update':
+                        with self.agent_queue_lock:
+                            self.agent_update_queue.append(message)
+                        # Continue waiting for the actual command response
+                        continue
+                    else:
+                        # This is the command response we're looking for
+                        return message
+
+                # No message available yet, wait a bit before checking again
+                time.sleep(0.01)
+
+            except Exception as e:
+                print(f"[-] Error receiving command response: {str(e)}")
+                return None
+
+        # Timeout reached
+        return None
 
     def _receive_exact(self, length):
         data = b''
@@ -246,7 +365,8 @@ class NeoC2RemoteCLI:
 
             self._send_data(command_data)
 
-            response = self._receive_data()
+            # Receive response with a timeout to allow processing agent updates in background
+            response = self._receive_command_response_with_agent_updates()
 
             if 'loading_stop_event' in locals():
                 loading_stop_event.set()
@@ -328,8 +448,27 @@ class NeoC2RemoteCLI:
             print(f"Type 'help' for available commands")
             print(f"{'=' * 80}\n")
 
+        # Start agent refresh thread
+        self._start_agent_refresh_thread()
+
+        # Start the receive thread
+        self._start_receive_thread()
+
+        # Request initial agent list
+        try:
+            response = self.send_command("agent list")
+            if response and response.get('success'):
+                result = response.get('result', '')
+                if 'No active agents' in result or 'No agents found' in result:
+                    pass  # No active agents is fine
+                else:
+                    pass  # Agents data will be handled by agent update handler
+        except:
+            pass  # It's ok if this fails
+
         while self.connected:
             try:
+                # Check for any pending agent updates
                 if self.is_interactive_mode:
                     interactive_result = self._try_receive_interactive_result()
                     while interactive_result:
@@ -342,12 +481,16 @@ class NeoC2RemoteCLI:
                         interactive_result = self._try_receive_interactive_result()
 
 
-                if self.is_interactive_mode and self.current_agent:
-                    agent_id_short = self.current_agent[:8] if self.current_agent else 'unknown'
-                    command = input(f"NeoC2 [INTERACTIVE:{agent_id_short}] > ")
-                else:
-                    command = input(f"NeoC2 ({self.username}@remote) > ")
+                # Process any agent updates that have been queued
+                self._process_agent_update_queue()
 
+                if self.is_interactive_mode and self.current_agent:
+                    prompt = f"NeoC2 [INTERACTIVE:{self.current_agent[:8]}] > "
+                else:
+                    prompt = f"NeoC2 ({self.username}@remote) > "
+
+                # Show the prompt and get input
+                command = input(prompt)
                 command = command.strip()
 
                 if not command:
@@ -481,8 +624,102 @@ class NeoC2RemoteCLI:
     def _start_interactive_result_listener(self):
         pass
 
+    def _start_agent_refresh_thread(self):
+        """Start a thread to periodically refresh agent status"""
+        self.agent_refresh_stop_event.clear()
+        self.agent_refresh_thread = threading.Thread(target=self._agent_refresh_worker)
+        self.agent_refresh_thread.daemon = True
+        self.agent_refresh_thread.start()
+
+    def _stop_agent_refresh_thread(self):
+        """Stop the agent refresh thread"""
+        if self.agent_refresh_stop_event:
+            self.agent_refresh_stop_event.set()
+        if self.agent_refresh_thread and self.agent_refresh_thread.is_alive():
+            self.agent_refresh_thread.join(timeout=1)
+
+    def _process_agent_update_queue(self):
+        """Process any queued agent updates and display alerts for new agents"""
+        with self.agent_queue_lock:
+            if not self.agent_update_queue:
+                return
+
+            queue_copy = self.agent_update_queue[:]
+            self.agent_update_queue.clear()
+
+        for message in queue_copy:
+            self._handle_agent_update(message)
+
+    def _agent_refresh_worker(self):
+        """Worker thread that processes agent updates from queue"""
+        # The server is broadcasting agent updates every 2 seconds,
+        # so this thread needs to process agent update queue periodically
+        while not self.agent_refresh_stop_event.is_set():
+            try:
+                # Process any queued agent updates
+                self._process_agent_update_queue()
+
+                # Wait for 0.5 seconds before next check (more responsive than 2 seconds)
+                if self.agent_refresh_stop_event.wait(timeout=0.5):
+                    break  # Stop event was set, exit the loop
+            except Exception as e:
+                # Log but continue - this shouldn't break the entire thread
+                continue  # Continue the loop even if there's an error
+
     def _stop_interactive_result_listener(self):
         pass
+
+    def _handle_agent_update(self, message):
+        """Handle agent update messages and display alerts"""
+        agents_data = message.get('agents', [])
+
+        if not agents_data:
+            return
+
+        with self.agent_update_lock:
+            # Keep track of which agents were already known before this update
+            previous_agent_ids = set(self.active_agents.keys())
+
+            for agent in agents_data:
+                agent_id = agent.get('id')
+                if agent_id:
+                    # Check if this is a new agent (not previously known)
+                    if agent_id not in self.active_agents:
+                        # This is a new agent alert
+                        self.display_agent_alert(agent)
+
+                    # Update the active agents list
+                    self.active_agents[agent_id] = agent
+
+            # Optionally handle agent disconnections here if needed
+            # For now, we only alert on new connections
+
+    def display_agent_alert(self, agent):
+        """Display an alert for a newly registered agent"""
+        try:
+            # Create a visual alert message with colors
+            alert_msg = f"\n" + "="*60 + "\n"
+            alert_msg += f" 🛡️  NEW AGENT REGISTERED  🛡️\n"
+            alert_msg += "="*60 + "\n"
+            alert_msg += f"ID:       {agent.get('id', 'N/A')}\n"
+            alert_msg += f"Hostname: {agent.get('hostname', 'N/A')}\n"
+            alert_msg += f"IP:       {agent.get('ip_address', 'N/A')}\n"
+            alert_msg += f"User:     {agent.get('user', 'N/A')}\n"
+            alert_msg += f"OS:       {agent.get('os_info', 'N/A')}\n"
+            alert_msg += f"Time:     {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+            alert_msg += "="*60 + "\n\n"
+
+            # Use sys.stdout to ensure it prints properly without interfering with input
+            sys.stdout.write(alert_msg)
+            sys.stdout.flush()
+
+            # Optionally play an alert sound using system bell
+            sys.stdout.write("\a")  # Terminal bell
+            sys.stdout.flush()
+
+        except Exception as e:
+            sys.stdout.write(f"[-] Error displaying agent alert: {str(e)}\n")
+            sys.stdout.flush()
 
     def _try_receive_interactive_result(self):
         import errno
@@ -522,6 +759,11 @@ class NeoC2RemoteCLI:
 
         except:
             pass
+        finally:
+            # Stop the agent refresh thread
+            self._stop_agent_refresh_thread()
+            # Stop the receive thread
+            self._stop_receive_thread()
 
 def main():
     parser = argparse.ArgumentParser()
