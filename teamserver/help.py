@@ -26,12 +26,12 @@ MODULES & EXECUTION:
   taskchain   - Task Orchestration
 
 OPERATIONS & TACTICS:
-  evasion     - AMSI/ETW bypass
+  evasion     - Basic AMSI/ETW bypass
   upload      - Upload files to agents
   download    - Download files from agents/C2 server
   persist     - Persist an executable or script
   inline-execute - Execute bofs on agent session
-  peinject    - Injects PE files by Process Hollowing into svchost.exe
+  peinject    - Injects unmanaged PE by Process Hollowing into svchost.exe
   pinject     - Injects shellcode into notepad.exe or explorer.exe
   pwsh        - Execute powershell script on agent session
   tty_shell   - Start tty shell
@@ -158,21 +158,15 @@ Available Evasion Commands:
 SYNTAX:
   • evasion <enable|disable> <technique>
 
-COMMANDS:
-  • evasion enable <technique>              Enable evasion technique on current agent
-  • evasion disable <technique>             Disable evasion technique on current agent
-
 EXAMPLES:
   • evasion enable amsi_bypass
   • evasion disable etw_bypass
 
 TECHNIQUES:
-  • amsi_bypass, etw_bypass, obfuscation
+  • amsi_bypass, etw_bypass
 
-TIPS:
+TIP:
   • Execute from within agent interactive session
-  • Evasion techniques help avoid detection
-  • Use 'evasion help' for detailed command usage
     """
 
 
