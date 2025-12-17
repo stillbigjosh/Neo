@@ -2,7 +2,7 @@
 
 ## Evasion Techniques
 
-NeoC2 implements multiple evasion techniques to bypass endpoint security:
+Evasion techniques to bypass endpoint security:
 
 ### Built-in Evasion Methods
 

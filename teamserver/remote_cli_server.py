@@ -2337,15 +2337,65 @@ class RemoteCLIServer:
                     if not session.agent_manager:
                         return "Agent manager not initialized for this session.", "error"
 
-                    agent_command = remote_path
+                    # Execute download command using interactive API for immediate response
+                    download_command = f"download {remote_path}"
+                    interactive_result, error = session.agent_manager.send_interactive_command(
+                        agent_id, download_command, timeout=120
+                    )
 
-                    task_result = session.agent_manager.add_download_task(agent_id, agent_command)
-                    if task_result and task_result.get('success'):
-                        task_id = task_result['task_id']
-                        return f" Download task for '{remote_path}' queued for agent {agent_id[:8]}... (Task ID: {task_id})", "success"
+                    if error:
+                        return f"Error executing download: {error}", "error"
+
+                    if interactive_result is not None:
+                        # Process the download result to save file to loot directory
+                        try:
+                            import os
+                            import base64
+                            from datetime import datetime
+
+                            # Create loot directory if it doesn't exist
+                            loot_dir = os.path.join(os.getcwd(), "loot")
+                            os.makedirs(loot_dir, exist_ok=True)
+
+                            # Extract original file path to create a meaningful filename
+                            original_file_path = os.path.basename(remote_path).replace('/', '_').replace('\\', '_')
+
+                            # Generate a timestamp-based filename to avoid duplicates
+                            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                            file_extension = os.path.splitext(original_file_path)[1] if os.path.splitext(original_file_path)[1] else ".dat"
+
+                            # Check if the result looks like an error message
+                            if interactive_result.startswith('[ERROR]') or interactive_result.startswith('[ERROR'):
+                                # This is an error message, not base64 content
+                                loot_filename = f"download_error_{timestamp}_{original_file_path.replace('.', '_')}.txt"
+                                loot_path = os.path.join(loot_dir, loot_filename)
+                                with open(loot_path, 'w') as f:
+                                    f.write(interactive_result)
+                                loot_result_msg = f"Download error saved to: {loot_path}"
+                            else:
+                                # This should be base64 encoded content - try to decode it
+                                try:
+                                    decoded_data = base64.b64decode(interactive_result)
+                                    loot_filename = f"download_{timestamp}_{original_file_path}"
+                                    loot_path = os.path.join(loot_dir, loot_filename)
+
+                                    with open(loot_path, 'wb') as f:
+                                        f.write(decoded_data)
+
+                                    loot_result_msg = f"Downloaded file saved to: {loot_path} ({len(decoded_data)} bytes)"
+                                except Exception:
+                                    # If decoding fails, save as raw content
+                                    loot_filename = f"download_raw_{timestamp}_{original_file_path.replace('.', '_')}.txt"
+                                    loot_path = os.path.join(loot_dir, loot_filename)
+                                    with open(loot_path, 'w') as f:
+                                        f.write(interactive_result)
+                                    loot_result_msg = f"Raw download content saved to: {loot_path}"
+
+                            return f"[DOWNLOAD COMPLETED] {loot_result_msg}\nOriginal remote path: {remote_path}", "success"
+                        except Exception as e:
+                            return f"Download completed but error saving to loot directory: {str(e)}\nResult: {interactive_result[:200]}{'...' if len(interactive_result) > 200 else ''}", "warning"
                     else:
-                        error_msg = task_result.get('error', 'Unknown error') if task_result else 'Failed to create task'
-                        return f" Failed to queue download task for agent {agent_id[:8]}: {error_msg}", "error"
+                        return "No response from agent", "warning"
                 else:
                     return "Usage: download <agent_id> <remote_file_path> (for agent downloads) OR download <server_file_path> (for server downloads)", "error"
 
@@ -2359,18 +2409,81 @@ class RemoteCLIServer:
 
             remote_path = command_parts[2]
 
-            if not session.agent_manager:
-                return "Agent manager not initialized for this session.", "error"
+            # If this agent is the current session agent and we're in interactive mode, use interactive API
+            if session.interactive_mode and session.current_agent == agent_id:
+                # Execute download command using interactive API for immediate response
+                download_command = f"download {remote_path}"
+                interactive_result, error = session.agent_manager.send_interactive_command(
+                    agent_id, download_command, timeout=120
+                )
 
-            agent_command = remote_path
+                if error:
+                    return f"Error executing download: {error}", "error"
 
-            task_result = session.agent_manager.add_download_task(agent_id, agent_command)
-            if task_result and task_result.get('success'):
-                task_id = task_result['task_id']
-                return f" Download task for '{remote_path}' queued for agent {agent_id[:8]}... (Task ID: {task_id})", "success"
+                if interactive_result is not None:
+                    # Process the download result to save file to loot directory
+                    try:
+                        import os
+                        import base64
+                        from datetime import datetime
+
+                        # Create loot directory if it doesn't exist
+                        loot_dir = os.path.join(os.getcwd(), "loot")
+                        os.makedirs(loot_dir, exist_ok=True)
+
+                        # Extract original file path to create a meaningful filename
+                        original_file_path = os.path.basename(remote_path).replace('/', '_').replace('\\', '_')
+
+                        # Generate a timestamp-based filename to avoid duplicates
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        file_extension = os.path.splitext(original_file_path)[1] if os.path.splitext(original_file_path)[1] else ".dat"
+
+                        # Check if the result looks like an error message
+                        if interactive_result.startswith('[ERROR]') or interactive_result.startswith('[ERROR'):
+                            # This is an error message, not base64 content
+                            loot_filename = f"download_error_{timestamp}_{original_file_path.replace('.', '_')}.txt"
+                            loot_path = os.path.join(loot_dir, loot_filename)
+                            with open(loot_path, 'w') as f:
+                                f.write(interactive_result)
+                            loot_result_msg = f"Download error saved to: {loot_path}"
+                        else:
+                            # This should be base64 encoded content - try to decode it
+                            try:
+                                decoded_data = base64.b64decode(interactive_result)
+                                loot_filename = f"download_{timestamp}_{original_file_path}"
+                                loot_path = os.path.join(loot_dir, loot_filename)
+
+                                with open(loot_path, 'wb') as f:
+                                    f.write(decoded_data)
+
+                                loot_result_msg = f"Downloaded file saved to: {loot_path} ({len(decoded_data)} bytes)"
+                            except Exception:
+                                # If decoding fails, save as raw content
+                                loot_filename = f"download_raw_{timestamp}_{original_file_path.replace('.', '_')}.txt"
+                                loot_path = os.path.join(loot_dir, loot_filename)
+                                with open(loot_path, 'w') as f:
+                                    f.write(interactive_result)
+                                loot_result_msg = f"Raw download content saved to: {loot_path}"
+
+                        return f"[DOWNLOAD COMPLETED] {loot_result_msg}\nOriginal remote path: {remote_path}", "success"
+                    except Exception as e:
+                        return f"Download completed but error saving to loot directory: {str(e)}\nResult: {interactive_result[:200]}{'...' if len(interactive_result) > 200 else ''}", "warning"
+                else:
+                    return "No response from agent", "warning"
             else:
-                error_msg = task_result.get('error', 'Unknown error') if task_result else 'Failed to create task'
-                return f" Failed to queue download task for agent {agent_id[:8]}: {error_msg}", "error"
+                # Use the original queued approach for non-interactive mode
+                if not session.agent_manager:
+                    return "Agent manager not initialized for this session.", "error"
+
+                agent_command = remote_path
+
+                task_result = session.agent_manager.add_download_task(agent_id, agent_command)
+                if task_result and task_result.get('success'):
+                    task_id = task_result['task_id']
+                    return f" Download task for '{remote_path}' queued for agent {agent_id[:8]}... (Task ID: {task_id})", "success"
+                else:
+                    error_msg = task_result.get('error', 'Unknown error') if task_result else 'Failed to create task'
+                    return f" Failed to queue download task for agent {agent_id[:8]}: {error_msg}", "error"
         else:
             return "Usage: download <agent_id> <remote_file_path> (for agent downloads) OR download <server_file_path> (for server downloads)", "error"
 
@@ -2457,15 +2570,32 @@ class RemoteCLIServer:
             # Format the upload command as expected by the agent: "upload <remote_path> <encoded_content>"
             agent_command = f"upload {remote_path} {encoded_content}"
 
-            # Use the existing add_task method to create the proper task
-            task_result = session.agent_manager.add_task(agent_id, agent_command)
+            # If in interactive mode and this is the current agent, use interactive API for immediate response
+            if session.interactive_mode and session.current_agent == agent_id:
+                interactive_result, error = session.agent_manager.send_interactive_command(
+                    agent_id, agent_command, timeout=120
+                )
 
-            if task_result and task_result.get('success'):
-                task_id = task_result['task_id']
-                return f" Upload task for '{os.path.basename(local_path)}' -> '{remote_path}' queued for agent {agent_id[:8]}... (Task ID: {task_id})", "success"
+                if error:
+                    return f"Error executing upload: {error}", "error"
+
+                if interactive_result is not None:
+                    formatted_result = str(interactive_result).strip()
+                    if len(formatted_result) > 10000:  # Truncate very long results
+                        formatted_result = formatted_result[:10000] + "\n... (truncated)"
+                    return f"[+] Interactive upload completed:\n{formatted_result}", "success"
+                else:
+                    return "Upload command sent but no response from agent", "warning"
             else:
-                error_msg = task_result.get('error', 'Unknown error') if task_result else 'Failed to create task'
-                return f" Failed to queue upload task for agent {agent_id[:8]}: {error_msg}", "error"
+                # Use the existing add_task method to create the proper task (original behavior)
+                task_result = session.agent_manager.add_task(agent_id, agent_command)
+
+                if task_result and task_result.get('success'):
+                    task_id = task_result['task_id']
+                    return f" Upload task for '{os.path.basename(local_path)}' -> '{remote_path}' queued for agent {agent_id[:8]}... (Task ID: {task_id})", "success"
+                else:
+                    error_msg = task_result.get('error', 'Unknown error') if task_result else 'Failed to create task'
+                    return f" Failed to queue upload task for agent {agent_id[:8]}: {error_msg}", "error"
 
         except Exception as e:
             return f" An error occurred during file upload preparation: {e}", "error"
