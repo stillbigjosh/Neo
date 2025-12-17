@@ -17,7 +17,6 @@
 - [ ] EDR Evasion modules
 
 ## To be implemented
-- [ ] Reduce Agent ID / Task ID length to 8 characters
 - [ ] Built-in modules for network reconnaissance and internal enumeration
 - [ ] Enhanced Agent Traffic-shaping 
 - [ ] Built-in Socks Proxying and support for various pivoting protocols
@@ -28,7 +27,6 @@
 - [ ] Lateral movement module
 - [ ] URI endpoint rotation in malleable profiles
 - [ ] Runtime obfuscation
-- [ ] Stealth communication channels
 - [ ] Enhanced and Opsec safe P2P Agent comm
 
 
