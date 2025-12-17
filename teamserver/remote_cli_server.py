@@ -263,14 +263,14 @@ class RemoteCLIServer:
                 if not listeners:
                     return "No listeners found.", 'info'
                 
-                output = "Active Listeners:\n" + ("-" * 80) + "\n"
-                output += f"{'Name':<15} {'Type':<8} {'Host':<15} {'Port':<6} {'Profile':<20} {'Status':<10}\n"
-                output += ("-" * 80) + "\n"
-                
+                output = "Active Listeners:\n" + ("-" * 125) + "\n"
+                output += f"{'Name':<15} {'Type':<8} {'Host':<15} {'Port':<6} {'Profile':<20} {'Status':<10} {'ID':<36}\n"
+                output += ("-" * 125) + "\n"
+
                 for listener in listeners:
                     port_str = str(listener['port']) if listener['port'] else 'N/A'
                     profile = listener.get('profile_name', 'default')
-                    output += f"{listener['name']:<15} {listener['type']:<8} {listener['host']:<15} {port_str:<6} {profile:<20} {listener['status']:<10}\n"
+                    output += f"{listener['name']:<15} {listener['type']:<8} {listener['host']:<15} {port_str:<6} {profile:<20} {listener['status']:<10} {listener['id']:<36}\n"
                 
                 return output, 'success'
                     
