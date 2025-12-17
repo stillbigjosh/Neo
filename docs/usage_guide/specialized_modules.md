@@ -40,7 +40,7 @@ modules info inline-execute
 inline-execute <path_to_bof_file> [arguments]
 ```
 
-## Inline-Assembly
+## Inline-Execute-Assembly
 
 This module interfaces with an agent and enables in-memory execution of .NET assemblies without any disk writes. The solution leverages the go-clr library to execute .NET assemblies directly in the agent's memory space, supporting both .NET executables (.exe) and libraries (.dll).
 
