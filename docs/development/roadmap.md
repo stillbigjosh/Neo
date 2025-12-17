@@ -11,9 +11,10 @@
 - [x] In-memory COFF/BOF Execution
 - [x] Powershell module handler 
 - [x] Active Agent alerting system to all connected clients
+- [x] In-memory .NET execution
 
 ## Actively Under development
-- [ ] In-memory .NET execution
+- [ ] EDR Evasion modules
 
 ## To be implemented
 - [ ] Reduce Agent ID / Task ID length to 8 characters
