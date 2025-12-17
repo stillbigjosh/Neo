@@ -1430,7 +1430,7 @@ class RemoteCLIServer:
 
                 output = "Active Agents:\n"
                 output += "-" * 150 + "\n"
-                output += f"{'ID':<30} {'IP Address':<15} {'Hostname':<20} {'OS':<15} {'User':<15} {'Listener':<15} {'Status':<12} {'Last Seen':<19}\n"
+                output += f"{'ID':<30} {'IP Address':<15} {'Hostname':<20} {'OS':<15} {'User':<15} {'Listener ID':<15} {'Status':<12} {'Last Seen':<19}\n"
                 output += "-" * 150 + "\n"
 
                 for agent in agents:
@@ -1541,7 +1541,7 @@ class RemoteCLIServer:
                 output += f"Hostname: {agent_dict['hostname']}\n"
                 output += f"OS: {agent_dict['os_info']}\n"
                 output += f"User: {agent_dict['user']}\n"
-                output += f"Listener: {agent_dict['listener_id']}\n"
+                output += f"Listener ID: {agent_dict['listener_id']}\n"
                 output += f"First Seen: {agent_dict['first_seen']}\n"
                 output += f"Last Seen: {agent_dict['last_seen']}\n"
                 output += f"Status: {agent_dict['status']}\n"
