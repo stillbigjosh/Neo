@@ -26,7 +26,6 @@ MODULES & EXECUTION:
   taskchain   - Task Orchestration
 
 OPERATIONS & TACTICS:
-  evasion     - Basic AMSI/ETW bypass
   upload      - Upload files to agents
   download    - Download files from agents/C2 server
   persist     - Persist an executable or script
@@ -149,25 +148,6 @@ TIPS:
   • Module parameters vary by module type
     """
 
-
-def get_evasion_help_display():
-    return """
-Available Evasion Commands:
-══════════════════════════════════════════════════════════════════════
-
-SYNTAX:
-  • evasion <enable|disable> <technique>
-
-EXAMPLES:
-  • evasion enable amsi_bypass
-  • evasion disable etw_bypass
-
-TECHNIQUES:
-  • amsi_bypass, etw_bypass
-
-TIP:
-  • Execute from within agent interactive session
-    """
 
 
 

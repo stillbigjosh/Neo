@@ -27,9 +27,6 @@ from teamserver.multiplayer_coordinator import MultiplayerCoordinator
 from teamserver.session_manager import SessionManager
 from teamserver.audit_logger import AuditLogger
 
-from evasion.amsi_bypass import AMSIBypass
-from evasion.etw_bypass import ETWBypass
-
 from communication.encryption import EncryptionManager
 
 from agents.stager_interactive import handle_interactive_stager_command
@@ -45,7 +42,6 @@ class TerminalSession:
         self.current_agent = None
         self.current_target = None
         self.interactive_mode = False
-        self.evasion_enabled = False
         self.persistence_enabled = False
         self.stager_manager = None
         self.payload_manager = None
@@ -1696,88 +1692,6 @@ class RemoteCLIServer:
         except Exception as e:
             return f"Error executing interactive command: {str(e)}", 'error'
 
-    def handle_evasion_command(self, command_parts, session):
-        if len(command_parts) < 3:
-            return help.get_evasion_help_display(), 'info'
-        
-        action = command_parts[1].lower()
-        evasion_type = command_parts[2].lower()
-        
-        options = {}
-        for part in command_parts[3:]:
-            if '=' in part:
-                key, value = part.split('=', 1)
-                options[key] = value
-
-        if session.current_agent:
-            agent_manager = session.agent_manager
-            if not agent_manager:
-                return "Agent manager not initialized", 'error'    
-        
-        try:
-            if action == 'enable':
-                if evasion_type == 'amsi_bypass':
-                    evasion = AMSIBypass(NeoC2Config())
-                    technique = options.get('technique', '')
-                    command = evasion.bypass()
-                    session.evasion_enabled = True
-                    if session.current_agent:
-                        task_id = agent_manager.add_task(session.current_agent, command)
-                        if task_id:
-                            return f"Evasion {action} task {task_id} queued for agent {session.current_agent}", 'success'
-                        else:
-                            return f"Failed to queue Evasion {action} task for agent {session.current_agent}", 'error'
-                    else:
-                        return command, 'success'
-                    
-                elif evasion_type == 'etw_bypass':
-                    evasion = ETWBypass(NeoC2Config())
-                    technique = options.get('technique', '')
-                    command = evasion.bypass()
-                    session.evasion_enabled = True
-                    if session.current_agent:
-                        task_id = agent_manager.add_task(session.current_agent, command)
-                        if task_id:
-                            return f"Evasion {action} task {task_id} queued for agent {session.current_agent}", 'success'
-                        else:
-                            return f"Failed to queue Evasion {action} task for agent {session.current_agent}", 'error'
-                    else:
-                        return command, 'success'
-                else:
-                    return f"Unsupported evasion type: {evasion_type}. Supported: amsi_bypass, etw_bypass", 'error'
-            
-            elif action == 'disable':
-                if evasion_type == 'amsi_bypass':
-                    command = "# AMSI bypass disabled"
-                    session.evasion_enabled = False
-                    if session.current_agent:
-                        task_id = agent_manager.add_task(session.current_agent, command)
-                        if task_id:
-                            return f"Evasion {action} task {task_id} queued for agent {session.current_agent}", 'success'
-                        else:
-                            return f"Failed to queue Evasion {action} task for agent {session.current_agent}", 'error'
-                    else:
-                        return command, 'success'
-
-                elif evasion_type == 'etw_bypass':
-                    command = "# ETW bypass disabled"
-                    session.evasion_enabled = False
-                    if session.current_agent:
-                        task_id = agent_manager.add_task(session.current_agent, command)
-                        if task_id:
-                            return f"Evasion {action} task {task_id} queued for agent {session.current_agent}", 'success'
-                        else:
-                            return f"Failed to queue Evasion {action} task for agent {session.current_agent}", 'error'
-                    else:
-                        return command, 'success'
-                else:
-                    return f"Unsupported evasion type: {evasion_type}. Supported: amsi_bypass, etw_bypass", 'error'
-            
-            else:
-                return f"Unknown evasion action: {action}. Use: enable, disable", 'error'
-        
-        except Exception as e:
-            return f"Error handling evasion command: {str(e)}", 'error'
 
     def get_encryption_manager(self):
         return self._encryption_manager
@@ -4403,8 +4317,6 @@ EXAMPLES:
                     return self.handle_peinject_command(command_parts, session)
                 elif base_command == 'agent':
                     return self.handle_agent_command(command_parts, session)
-                elif base_command == 'evasion':
-                    return self.handle_evasion_command(command_parts, session)
                 elif base_command == 'encryption':
                     return self.handle_encryption_command(command_parts, session)
                 elif base_command == 'download':
@@ -4777,8 +4689,6 @@ DB Inactive:       {stats['db_inactive_agents']}
             return self.handle_peinject_command(command_parts, session)
         elif base_command == 'agent':
             return self.handle_agent_command(command_parts, session)
-        elif base_command == 'evasion':
-            return self.handle_evasion_command(command_parts, session)
         elif base_command == 'encryption':
             return self.handle_encryption_command(command_parts, session)
         elif base_command == 'stager':
@@ -5101,7 +5011,7 @@ DB Inactive:       {stats['db_inactive_agents']}
     
     def _is_framework_command(self, base_cmd):
         framework_commands = {
-            'agent', 'listener', 'modules', 'run', 'pwsh', 'persist', 'pinject', 'peinject', 'evasion', 'encryption',
+            'agent', 'listener', 'modules', 'run', 'pwsh', 'persist', 'pinject', 'peinject', 'encryption',
             'download', 'upload', 'stager', 'profile', 'payload', 'inline-execute',
             'interact', 'event', 'task', 'result', 'addtask', 'back', 'exit',
             'quit', 'clear', 'help', 'status', 'save', 'protocol', 'interactive',
@@ -5154,7 +5064,6 @@ DB Inactive:       {stats['db_inactive_agents']}
                 'encryption': 'agents.list',
                 'profile': 'agents.list',
                 'stager': 'modules.list',
-                'evasion': 'agents.interact',
                 'taskchain': 'modules.execute',
                 'pwsh': 'modules.execute',  # pwsh command requires modules.execute permission
                 'persist': 'modules.execute',  # persist command requires modules.execute permission
@@ -5213,8 +5122,6 @@ DB Inactive:       {stats['db_inactive_agents']}
                         result, status = self.handle_pwsh_command(command_parts, remote_session)
                     elif base_cmd == 'persist':
                         result, status = self.handle_persist_command(command_parts, remote_session)
-                    elif base_cmd == 'evasion':
-                        result, status = self.handle_evasion_command(command_parts, remote_session)
                     elif base_cmd == 'encryption':
                         result, status = self.handle_encryption_command(command_parts, remote_session)
                     elif base_cmd == 'download':
@@ -5559,8 +5466,6 @@ DB Inactive:       {stats['db_inactive_agents']}
                 result, status = self.handle_pwsh_command(command_parts, remote_session)
             elif base_cmd == 'persist':
                 result, status = self.handle_persist_command(command_parts, remote_session)
-            elif base_cmd == 'evasion':
-                result, status = self.handle_evasion_command(command_parts, remote_session)
             elif base_cmd == 'encryption':
                 result, status = self.handle_encryption_command(command_parts, remote_session)
             elif base_cmd == 'download':

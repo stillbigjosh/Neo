@@ -872,7 +872,6 @@ class NeoC2Framework:
             'startup_time': self.startup_time.isoformat() if self.startup_time else None,
             'uptime': str(datetime.now() - self.startup_time) if self.startup_time else None,
             'managers': {
-                'evasion_manager': hasattr(self, 'evasion_manager'),
                 'protocol_manager': hasattr(self, 'protocol_manager'),
                 'module_manager': hasattr(self, 'module_manager'),
                 'session_manager': hasattr(self, 'session_manager'),
