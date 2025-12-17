@@ -39,9 +39,9 @@ _A modular server-client architecture post-exploitation framework built for coll
 
 ### Miscellaneous Features
 - In-memory BOF execution
-- Execute .NET assemblies in-process 
-- Execute arbitrary Windows executables (PE) in a sacrificial process
-- Shellcode injection into sacrificial processes
+- Load and Execute .NET assemblies in-memory
+- Execute arbitrary Windows executables (PE) in a sacrificial process in-memory
+- Shellcode injection into sacrificial processes in-memory
 - C2 Redirector support
 - Multi-server failover deloyment support
 

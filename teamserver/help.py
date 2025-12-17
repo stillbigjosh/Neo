@@ -30,6 +30,7 @@ OPERATIONS & TACTICS:
   download    - Download files from agents/C2 server
   persist     - Persist an executable or script
   inline-execute - Execute bofs on agent session
+  inline-execute-assembly - Load and execute .NET assemblies in-memory on agents
   peinject    - Injects unmanaged PE by Process Hollowing into svchost.exe
   pinject     - Injects shellcode into notepad.exe or explorer.exe
   pwsh        - Execute powershell script on agent session

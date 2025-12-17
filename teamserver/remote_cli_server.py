@@ -1054,6 +1054,161 @@ class RemoteCLIServer:
         except Exception as e:
             return f"Error running inline-execute: {str(e)}", 'error'
 
+    def handle_inline_execute_assembly_command(self, command_parts, session):
+        module_name = "inline-assembly"
+
+        if len(command_parts) < 2:
+            return "USAGE: inline-execute-assembly <assembly_path> [agent_id=<agent_id>]", 'error'
+
+        try:
+            db = session.agent_manager.db if session.agent_manager else self.db
+            module_manager = self.module_manager
+
+            options = {}
+
+            # Parse command arguments - handle both positional and key-value format
+            if '=' in command_parts[1] and 'agent_id=' in command_parts[1]:
+                # Handle format like: inline-execute-assembly agent_id=abc-123-def assembly_path
+                for part in command_parts[1:]:
+                    if '=' in part:
+                        key, value = part.split('=', 1)
+                        options[key] = value
+            else:
+                # Handle format: inline-execute-assembly assembly_path [agent_id=value]
+                assembly_path = command_parts[1]
+                options['assembly_path'] = assembly_path
+
+                # Look for agent_id in remaining arguments
+                for part in command_parts[2:]:
+                    if '=' in part and part.startswith('agent_id='):
+                        key, value = part.split('=', 1)
+                        options['agent_id'] = value
+
+            # If in interactive mode and no agent_id specified, use the current agent
+            if session.interactive_mode and session.current_agent and 'agent_id' not in options:
+                options['agent_id'] = session.current_agent
+
+            # Validate that we have an agent_id
+            if 'agent_id' not in options:
+                return "No agent_id specified and not in interactive mode", 'error'
+
+            agent_id = options['agent_id']
+            if session.agent_manager.is_agent_locked_interactively(agent_id):
+                lock_info = session.agent_manager.get_interactive_lock_info(agent_id)
+                if lock_info and lock_info['operator'] != session.username:
+                    return f"Agent {agent_id} is currently in exclusive interactive mode with operator: {lock_info['operator']}. Access denied.", 'error'
+
+            module_manager.load_all_modules()
+            module_manager.load_modules_from_db()
+
+            loaded_modules_dict = getattr(module_manager, 'loaded_modules', {})
+
+            if module_name not in loaded_modules_dict:
+                import importlib.util
+                module_path = os.path.join("modules", f"{module_name}.py")
+                if os.path.exists(module_path):
+                    spec = importlib.util.spec_from_file_location(module_name, module_path)
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+
+                    if hasattr(module, 'get_info'):
+                        module_info = module.get_info()
+                    else:
+                        module_info = {}
+
+                    loaded_modules_dict[module_name] = {
+                        'module': module,
+                        'info': module_info,
+                        'path': module_path
+                    }
+                else:
+                    return f"Module not found: {module_name}", 'error'
+
+            if module_name in loaded_modules_dict:
+                module_data = loaded_modules_dict[module_name]
+                module = module_data['module']
+                info = module_data.get('info', {})
+
+                if hasattr(module, 'execute'):
+                    required_options = [opt for opt, opt_info in info.get('options', {}).items() if opt_info.get('required', False)]
+                    missing = [opt for opt in required_options if opt not in options]
+                    if missing:
+                        return f"Missing required options: {', '.join(missing)}", 'error'
+
+                    original_agent = session.current_agent
+                    try:
+                        # Check if we're in interactive mode and if the module should be executed interactively
+                        if session.interactive_mode and session.current_agent and agent_id == session.current_agent:
+                            # Temporarily set a flag to indicate this is for interactive execution
+                            session.is_interactive_execution = True
+
+                            result = module.execute(options, session)
+
+                            # Remove the flag after execution
+                            if hasattr(session, 'is_interactive_execution'):
+                                delattr(session, 'is_interactive_execution')
+
+                            if 'success' in result and result['success'] and 'command' in result:
+                                # This is a command that should be executed interactively
+                                command_to_execute = result['command']
+
+                                # Execute the command via the interactive API instead of queuing it
+                                interactive_result, error = session.agent_manager.send_interactive_command(
+                                    session.current_agent, command_to_execute, timeout=120
+                                )
+
+                                if error:
+                                    return f"Error executing interactive command: {error}", 'error'
+
+                                if interactive_result is not None:
+                                    formatted_result = str(interactive_result).strip()
+                                    if len(formatted_result) > 10000:  # Truncate very long results
+                                        formatted_result = formatted_result[:10000] + "\n... (truncated)"
+
+                                    return f"[+] Interactive module execution completed:\n{formatted_result}", 'success'
+                                else:
+                                    return "No response from agent", 'warning'
+                            else:
+                                # If the module doesn't return a command to execute, use the original result
+                                if 'success' in result:
+                                    status = 'success' if result['success'] else 'error'
+                                    output = result.get('output', result.get('error', 'Unknown error'))
+
+                                    # Return both the output and task ID if available (like pinject)
+                                    if 'task_id' in result:
+                                        return f"{output} (Task ID: {result['task_id']})", status
+                                    else:
+                                        return output, status
+                                else:
+                                    output = result.get('output', 'No output')
+                                    status = result.get('status', 'unknown')
+                                    return output, status
+                        else:
+                            # Normal execution (not in interactive mode)
+                            result = module.execute(options, session)
+                            if 'success' in result:
+                                status = 'success' if result['success'] else 'error'
+                                output = result.get('output', result.get('error', 'Unknown error'))
+
+                                # Return both the output and task ID if available (like pinject)
+                                if 'task_id' in result:
+                                    return f"{output} (Task ID: {result['task_id']})", status
+                                else:
+                                    return output, status
+                            else:
+                                output = result.get('output', 'No output')
+                                status = result.get('status', 'unknown')
+                                return output, status
+                    finally:
+                        session.current_agent = original_agent
+                else:
+                    return f"Module '{module_name}' does not have an execute function", 'error'
+            else:
+                return f"Could not load module: {module_name}", 'error'
+
+        except Exception as e:
+            return f"Error running inline-execute-assembly: {str(e)}", 'error'
+
     def handle_persist_command(self, command_parts, session):
         module_name = "persist"
 
@@ -4569,6 +4724,8 @@ DB Inactive:       {stats['db_inactive_agents']}
                     return self.handle_payload_command(command_parts, session)
                 elif base_command == 'inline-execute':
                     return self.handle_inline_execute_command(command_parts, session)
+                elif base_command == 'inline-execute-assembly':
+                    return self.handle_inline_execute_assembly_command(command_parts, session)
                 elif base_command == 'interact':
                     # Handle the interact command (alias for agent interact)
                     if len(command_parts) < 2:
@@ -4701,6 +4858,8 @@ DB Inactive:       {stats['db_inactive_agents']}
             return self.handle_payload_command(command_parts, session)
         elif base_command == 'inline-execute':
             return self.handle_inline_execute_command(command_parts, session)
+        elif base_command == 'inline-execute-assembly':
+            return self.handle_inline_execute_assembly_command(command_parts, session)
         elif base_command == 'interact':
             if len(command_parts) < 2:
                 return "Usage: interact <agent_id>", 'error'
@@ -5012,7 +5171,7 @@ DB Inactive:       {stats['db_inactive_agents']}
     def _is_framework_command(self, base_cmd):
         framework_commands = {
             'agent', 'listener', 'modules', 'run', 'pwsh', 'persist', 'pinject', 'peinject', 'encryption',
-            'download', 'upload', 'stager', 'profile', 'payload', 'inline-execute',
+            'download', 'upload', 'stager', 'profile', 'payload', 'inline-execute', 'inline-execute-assembly',
             'interact', 'event', 'task', 'result', 'addtask', 'back', 'exit',
             'quit', 'clear', 'help', 'status', 'save', 'protocol', 'interactive',
             'taskchain', 'beacon'
@@ -5068,6 +5227,7 @@ DB Inactive:       {stats['db_inactive_agents']}
                 'pwsh': 'modules.execute',  # pwsh command requires modules.execute permission
                 'persist': 'modules.execute',  # persist command requires modules.execute permission
                 'inline-execute': 'modules.execute',  # inline-execute command requires modules.execute permission
+                'inline-execute-assembly': 'modules.execute',  # inline-execute-assembly command requires modules.execute permission
                 'help': 'agents.list',  # Help command should be available to all roles with basic access
             }
             
@@ -5433,6 +5593,8 @@ DB Inactive:       {stats['db_inactive_agents']}
                         result, status = self.handle_payload_upload_command(command_parts, remote_session)
                     elif base_cmd == 'inline-execute':
                         result, status = self.handle_inline_execute_command(command_parts, remote_session)
+                    elif base_cmd == 'inline-execute-assembly':
+                        result, status = self.handle_inline_execute_assembly_command(command_parts, remote_session)
                     elif base_cmd == 'interact':
                         if len(command_parts) < 2:
                             result = "Usage: interact <agent_id>"
@@ -5761,6 +5923,8 @@ DB Inactive:       {stats['db_inactive_agents']}
                 result, status = self.handle_payload_upload_command(command_parts, remote_session)
             elif base_cmd == 'inline-execute':
                 result, status = self.handle_inline_execute_command(command_parts, remote_session)
+            elif base_cmd == 'inline-execute-assembly':
+                result, status = self.handle_inline_execute_assembly_command(command_parts, remote_session)
             elif base_cmd == 'interact':
                 # Handle the interact command (alias for agent interact)
                 if len(command_parts) < 2:
