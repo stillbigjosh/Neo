@@ -42,8 +42,8 @@ _A modular server-client architecture post-exploitation framework built for coll
 - Load and Execute .NET assemblies in-memory
 - Execute arbitrary Windows executables (PE) in a sacrificial process in-memory
 - Shellcode injection into sacrificial processes in-memory
-- C2 Redirector support
-- Multi-server failover deloyment support
+- C2 redirectors support
+- Multi-server failover deployment support
 
 ## Installation:
 NeoC2 works well on Kali Linux. See the [Installations](https://neoc2.readthedocs.io/en/latest/Installation/) docs for instructions. 
