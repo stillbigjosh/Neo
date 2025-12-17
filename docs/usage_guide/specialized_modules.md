@@ -25,7 +25,7 @@ This module interfaces with an agent and enables pure in-memory execution of Bea
 - Windows x64
 
 #### Usage
-1. Place BOFs in modules/external/bof/ of the C2 Server
+1. Place BOFs in modules/external of the C2 Server
 2. Use the module with a BOF path
 3. The agent will in-memory execute the BOF using its COFFloader library
 4. BOF results are captured and sent back through C2 channel to operator
