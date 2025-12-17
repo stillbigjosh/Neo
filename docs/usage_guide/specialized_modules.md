@@ -61,7 +61,7 @@ Execute .NET assemblies using the inline-assembly command:
 ```
 modules info inline-assembly
 # In interactive mode, the agent ID is automatically inferred:
-inline-assembly <path_to_assembly_file> [agent_id=<agent_id>]
+inline-execute-assembly <path_to_assembly_file> [agent_id=<agent_id>]
 ```
 
 ### Key Features:
