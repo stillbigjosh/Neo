@@ -233,7 +233,6 @@ class NeoC2DB:
                     interactive_mode INTEGER NOT NULL DEFAULT 0,
                     checkin_interval INTEGER DEFAULT 30,
                     jitter INTEGER DEFAULT 5,
-                    evasion_techniques TEXT,
                     communication_protocol TEXT,
                     persistence_methods TEXT,
                     secret_key TEXT,  -- Secret key for encrypted communication

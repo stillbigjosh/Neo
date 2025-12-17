@@ -7,7 +7,7 @@ _A modular server-client architecture post-exploitation framework built for coll
 - Teamserver: Integrates the various managers of the command-and-control
 - Flask based web application handles all agent's HTTP/S communication endpoints
 - Listener stack: Runs as a separate processes from the Flask application, acting as internal redirectors, forwards traffic from agents to the web application
-- Remote Client: Separate from the C2 and can be operated from anywhere, allowing you to connect to the C2 via the Multiplayer co-ordinator
+- Remote Client: Separate from the C2 Server and can be operated from anywhere. CLI allows operators to connect to the C2 via the Multiplayer co-ordinator
 - Polymorphic Payloads: These are unique, obfuscated implants with Anti-sandbox & Anti-debugger capability
 - Malleable profiles: For customizing agent behavior and communication patterns
 - Extensible modules: For post-exploitation tasks. External custom module are made operationally available via a Python-wrapper

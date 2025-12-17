@@ -40,10 +40,11 @@ Neo command-and-control server is installed as a background service that starts 
 
 1. **Configure your environment variables** in `.env` file
 
-2. **Install and start the service**: This will install all dependencies in a python virtual environment. Generates an OpenSSL self-signed certificate. Installation path of the framework after running this will be `/opt/neoc2/` and would also creates two globally available commands for interacting with the C2 Server service instance `neoc2` and a launcher for the C2 Remote Client `neoc2-cli`
+2. **Install and start the service**: 
    ```
    sudo ./install.sh
    ```
+This will install all dependencies in a python virtual environment. Generates an OpenSSL self-signed certificate. Installation path of the framework after running this will be `/opt/neoc2/` and would also creates two globally available commands for interacting with the C2 Server service instance `neoc2` and a launcher for the C2 Remote Client `neoc2-cli`
 
 3. **Verify service installation**
    ```
@@ -115,19 +116,28 @@ NeoC2 > listener start <listener_name>
 NeoC2 > payload <agent_type> <listener_name>
 ```
 
+#### Agent Register
+
 The Neo C2 Server automatically alerts all connected clients when a deployed implant is active or registers: `[+] NEW AGENT: ID=c272-xxxx HOST=xxxx USER=root IP=127.0.0.1 OS=xxxx`
 
-List active agents and interact: 
+#### List active agents
 
 ```
-# List active agents
 NeoC2 > beacon
 NeoC2 > agent list
-# Interact with agent
-NeoC2 > interact <agent-id>
+```
+
+#### Modes
+
+The Neo C2 has two operation mode based on its [task management system](usage_guide/task_management.md): 
+
+- Default queued mode: Tasks are stored in the database and retrieved by agents during their regular polling cycles
+
+- Interactive mode: Tasks and Modules bypasses the standard queue and communicate directly with agents in real-time via the interactive API
+```
+interact <agent_id>
 ```
 
 
 
---
 

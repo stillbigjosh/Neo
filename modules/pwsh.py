@@ -5,13 +5,13 @@ import re
 
 def get_info():
     return {
-        "name": "powershell",
+        "name": "pwsh",
         "description": "Execute PowerShell scripts on agents by uploading and executing them",
         "type": "execution",
         "platform": "windows",
-        "author": "NeoC2 Framework",
+        "author": "NeoC2 Framework by @stillbigjosh",
         "references": [
-            "https://github.com/NeoC2"
+            "https://github.com/stillbigjosh/NeoC2"
         ],
         "technique_id": "T1059",  # Command and Scripting Interpreter
         "mitre_tactics": ["Execution"],
@@ -80,24 +80,33 @@ def execute(options, session):
             "error": "Session does not have an initialized agent_manager"
         }
 
-    try:
-        agent_manager = session.agent_manager
-        task_result = agent_manager.add_task(agent_id, command)
-        if task_result.get('success'):
-            task_id = task_result['task_id']
-            return {
-                "success": True,
-                "output": f"PowerShell script execution task {task_id} queued for agent {agent_id}",
-                "task_id": task_id,
-                "command": command
-            }
-        else:
+    # Check if this is being executed in interactive mode
+    if hasattr(session, 'is_interactive_execution') and session.is_interactive_execution:
+        # Return the command that should be executed interactively
+        return {
+            "success": True,
+            "output": f"[x] PowerShell script execution prepared for interactive mode",
+            "command": command
+        }
+    else:
+        try:
+            agent_manager = session.agent_manager
+            task_result = agent_manager.add_task(agent_id, command)
+            if task_result.get('success'):
+                task_id = task_result['task_id']
+                return {
+                    "success": True,
+                    "output": f"[x] PowerShell script execution task {task_id} queued for agent {agent_id}",
+                    "task_id": task_id,
+                    "command": command
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": f"Failed to queue task for agent {agent_id}: {task_result.get('error', 'Unknown error')}"
+                }
+        except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to queue task for agent {agent_id}: {task_result.get('error', 'Unknown error')}"
+                "error": f"Error queuing task: {str(e)}"
             }
-    except Exception as e:
-        return {
-            "success": False,
-            "error": f"Error queuing task: {str(e)}"
-        }

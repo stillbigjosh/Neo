@@ -101,7 +101,7 @@ class NeoC2RemoteCLI:
 
     def _completer(self, text, state):
         commands = [
-            'help', 'agent', 'listener', 'modules', 'run', 'pwsh', 'persist', 'pinject', 'peinject', 'evasion', 'encryption',
+            'help', 'agent', 'listener', 'modules', 'run', 'pwsh', 'persist', 'pinject', 'peinject', 'encryption',
             'profile', 'protocol', 'stager', 'download', 'upload', 'interactive',
             'exit', 'quit', 'clear', 'status', 'task', 'result', 'save', 'addtask',
             'harvest', 'inline-execute'
@@ -201,7 +201,6 @@ class NeoC2RemoteCLI:
             raise e
 
     def _receive_data(self):
-        """Receive any type of data without filtering"""
         try:
             length_bytes = self._receive_exact(4)
             if not length_bytes:
@@ -221,21 +220,18 @@ class NeoC2RemoteCLI:
             raise e
 
     def _start_receive_thread(self):
-        """Start a dedicated thread for receiving messages"""
         self.receive_thread_stop_event.clear()
         self.receive_thread = threading.Thread(target=self._message_receive_worker)
         self.receive_thread.daemon = True
         self.receive_thread.start()
 
     def _stop_receive_thread(self):
-        """Stop the receive thread"""
         if self.receive_thread_stop_event:
             self.receive_thread_stop_event.set()
         if self.receive_thread and self.receive_thread.is_alive():
             self.receive_thread.join(timeout=1)
 
     def _message_receive_worker(self):
-        """Worker thread to continuously receive messages and route them appropriately"""
         while not self.receive_thread_stop_event.is_set():
             try:
                 # Check if there's data available to read
@@ -262,7 +258,6 @@ class NeoC2RemoteCLI:
                 break
 
     def _get_next_message(self):
-        """Get the next message from the received messages queue"""
         with self.received_messages_lock:
             if self.received_messages:
                 return self.received_messages.pop(0)
@@ -351,6 +346,7 @@ class NeoC2RemoteCLI:
                     'session_id': self.session_id
                 }
 
+            # Show loading animation since module commands in interactive mode still need to wait for results
             loading_stop_event = threading.Event()
             loading_thread = threading.Thread(target=self._show_loading_animation, args=(loading_stop_event,))
             loading_thread.daemon = True
@@ -366,7 +362,7 @@ class NeoC2RemoteCLI:
             # Receive response with a timeout to allow processing agent updates in background
             response = self._receive_command_response_with_agent_updates()
 
-            if 'loading_stop_event' in locals():
+            if loading_thread and loading_stop_event:
                 loading_stop_event.set()
                 loading_thread.join(timeout=0.1)
 
@@ -426,7 +422,7 @@ class NeoC2RemoteCLI:
 ██║ ╚████║███████╗╚██████╔╝╚██████╗███████╗
 ╚═╝  ╚═══╝╚══════╝ ╚═════╝  ╚═════╝╚══════╝
                                             """, style="bold green"))
-            console.print(f"Neo Remote Command & Control Framework")
+            console.print(f"Neo Remote Command & Control Framework by @stillbigjosh")
             console.print(f"Connected to: {self.server_host}:{self.server_port}")
             console.print(f"User: {self.username}")
             console.print(f"Type 'help' for available commands")
@@ -440,7 +436,7 @@ class NeoC2RemoteCLI:
 ██║ ╚████║███████╗╚██████╔╝╚██████╗███████╗
 ╚═╝  ╚═══╝╚══════╝ ╚═════╝  ╚═════╝╚══════╝
                                             """)
-            print(f"Neo Remote Command & Control Framework")
+            print(f"Neo Remote Command & Control Framework by @stillbigjosh")
             print(f"Connected to: {self.server_host}:{self.server_port}")
             print(f"User: {self.username}")
             print(f"Type 'help' for available commands")

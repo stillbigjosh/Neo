@@ -27,9 +27,6 @@ from teamserver.multiplayer_coordinator import MultiplayerCoordinator
 from teamserver.session_manager import SessionManager
 from teamserver.audit_logger import AuditLogger
 
-from evasion.amsi_bypass import AMSIBypass
-from evasion.etw_bypass import ETWBypass
-
 from communication.encryption import EncryptionManager
 
 from agents.stager_interactive import handle_interactive_stager_command
@@ -45,7 +42,6 @@ class TerminalSession:
         self.current_agent = None
         self.current_target = None
         self.interactive_mode = False
-        self.evasion_enabled = False
         self.persistence_enabled = False
         self.stager_manager = None
         self.payload_manager = None
@@ -443,14 +439,14 @@ class RemoteCLIServer:
     def handle_run_command(self, command_parts, session):
         if len(command_parts) < 2:
             return help.get_run_help_display(), 'info'
-        
+
         module_name = command_parts[1]
-        
+
         try:
             db = session.agent_manager.db if session.agent_manager else self.db
-            
+
             module_manager = self.module_manager
-            
+
             options = {}
             for part in command_parts[2:]:
                 if '=' in part:
@@ -461,12 +457,12 @@ class RemoteCLIServer:
                 options['agent_id'] = session.current_agent
 
             wait_timeout = int(options.get('wait_timeout', 0))
-            
+
             module_manager.load_all_modules()
             module_manager.load_modules_from_db()
-            
+
             loaded_modules_dict = getattr(module_manager, 'loaded_modules', {})
-            
+
             if module_name not in loaded_modules_dict:
                 module_path = os.path.join("modules", f"{module_name}.py")
                 if os.path.exists(module_path):
@@ -474,63 +470,109 @@ class RemoteCLIServer:
                     loaded_modules_dict = getattr(module_manager, 'loaded_modules', {})
                 else:
                     return f"Module not found: {module_name}", 'error'
-            
+
             if module_name in loaded_modules_dict:
                 module_data = loaded_modules_dict[module_name]
                 module = module_data['module']
                 info = module_data.get('info', {})  # Get module info for validation
-                
+
                 if hasattr(module, 'execute'):
                     required_options = [opt for opt, opt_info in info.get('options', {}).items() if opt_info.get('required', False)]
                     missing = [opt for opt in required_options if opt not in options]
                     if missing:
                         return f"Missing required options: {', '.join(missing)}", 'error'
-                    
+
                     agent_id = options.get('agent_id')
                     if agent_id:
                         if session.agent_manager.is_agent_locked_interactively(agent_id):
                             lock_info = session.agent_manager.get_interactive_lock_info(agent_id)
                             if lock_info and lock_info['operator'] != session.username:
                                 return f"Agent {agent_id} is currently in exclusive interactive mode with operator: {lock_info['operator']}. Access denied.", 'error'
-                    
+
                     original_agent = session.current_agent
                     try:
-                        result = module.execute(options, session)
-                        if 'success' in result:
-                            status = 'success' if result['success'] else 'error'
-                            output = result.get('output', result.get('error', 'Unknown error'))
+                        # Check if we're in interactive mode and if the module should be executed interactively
+                        if session.interactive_mode and session.current_agent and agent_id == session.current_agent:
+                            # Determine the command to execute by inspecting what the module would do
+                            # For this, we need to modify the approach - let's first call the module
+                            # to get the command it would queue, then execute it interactively instead
+
+                            # Temporarily set a flag to indicate this is for interactive execution
+                            session.is_interactive_execution = True
+
+                            result = module.execute(options, session)
+
+                            # Remove the flag after execution
+                            if hasattr(session, 'is_interactive_execution'):
+                                delattr(session, 'is_interactive_execution')
+
+                            if 'success' in result and result['success'] and 'command' in result:
+                                # This is a command that should be executed interactively
+                                command_to_execute = result['command']
+
+                                # Execute the command via the interactive API instead of queuing it
+                                interactive_result, error = session.agent_manager.send_interactive_command(
+                                    session.current_agent, command_to_execute, timeout=120
+                                )
+
+                                if error:
+                                    return f"Error executing interactive command: {error}", 'error'
+
+                                if interactive_result is not None:
+                                    formatted_result = str(interactive_result).strip()
+                                    if len(formatted_result) > 10000:  # Truncate very long results
+                                        formatted_result = formatted_result[:10000] + "\n... (truncated)"
+
+                                    return f"[+] Interactive module execution completed:\n{formatted_result}", 'success'
+                                else:
+                                    return "No response from agent", 'warning'
+                            else:
+                                # If the module doesn't return a command to execute, use the original result
+                                if 'success' in result:
+                                    status = 'success' if result['success'] else 'error'
+                                    output = result.get('output', result.get('error', 'Unknown error'))
+                                else:
+                                    output = result.get('output', 'No output')
+                                    status = result.get('status', 'unknown')
+                                return output, status
                         else:
-                            output = result.get('output', 'No output')
-                            status = result.get('status', 'unknown')
-                        
-                        if status == 'success' and wait_timeout > 0 and 'task_id' in result:
-                            task_id = result['task_id']
-                            agent_id = options.get('agent_id')
-                            if not agent_id:
-                                return f"Task {task_id} queued, but cannot monitor without agent_id", 'error'
-                            
-                            # Poll task status
-                            import time
-                            start_time = time.time()
-                            while time.time() - start_time < wait_timeout:
-                                task_data = db.execute(
-                                    "SELECT status, result FROM agent_tasks WHERE id = ? AND agent_id = ?",
-                                    (task_id, agent_id)
-                                ).fetchone()
-                                if task_data and task_data['status'] == 'completed':
-                                    return f"Task {task_id} completed: {task_data['result']}", 'success'
-                                time.sleep(1)  # Poll every second
-                            
-                            return f"Task {task_id} queued but not completed within {wait_timeout} seconds (status: {task_data['status'] if task_data else 'unknown'})", 'warning'
-                        
-                        return output, status
+                            # Normal execution (not in interactive mode)
+                            result = module.execute(options, session)
+                            if 'success' in result:
+                                status = 'success' if result['success'] else 'error'
+                                output = result.get('output', result.get('error', 'Unknown error'))
+                            else:
+                                output = result.get('output', 'No output')
+                                status = result.get('status', 'unknown')
+
+                            if status == 'success' and wait_timeout > 0 and 'task_id' in result:
+                                task_id = result['task_id']
+                                agent_id = options.get('agent_id')
+                                if not agent_id:
+                                    return f"Task {task_id} queued, but cannot monitor without agent_id", 'error'
+
+                                # Poll task status
+                                import time
+                                start_time = time.time()
+                                while time.time() - start_time < wait_timeout:
+                                    task_data = db.execute(
+                                        "SELECT status, result FROM agent_tasks WHERE id = ? AND agent_id = ?",
+                                        (task_id, agent_id)
+                                    ).fetchone()
+                                    if task_data and task_data['status'] == 'completed':
+                                        return f"Task {task_id} completed: {task_data['result']}", 'success'
+                                    time.sleep(1)  # Poll every second
+
+                                return f"Task {task_id} queued but not completed within {wait_timeout} seconds (status: {task_data['status'] if task_data else 'unknown'})", 'warning'
+
+                            return output, status
                     finally:
                         session.current_agent = original_agent
                 else:
                     return f"Module '{module_name}' does not have an execute function", 'error'
             else:
                 return f"Could not load module: {module_name}", 'error'
-                
+
         except Exception as e:
             return f"Error running module: {str(e)}", 'error'
 
@@ -611,34 +653,76 @@ class RemoteCLIServer:
 
                     original_agent = session.current_agent
                     try:
-                        result = module.execute(options, session)
-                        if 'success' in result:
-                            status = 'success' if result['success'] else 'error'
-                            output = result.get('output', result.get('error', 'Unknown error'))
+                        # Check if we're in interactive mode and if the module should be executed interactively
+                        if session.interactive_mode and session.current_agent and agent_id == session.current_agent:
+                            # Temporarily set a flag to indicate this is for interactive execution
+                            session.is_interactive_execution = True
+
+                            result = module.execute(options, session)
+
+                            # Remove the flag after execution
+                            if hasattr(session, 'is_interactive_execution'):
+                                delattr(session, 'is_interactive_execution')
+
+                            if 'success' in result and result['success'] and 'command' in result:
+                                # This is a command that should be executed interactively
+                                command_to_execute = result['command']
+
+                                # Execute the command via the interactive API instead of queuing it
+                                interactive_result, error = session.agent_manager.send_interactive_command(
+                                    session.current_agent, command_to_execute, timeout=120
+                                )
+
+                                if error:
+                                    return f"Error executing interactive command: {error}", 'error'
+
+                                if interactive_result is not None:
+                                    formatted_result = str(interactive_result).strip()
+                                    if len(formatted_result) > 10000:  # Truncate very long results
+                                        formatted_result = formatted_result[:10000] + "\n... (truncated)"
+
+                                    return f"[+] Interactive module execution completed:\n{formatted_result}", 'success'
+                                else:
+                                    return "No response from agent", 'warning'
+                            else:
+                                # If the module doesn't return a command to execute, use the original result
+                                if 'success' in result:
+                                    status = 'success' if result['success'] else 'error'
+                                    output = result.get('output', result.get('error', 'Unknown error'))
+                                else:
+                                    output = result.get('output', 'No output')
+                                    status = result.get('status', 'unknown')
+                                return output, status
                         else:
-                            output = result.get('output', 'No output')
-                            status = result.get('status', 'unknown')
+                            # Normal execution (not in interactive mode)
+                            result = module.execute(options, session)
+                            if 'success' in result:
+                                status = 'success' if result['success'] else 'error'
+                                output = result.get('output', result.get('error', 'Unknown error'))
+                            else:
+                                output = result.get('output', 'No output')
+                                status = result.get('status', 'unknown')
 
-                        if status == 'success' and wait_timeout > 0 and 'task_id' in result:
-                            task_id = result['task_id']
-                            agent_id = options.get('agent_id')
-                            if not agent_id:
-                                return f"Task {task_id} queued, but cannot monitor without agent_id", 'error'
+                            if status == 'success' and wait_timeout > 0 and 'task_id' in result:
+                                task_id = result['task_id']
+                                agent_id = options.get('agent_id')
+                                if not agent_id:
+                                    return f"Task {task_id} queued, but cannot monitor without agent_id", 'error'
 
-                            import time
-                            start_time = time.time()
-                            while time.time() - start_time < wait_timeout:
-                                task_data = db.execute(
-                                    "SELECT status, result FROM agent_tasks WHERE id = ? AND agent_id = ?",
-                                    (task_id, agent_id)
-                                ).fetchone()
-                                if task_data and task_data['status'] == 'completed':
-                                    return f"Task {task_id} completed: {task_data['result']}", 'success'
-                                time.sleep(1)
+                                import time
+                                start_time = time.time()
+                                while time.time() - start_time < wait_timeout:
+                                    task_data = db.execute(
+                                        "SELECT status, result FROM agent_tasks WHERE id = ? AND agent_id = ?",
+                                        (task_id, agent_id)
+                                    ).fetchone()
+                                    if task_data and task_data['status'] == 'completed':
+                                        return f"Task {task_id} completed: {task_data['result']}", 'success'
+                                    time.sleep(1)
 
-                            return f"Task {task_id} queued but not completed within {wait_timeout} seconds (status: {task_data['status'] if task_data else 'unknown'})", 'warning'
+                                return f"Task {task_id} queued but not completed within {wait_timeout} seconds (status: {task_data['status'] if task_data else 'unknown'})", 'warning'
 
-                        return output, status
+                            return output, status
                     finally:
                         session.current_agent = original_agent
                 else:
@@ -650,7 +734,7 @@ class RemoteCLIServer:
             return f"Error running pinject: {str(e)}", 'error'
 
     def handle_pwsh_command(self, command_parts, session):
-        module_name = "powershell"
+        module_name = "pwsh"
 
         if len(command_parts) < 2:
             return "USAGE: pwsh <script_path> [agent_id=<agent_id>] [arguments=<script_arguments>]", 'error'
@@ -726,34 +810,76 @@ class RemoteCLIServer:
 
                     original_agent = session.current_agent
                     try:
-                        result = module.execute(options, session)
-                        if 'success' in result:
-                            status = 'success' if result['success'] else 'error'
-                            output = result.get('output', result.get('error', 'Unknown error'))
+                        # Check if we're in interactive mode and if the module should be executed interactively
+                        if session.interactive_mode and session.current_agent and agent_id == session.current_agent:
+                            # Temporarily set a flag to indicate this is for interactive execution
+                            session.is_interactive_execution = True
+
+                            result = module.execute(options, session)
+
+                            # Remove the flag after execution
+                            if hasattr(session, 'is_interactive_execution'):
+                                delattr(session, 'is_interactive_execution')
+
+                            if 'success' in result and result['success'] and 'command' in result:
+                                # This is a command that should be executed interactively
+                                command_to_execute = result['command']
+
+                                # Execute the command via the interactive API instead of queuing it
+                                interactive_result, error = session.agent_manager.send_interactive_command(
+                                    session.current_agent, command_to_execute, timeout=120
+                                )
+
+                                if error:
+                                    return f"Error executing interactive command: {error}", 'error'
+
+                                if interactive_result is not None:
+                                    formatted_result = str(interactive_result).strip()
+                                    if len(formatted_result) > 10000:  # Truncate very long results
+                                        formatted_result = formatted_result[:10000] + "\n... (truncated)"
+
+                                    return f"[+] Interactive module execution completed:\n{formatted_result}", 'success'
+                                else:
+                                    return "No response from agent", 'warning'
+                            else:
+                                # If the module doesn't return a command to execute, use the original result
+                                if 'success' in result:
+                                    status = 'success' if result['success'] else 'error'
+                                    output = result.get('output', result.get('error', 'Unknown error'))
+                                else:
+                                    output = result.get('output', 'No output')
+                                    status = result.get('status', 'unknown')
+                                return output, status
                         else:
-                            output = result.get('output', 'No output')
-                            status = result.get('status', 'unknown')
+                            # Normal execution (not in interactive mode)
+                            result = module.execute(options, session)
+                            if 'success' in result:
+                                status = 'success' if result['success'] else 'error'
+                                output = result.get('output', result.get('error', 'Unknown error'))
+                            else:
+                                output = result.get('output', 'No output')
+                                status = result.get('status', 'unknown')
 
-                        if status == 'success' and wait_timeout > 0 and 'task_id' in result:
-                            task_id = result['task_id']
-                            agent_id = options.get('agent_id')
-                            if not agent_id:
-                                return f"Task {task_id} queued, but cannot monitor without agent_id", 'error'
+                            if status == 'success' and wait_timeout > 0 and 'task_id' in result:
+                                task_id = result['task_id']
+                                agent_id = options.get('agent_id')
+                                if not agent_id:
+                                    return f"Task {task_id} queued, but cannot monitor without agent_id", 'error'
 
-                            import time
-                            start_time = time.time()
-                            while time.time() - start_time < wait_timeout:
-                                task_data = db.execute(
-                                    "SELECT status, result FROM agent_tasks WHERE id = ? AND agent_id = ?",
-                                    (task_id, agent_id)
-                                ).fetchone()
-                                if task_data and task_data['status'] == 'completed':
-                                    return f"Task {task_id} completed: {task_data['result']}", 'success'
-                                time.sleep(1)
+                                import time
+                                start_time = time.time()
+                                while time.time() - start_time < wait_timeout:
+                                    task_data = db.execute(
+                                        "SELECT status, result FROM agent_tasks WHERE id = ? AND agent_id = ?",
+                                        (task_id, agent_id)
+                                    ).fetchone()
+                                    if task_data and task_data['status'] == 'completed':
+                                        return f"Task {task_id} completed: {task_data['result']}", 'success'
+                                    time.sleep(1)
 
-                            return f"Task {task_id} queued but not completed within {wait_timeout} seconds (status: {task_data['status'] if task_data else 'unknown'})", 'warning'
+                                return f"Task {task_id} queued but not completed within {wait_timeout} seconds (status: {task_data['status'] if task_data else 'unknown'})", 'warning'
 
-                        return output, status
+                            return output, status
                     finally:
                         session.current_agent = original_agent
                 else:
@@ -765,7 +891,7 @@ class RemoteCLIServer:
             return f"Error running pwsh: {str(e)}", 'error'
 
     def handle_inline_execute_command(self, command_parts, session):  # Changed function name from handle_coff_loader_command to handle_inline_execute_command
-        module_name = "coff"
+        module_name = "inline-execute"
 
         if len(command_parts) < 2:
             return "USAGE: inline-execute <bof_path> [arguments] [agent_id=<agent_id>]", 'error'
@@ -856,20 +982,68 @@ class RemoteCLIServer:
 
                     original_agent = session.current_agent
                     try:
-                        result = module.execute(options, session)
-                        if 'success' in result:
-                            status = 'success' if result['success'] else 'error'
-                            output = result.get('output', result.get('error', 'Unknown error'))
+                        # Check if we're in interactive mode and if the module should be executed interactively
+                        if session.interactive_mode and session.current_agent and agent_id == session.current_agent:
+                            # Temporarily set a flag to indicate this is for interactive execution
+                            session.is_interactive_execution = True
 
-                            # Return both the output and task ID if available (like pinject)
-                            if 'task_id' in result:
-                                return f"{output} (Task ID: {result['task_id']})", status
+                            result = module.execute(options, session)
+
+                            # Remove the flag after execution
+                            if hasattr(session, 'is_interactive_execution'):
+                                delattr(session, 'is_interactive_execution')
+
+                            if 'success' in result and result['success'] and 'command' in result:
+                                # This is a command that should be executed interactively
+                                command_to_execute = result['command']
+
+                                # Execute the command via the interactive API instead of queuing it
+                                interactive_result, error = session.agent_manager.send_interactive_command(
+                                    session.current_agent, command_to_execute, timeout=120
+                                )
+
+                                if error:
+                                    return f"Error executing interactive command: {error}", 'error'
+
+                                if interactive_result is not None:
+                                    formatted_result = str(interactive_result).strip()
+                                    if len(formatted_result) > 10000:  # Truncate very long results
+                                        formatted_result = formatted_result[:10000] + "\n... (truncated)"
+
+                                    return f"[+] Interactive module execution completed:\n{formatted_result}", 'success'
+                                else:
+                                    return "No response from agent", 'warning'
                             else:
-                                return output, status
+                                # If the module doesn't return a command to execute, use the original result
+                                if 'success' in result:
+                                    status = 'success' if result['success'] else 'error'
+                                    output = result.get('output', result.get('error', 'Unknown error'))
+
+                                    # Return both the output and task ID if available (like pinject)
+                                    if 'task_id' in result:
+                                        return f"{output} (Task ID: {result['task_id']})", status
+                                    else:
+                                        return output, status
+                                else:
+                                    output = result.get('output', 'No output')
+                                    status = result.get('status', 'unknown')
+                                    return output, status
                         else:
-                            output = result.get('output', 'No output')
-                            status = result.get('status', 'unknown')
-                            return output, status
+                            # Normal execution (not in interactive mode)
+                            result = module.execute(options, session)
+                            if 'success' in result:
+                                status = 'success' if result['success'] else 'error'
+                                output = result.get('output', result.get('error', 'Unknown error'))
+
+                                # Return both the output and task ID if available (like pinject)
+                                if 'task_id' in result:
+                                    return f"{output} (Task ID: {result['task_id']})", status
+                                else:
+                                    return output, status
+                            else:
+                                output = result.get('output', 'No output')
+                                status = result.get('status', 'unknown')
+                                return output, status
                     finally:
                         session.current_agent = original_agent
                 else:
@@ -881,7 +1055,7 @@ class RemoteCLIServer:
             return f"Error running inline-execute: {str(e)}", 'error'
 
     def handle_persist_command(self, command_parts, session):
-        module_name = "persistence"
+        module_name = "persist"
 
         if len(command_parts) < 2:
             return "USAGE: persist <method> <payload_path> [agent_id=<agent_id>] [name=<persistence_name>] [interval=<minutes>]", 'error'
@@ -961,34 +1135,96 @@ class RemoteCLIServer:
 
                     original_agent = session.current_agent
                     try:
-                        result = module.execute(options, session)
-                        if 'success' in result:
-                            status = 'success' if result['success'] else 'error'
-                            output = result.get('output', result.get('error', 'Unknown error'))
+                        # Check if we're in interactive mode and if the module should be executed interactively
+                        if session.interactive_mode and session.current_agent and agent_id == session.current_agent:
+                            # Temporarily set a flag to indicate this is for interactive execution
+                            session.is_interactive_execution = True
+
+                            result = module.execute(options, session)
+
+                            # Remove the flag after execution
+                            if hasattr(session, 'is_interactive_execution'):
+                                delattr(session, 'is_interactive_execution')
+
+                            if 'success' in result and result['success'] and 'command' in result:
+                                # This is a command that should be executed interactively
+                                command_to_execute = result['command']
+
+                                # Execute the command via the interactive API instead of queuing it
+                                interactive_result, error = session.agent_manager.send_interactive_command(
+                                    session.current_agent, command_to_execute, timeout=120
+                                )
+
+                                if error:
+                                    return f"Error executing interactive command: {error}", 'error'
+
+                                if interactive_result is not None:
+                                    formatted_result = str(interactive_result).strip()
+                                    if len(formatted_result) > 10000:  # Truncate very long results
+                                        formatted_result = formatted_result[:10000] + "\n... (truncated)"
+
+                                    return f"[+] Interactive module execution completed:\n{formatted_result}", 'success'
+                                else:
+                                    return "No response from agent", 'warning'
+                            else:
+                                # If the module doesn't return a command to execute, use the original result
+                                if 'success' in result:
+                                    status = 'success' if result['success'] else 'error'
+                                    output = result.get('output', result.get('error', 'Unknown error'))
+                                else:
+                                    output = result.get('output', 'No output')
+                                    status = result.get('status', 'unknown')
+
+                                if status == 'success' and wait_timeout > 0 and 'task_id' in result:
+                                    task_id = result['task_id']
+                                    agent_id = options.get('agent_id')
+                                    if not agent_id:
+                                        return f"Task {task_id} queued, but cannot monitor without agent_id", 'error'
+
+                                    import time
+                                    start_time = time.time()
+                                    while time.time() - start_time < wait_timeout:
+                                        task_data = db.execute(
+                                            "SELECT status, result FROM agent_tasks WHERE id = ? AND agent_id = ?",
+                                            (task_id, agent_id)
+                                        ).fetchone()
+                                        if task_data and task_data['status'] == 'completed':
+                                            return f"Task {task_id} completed: {task_data['result']}", 'success'
+                                        time.sleep(1)
+
+                                    return f"Task {task_id} queued but not completed within {wait_timeout} seconds (status: {task_data['status'] if task_data else 'unknown'})", 'warning'
+
+                                return output, status
                         else:
-                            output = result.get('output', 'No output')
-                            status = result.get('status', 'unknown')
+                            # Normal execution (not in interactive mode)
+                            result = module.execute(options, session)
+                            if 'success' in result:
+                                status = 'success' if result['success'] else 'error'
+                                output = result.get('output', result.get('error', 'Unknown error'))
+                            else:
+                                output = result.get('output', 'No output')
+                                status = result.get('status', 'unknown')
 
-                        if status == 'success' and wait_timeout > 0 and 'task_id' in result:
-                            task_id = result['task_id']
-                            agent_id = options.get('agent_id')
-                            if not agent_id:
-                                return f"Task {task_id} queued, but cannot monitor without agent_id", 'error'
+                            if status == 'success' and wait_timeout > 0 and 'task_id' in result:
+                                task_id = result['task_id']
+                                agent_id = options.get('agent_id')
+                                if not agent_id:
+                                    return f"Task {task_id} queued, but cannot monitor without agent_id", 'error'
 
-                            import time
-                            start_time = time.time()
-                            while time.time() - start_time < wait_timeout:
-                                task_data = db.execute(
-                                    "SELECT status, result FROM agent_tasks WHERE id = ? AND agent_id = ?",
-                                    (task_id, agent_id)
-                                ).fetchone()
-                                if task_data and task_data['status'] == 'completed':
-                                    return f"Task {task_id} completed: {task_data['result']}", 'success'
-                                time.sleep(1)
+                                import time
+                                start_time = time.time()
+                                while time.time() - start_time < wait_timeout:
+                                    task_data = db.execute(
+                                        "SELECT status, result FROM agent_tasks WHERE id = ? AND agent_id = ?",
+                                        (task_id, agent_id)
+                                    ).fetchone()
+                                    if task_data and task_data['status'] == 'completed':
+                                        return f"Task {task_id} completed: {task_data['result']}", 'success'
+                                    time.sleep(1)
 
-                            return f"Task {task_id} queued but not completed within {wait_timeout} seconds (status: {task_data['status'] if task_data else 'unknown'})", 'warning'
+                                return f"Task {task_id} queued but not completed within {wait_timeout} seconds (status: {task_data['status'] if task_data else 'unknown'})", 'warning'
 
-                        return output, status
+                            return output, status
                     finally:
                         session.current_agent = original_agent
                 else:
@@ -1076,34 +1312,96 @@ class RemoteCLIServer:
 
                     original_agent = session.current_agent
                     try:
-                        result = module.execute(options, session)
-                        if 'success' in result:
-                            status = 'success' if result['success'] else 'error'
-                            output = result.get('output', result.get('error', 'Unknown error'))
+                        # Check if we're in interactive mode and if the module should be executed interactively
+                        if session.interactive_mode and session.current_agent and agent_id == session.current_agent:
+                            # Temporarily set a flag to indicate this is for interactive execution
+                            session.is_interactive_execution = True
+
+                            result = module.execute(options, session)
+
+                            # Remove the flag after execution
+                            if hasattr(session, 'is_interactive_execution'):
+                                delattr(session, 'is_interactive_execution')
+
+                            if 'success' in result and result['success'] and 'command' in result:
+                                # This is a command that should be executed interactively
+                                command_to_execute = result['command']
+
+                                # Execute the command via the interactive API instead of queuing it
+                                interactive_result, error = session.agent_manager.send_interactive_command(
+                                    session.current_agent, command_to_execute, timeout=120
+                                )
+
+                                if error:
+                                    return f"Error executing interactive command: {error}", 'error'
+
+                                if interactive_result is not None:
+                                    formatted_result = str(interactive_result).strip()
+                                    if len(formatted_result) > 10000:  # Truncate very long results
+                                        formatted_result = formatted_result[:10000] + "\n... (truncated)"
+
+                                    return f"[+] Interactive module execution completed:\n{formatted_result}", 'success'
+                                else:
+                                    return "No response from agent", 'warning'
+                            else:
+                                # If the module doesn't return a command to execute, use the original result
+                                if 'success' in result:
+                                    status = 'success' if result['success'] else 'error'
+                                    output = result.get('output', result.get('error', 'Unknown error'))
+                                else:
+                                    output = result.get('output', 'No output')
+                                    status = result.get('status', 'unknown')
+
+                                if status == 'success' and wait_timeout > 0 and 'task_id' in result:
+                                    task_id = result['task_id']
+                                    agent_id = options.get('agent_id')
+                                    if not agent_id:
+                                        return f"Task {task_id} queued, but cannot monitor without agent_id", 'error'
+
+                                    import time
+                                    start_time = time.time()
+                                    while time.time() - start_time < wait_timeout:
+                                        task_data = db.execute(
+                                            "SELECT status, result FROM agent_tasks WHERE id = ? AND agent_id = ?",
+                                            (task_id, agent_id)
+                                        ).fetchone()
+                                        if task_data and task_data['status'] == 'completed':
+                                            return f"Task {task_id} completed: {task_data['result']}", 'success'
+                                        time.sleep(1)
+
+                                    return f"Task {task_id} queued but not completed within {wait_timeout} seconds (status: {task_data['status'] if task_data else 'unknown'})", 'warning'
+
+                                return output, status
                         else:
-                            output = result.get('output', 'No output')
-                            status = result.get('status', 'unknown')
+                            # Normal execution (not in interactive mode)
+                            result = module.execute(options, session)
+                            if 'success' in result:
+                                status = 'success' if result['success'] else 'error'
+                                output = result.get('output', result.get('error', 'Unknown error'))
+                            else:
+                                output = result.get('output', 'No output')
+                                status = result.get('status', 'unknown')
 
-                        if status == 'success' and wait_timeout > 0 and 'task_id' in result:
-                            task_id = result['task_id']
-                            agent_id = options.get('agent_id')
-                            if not agent_id:
-                                return f"Task {task_id} queued, but cannot monitor without agent_id", 'error'
+                            if status == 'success' and wait_timeout > 0 and 'task_id' in result:
+                                task_id = result['task_id']
+                                agent_id = options.get('agent_id')
+                                if not agent_id:
+                                    return f"Task {task_id} queued, but cannot monitor without agent_id", 'error'
 
-                            import time
-                            start_time = time.time()
-                            while time.time() - start_time < wait_timeout:
-                                task_data = db.execute(
-                                    "SELECT status, result FROM agent_tasks WHERE id = ? AND agent_id = ?",
-                                    (task_id, agent_id)
-                                ).fetchone()
-                                if task_data and task_data['status'] == 'completed':
-                                    return f"Task {task_id} completed: {task_data['result']}", 'success'
-                                time.sleep(1)
+                                import time
+                                start_time = time.time()
+                                while time.time() - start_time < wait_timeout:
+                                    task_data = db.execute(
+                                        "SELECT status, result FROM agent_tasks WHERE id = ? AND agent_id = ?",
+                                        (task_id, agent_id)
+                                    ).fetchone()
+                                    if task_data and task_data['status'] == 'completed':
+                                        return f"Task {task_id} completed: {task_data['result']}", 'success'
+                                    time.sleep(1)
 
-                            return f"Task {task_id} queued but not completed within {wait_timeout} seconds (status: {task_data['status'] if task_data else 'unknown'})", 'warning'
+                                return f"Task {task_id} queued but not completed within {wait_timeout} seconds (status: {task_data['status'] if task_data else 'unknown'})", 'warning'
 
-                        return output, status
+                            return output, status
                     finally:
                         session.current_agent = original_agent
                 else:
@@ -1394,88 +1692,6 @@ class RemoteCLIServer:
         except Exception as e:
             return f"Error executing interactive command: {str(e)}", 'error'
 
-    def handle_evasion_command(self, command_parts, session):
-        if len(command_parts) < 3:
-            return help.get_evasion_help_display(), 'info'
-        
-        action = command_parts[1].lower()
-        evasion_type = command_parts[2].lower()
-        
-        options = {}
-        for part in command_parts[3:]:
-            if '=' in part:
-                key, value = part.split('=', 1)
-                options[key] = value
-
-        if session.current_agent:
-            agent_manager = session.agent_manager
-            if not agent_manager:
-                return "Agent manager not initialized", 'error'    
-        
-        try:
-            if action == 'enable':
-                if evasion_type == 'amsi_bypass':
-                    evasion = AMSIBypass(NeoC2Config())
-                    technique = options.get('technique', '')
-                    command = evasion.bypass()
-                    session.evasion_enabled = True
-                    if session.current_agent:
-                        task_id = agent_manager.add_task(session.current_agent, command)
-                        if task_id:
-                            return f"Evasion {action} task {task_id} queued for agent {session.current_agent}", 'success'
-                        else:
-                            return f"Failed to queue Evasion {action} task for agent {session.current_agent}", 'error'
-                    else:
-                        return command, 'success'
-                    
-                elif evasion_type == 'etw_bypass':
-                    evasion = ETWBypass(NeoC2Config())
-                    technique = options.get('technique', '')
-                    command = evasion.bypass()
-                    session.evasion_enabled = True
-                    if session.current_agent:
-                        task_id = agent_manager.add_task(session.current_agent, command)
-                        if task_id:
-                            return f"Evasion {action} task {task_id} queued for agent {session.current_agent}", 'success'
-                        else:
-                            return f"Failed to queue Evasion {action} task for agent {session.current_agent}", 'error'
-                    else:
-                        return command, 'success'
-                else:
-                    return f"Unsupported evasion type: {evasion_type}. Supported: amsi_bypass, etw_bypass", 'error'
-            
-            elif action == 'disable':
-                if evasion_type == 'amsi_bypass':
-                    command = "# AMSI bypass disabled"
-                    session.evasion_enabled = False
-                    if session.current_agent:
-                        task_id = agent_manager.add_task(session.current_agent, command)
-                        if task_id:
-                            return f"Evasion {action} task {task_id} queued for agent {session.current_agent}", 'success'
-                        else:
-                            return f"Failed to queue Evasion {action} task for agent {session.current_agent}", 'error'
-                    else:
-                        return command, 'success'
-
-                elif evasion_type == 'etw_bypass':
-                    command = "# ETW bypass disabled"
-                    session.evasion_enabled = False
-                    if session.current_agent:
-                        task_id = agent_manager.add_task(session.current_agent, command)
-                        if task_id:
-                            return f"Evasion {action} task {task_id} queued for agent {session.current_agent}", 'success'
-                        else:
-                            return f"Failed to queue Evasion {action} task for agent {session.current_agent}", 'error'
-                    else:
-                        return command, 'success'
-                else:
-                    return f"Unsupported evasion type: {evasion_type}. Supported: amsi_bypass, etw_bypass", 'error'
-            
-            else:
-                return f"Unknown evasion action: {action}. Use: enable, disable", 'error'
-        
-        except Exception as e:
-            return f"Error handling evasion command: {str(e)}", 'error'
 
     def get_encryption_manager(self):
         return self._encryption_manager
@@ -2035,15 +2251,65 @@ class RemoteCLIServer:
                     if not session.agent_manager:
                         return "Agent manager not initialized for this session.", "error"
 
-                    agent_command = remote_path
+                    # Execute download command using interactive API for immediate response
+                    download_command = f"download {remote_path}"
+                    interactive_result, error = session.agent_manager.send_interactive_command(
+                        agent_id, download_command, timeout=120
+                    )
 
-                    task_result = session.agent_manager.add_download_task(agent_id, agent_command)
-                    if task_result and task_result.get('success'):
-                        task_id = task_result['task_id']
-                        return f" Download task for '{remote_path}' queued for agent {agent_id[:8]}... (Task ID: {task_id})", "success"
+                    if error:
+                        return f"Error executing download: {error}", "error"
+
+                    if interactive_result is not None:
+                        # Process the download result to save file to loot directory
+                        try:
+                            import os
+                            import base64
+                            from datetime import datetime
+
+                            # Create loot directory if it doesn't exist
+                            loot_dir = os.path.join(os.getcwd(), "loot")
+                            os.makedirs(loot_dir, exist_ok=True)
+
+                            # Extract original file path to create a meaningful filename
+                            original_file_path = os.path.basename(remote_path).replace('/', '_').replace('\\', '_')
+
+                            # Generate a timestamp-based filename to avoid duplicates
+                            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                            file_extension = os.path.splitext(original_file_path)[1] if os.path.splitext(original_file_path)[1] else ".dat"
+
+                            # Check if the result looks like an error message
+                            if interactive_result.startswith('[ERROR]') or interactive_result.startswith('[ERROR'):
+                                # This is an error message, not base64 content
+                                loot_filename = f"download_error_{timestamp}_{original_file_path.replace('.', '_')}.txt"
+                                loot_path = os.path.join(loot_dir, loot_filename)
+                                with open(loot_path, 'w') as f:
+                                    f.write(interactive_result)
+                                loot_result_msg = f"Download error saved to: {loot_path}"
+                            else:
+                                # This should be base64 encoded content - try to decode it
+                                try:
+                                    decoded_data = base64.b64decode(interactive_result)
+                                    loot_filename = f"download_{timestamp}_{original_file_path}"
+                                    loot_path = os.path.join(loot_dir, loot_filename)
+
+                                    with open(loot_path, 'wb') as f:
+                                        f.write(decoded_data)
+
+                                    loot_result_msg = f"Downloaded file saved to: {loot_path} ({len(decoded_data)} bytes)"
+                                except Exception:
+                                    # If decoding fails, save as raw content
+                                    loot_filename = f"download_raw_{timestamp}_{original_file_path.replace('.', '_')}.txt"
+                                    loot_path = os.path.join(loot_dir, loot_filename)
+                                    with open(loot_path, 'w') as f:
+                                        f.write(interactive_result)
+                                    loot_result_msg = f"Raw download content saved to: {loot_path}"
+
+                            return f"[DOWNLOAD COMPLETED] {loot_result_msg}\nOriginal remote path: {remote_path}", "success"
+                        except Exception as e:
+                            return f"Download completed but error saving to loot directory: {str(e)}\nResult: {interactive_result[:200]}{'...' if len(interactive_result) > 200 else ''}", "warning"
                     else:
-                        error_msg = task_result.get('error', 'Unknown error') if task_result else 'Failed to create task'
-                        return f" Failed to queue download task for agent {agent_id[:8]}: {error_msg}", "error"
+                        return "No response from agent", "warning"
                 else:
                     return "Usage: download <agent_id> <remote_file_path> (for agent downloads) OR download <server_file_path> (for server downloads)", "error"
 
@@ -2057,18 +2323,81 @@ class RemoteCLIServer:
 
             remote_path = command_parts[2]
 
-            if not session.agent_manager:
-                return "Agent manager not initialized for this session.", "error"
+            # If this agent is the current session agent and we're in interactive mode, use interactive API
+            if session.interactive_mode and session.current_agent == agent_id:
+                # Execute download command using interactive API for immediate response
+                download_command = f"download {remote_path}"
+                interactive_result, error = session.agent_manager.send_interactive_command(
+                    agent_id, download_command, timeout=120
+                )
 
-            agent_command = remote_path
+                if error:
+                    return f"Error executing download: {error}", "error"
 
-            task_result = session.agent_manager.add_download_task(agent_id, agent_command)
-            if task_result and task_result.get('success'):
-                task_id = task_result['task_id']
-                return f" Download task for '{remote_path}' queued for agent {agent_id[:8]}... (Task ID: {task_id})", "success"
+                if interactive_result is not None:
+                    # Process the download result to save file to loot directory
+                    try:
+                        import os
+                        import base64
+                        from datetime import datetime
+
+                        # Create loot directory if it doesn't exist
+                        loot_dir = os.path.join(os.getcwd(), "loot")
+                        os.makedirs(loot_dir, exist_ok=True)
+
+                        # Extract original file path to create a meaningful filename
+                        original_file_path = os.path.basename(remote_path).replace('/', '_').replace('\\', '_')
+
+                        # Generate a timestamp-based filename to avoid duplicates
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        file_extension = os.path.splitext(original_file_path)[1] if os.path.splitext(original_file_path)[1] else ".dat"
+
+                        # Check if the result looks like an error message
+                        if interactive_result.startswith('[ERROR]') or interactive_result.startswith('[ERROR'):
+                            # This is an error message, not base64 content
+                            loot_filename = f"download_error_{timestamp}_{original_file_path.replace('.', '_')}.txt"
+                            loot_path = os.path.join(loot_dir, loot_filename)
+                            with open(loot_path, 'w') as f:
+                                f.write(interactive_result)
+                            loot_result_msg = f"Download error saved to: {loot_path}"
+                        else:
+                            # This should be base64 encoded content - try to decode it
+                            try:
+                                decoded_data = base64.b64decode(interactive_result)
+                                loot_filename = f"download_{timestamp}_{original_file_path}"
+                                loot_path = os.path.join(loot_dir, loot_filename)
+
+                                with open(loot_path, 'wb') as f:
+                                    f.write(decoded_data)
+
+                                loot_result_msg = f"Downloaded file saved to: {loot_path} ({len(decoded_data)} bytes)"
+                            except Exception:
+                                # If decoding fails, save as raw content
+                                loot_filename = f"download_raw_{timestamp}_{original_file_path.replace('.', '_')}.txt"
+                                loot_path = os.path.join(loot_dir, loot_filename)
+                                with open(loot_path, 'w') as f:
+                                    f.write(interactive_result)
+                                loot_result_msg = f"Raw download content saved to: {loot_path}"
+
+                        return f"[DOWNLOAD COMPLETED] {loot_result_msg}\nOriginal remote path: {remote_path}", "success"
+                    except Exception as e:
+                        return f"Download completed but error saving to loot directory: {str(e)}\nResult: {interactive_result[:200]}{'...' if len(interactive_result) > 200 else ''}", "warning"
+                else:
+                    return "No response from agent", "warning"
             else:
-                error_msg = task_result.get('error', 'Unknown error') if task_result else 'Failed to create task'
-                return f" Failed to queue download task for agent {agent_id[:8]}: {error_msg}", "error"
+                # Use the original queued approach for non-interactive mode
+                if not session.agent_manager:
+                    return "Agent manager not initialized for this session.", "error"
+
+                agent_command = remote_path
+
+                task_result = session.agent_manager.add_download_task(agent_id, agent_command)
+                if task_result and task_result.get('success'):
+                    task_id = task_result['task_id']
+                    return f" Download task for '{remote_path}' queued for agent {agent_id[:8]}... (Task ID: {task_id})", "success"
+                else:
+                    error_msg = task_result.get('error', 'Unknown error') if task_result else 'Failed to create task'
+                    return f" Failed to queue download task for agent {agent_id[:8]}: {error_msg}", "error"
         else:
             return "Usage: download <agent_id> <remote_file_path> (for agent downloads) OR download <server_file_path> (for server downloads)", "error"
 
@@ -2155,15 +2484,32 @@ class RemoteCLIServer:
             # Format the upload command as expected by the agent: "upload <remote_path> <encoded_content>"
             agent_command = f"upload {remote_path} {encoded_content}"
 
-            # Use the existing add_task method to create the proper task
-            task_result = session.agent_manager.add_task(agent_id, agent_command)
+            # If in interactive mode and this is the current agent, use interactive API for immediate response
+            if session.interactive_mode and session.current_agent == agent_id:
+                interactive_result, error = session.agent_manager.send_interactive_command(
+                    agent_id, agent_command, timeout=120
+                )
 
-            if task_result and task_result.get('success'):
-                task_id = task_result['task_id']
-                return f" Upload task for '{os.path.basename(local_path)}' -> '{remote_path}' queued for agent {agent_id[:8]}... (Task ID: {task_id})", "success"
+                if error:
+                    return f"Error executing upload: {error}", "error"
+
+                if interactive_result is not None:
+                    formatted_result = str(interactive_result).strip()
+                    if len(formatted_result) > 10000:  # Truncate very long results
+                        formatted_result = formatted_result[:10000] + "\n... (truncated)"
+                    return f"[+] Interactive upload completed:\n{formatted_result}", "success"
+                else:
+                    return "Upload command sent but no response from agent", "warning"
             else:
-                error_msg = task_result.get('error', 'Unknown error') if task_result else 'Failed to create task'
-                return f" Failed to queue upload task for agent {agent_id[:8]}: {error_msg}", "error"
+                # Use the existing add_task method to create the proper task (original behavior)
+                task_result = session.agent_manager.add_task(agent_id, agent_command)
+
+                if task_result and task_result.get('success'):
+                    task_id = task_result['task_id']
+                    return f" Upload task for '{os.path.basename(local_path)}' -> '{remote_path}' queued for agent {agent_id[:8]}... (Task ID: {task_id})", "success"
+                else:
+                    error_msg = task_result.get('error', 'Unknown error') if task_result else 'Failed to create task'
+                    return f" Failed to queue upload task for agent {agent_id[:8]}: {error_msg}", "error"
 
         except Exception as e:
             return f" An error occurred during file upload preparation: {e}", "error"
@@ -3971,8 +4317,6 @@ EXAMPLES:
                     return self.handle_peinject_command(command_parts, session)
                 elif base_command == 'agent':
                     return self.handle_agent_command(command_parts, session)
-                elif base_command == 'evasion':
-                    return self.handle_evasion_command(command_parts, session)
                 elif base_command == 'encryption':
                     return self.handle_encryption_command(command_parts, session)
                 elif base_command == 'download':
@@ -4345,8 +4689,6 @@ DB Inactive:       {stats['db_inactive_agents']}
             return self.handle_peinject_command(command_parts, session)
         elif base_command == 'agent':
             return self.handle_agent_command(command_parts, session)
-        elif base_command == 'evasion':
-            return self.handle_evasion_command(command_parts, session)
         elif base_command == 'encryption':
             return self.handle_encryption_command(command_parts, session)
         elif base_command == 'stager':
@@ -4669,7 +5011,7 @@ DB Inactive:       {stats['db_inactive_agents']}
     
     def _is_framework_command(self, base_cmd):
         framework_commands = {
-            'agent', 'listener', 'modules', 'run', 'pwsh', 'persist', 'pinject', 'peinject', 'evasion', 'encryption',
+            'agent', 'listener', 'modules', 'run', 'pwsh', 'persist', 'pinject', 'peinject', 'encryption',
             'download', 'upload', 'stager', 'profile', 'payload', 'inline-execute',
             'interact', 'event', 'task', 'result', 'addtask', 'back', 'exit',
             'quit', 'clear', 'help', 'status', 'save', 'protocol', 'interactive',
@@ -4722,7 +5064,6 @@ DB Inactive:       {stats['db_inactive_agents']}
                 'encryption': 'agents.list',
                 'profile': 'agents.list',
                 'stager': 'modules.list',
-                'evasion': 'agents.interact',
                 'taskchain': 'modules.execute',
                 'pwsh': 'modules.execute',  # pwsh command requires modules.execute permission
                 'persist': 'modules.execute',  # persist command requires modules.execute permission
@@ -4781,8 +5122,6 @@ DB Inactive:       {stats['db_inactive_agents']}
                         result, status = self.handle_pwsh_command(command_parts, remote_session)
                     elif base_cmd == 'persist':
                         result, status = self.handle_persist_command(command_parts, remote_session)
-                    elif base_cmd == 'evasion':
-                        result, status = self.handle_evasion_command(command_parts, remote_session)
                     elif base_cmd == 'encryption':
                         result, status = self.handle_encryption_command(command_parts, remote_session)
                     elif base_cmd == 'download':
@@ -5127,8 +5466,6 @@ DB Inactive:       {stats['db_inactive_agents']}
                 result, status = self.handle_pwsh_command(command_parts, remote_session)
             elif base_cmd == 'persist':
                 result, status = self.handle_persist_command(command_parts, remote_session)
-            elif base_cmd == 'evasion':
-                result, status = self.handle_evasion_command(command_parts, remote_session)
             elif base_cmd == 'encryption':
                 result, status = self.handle_encryption_command(command_parts, remote_session)
             elif base_cmd == 'download':

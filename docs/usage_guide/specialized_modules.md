@@ -2,7 +2,7 @@
 
 ## Powershell
 
-This `pwsh` module helps operators run their own extendible powershell scripts on a Windows machine
+This `pwsh` module helps operators run their own extendible powershell scripts on a targest's Windows machine via an active agent session
 
 ### Compatibility:
 - Go_agent
@@ -12,12 +12,13 @@ This `pwsh` module helps operators run their own extendible powershell scripts o
 ### Basic Usage:
 
 ```
+modules info pwsh
 pwsh <script_path> [agent_id=<agent_id>] [arguments=<script_arguments>]
 ```
 
 ## Inline-Execute
 
-This implementation enables pure in-memory execution of Beacon Object Files (BOFs) without any disk writes or PowerShell usage. The solution leverages the goffloader library to execute BOFs directly in the agent's memory space.
+This module interfaces with an agent and enables pure in-memory execution of Beacon Object Files (BOFs) without any disk writes or PowerShell usage. The solution leverages the goffloader library to execute BOFs directly in the agent's memory space.
 
 #### Compatibility
 - Go_agent
@@ -34,13 +35,14 @@ This implementation enables pure in-memory execution of Beacon Object Files (BOF
 Execute BOFs using the inline-execute command:
 
 ```
+modules info inline-execute
 # In interactive mode, the agent ID is automatically inferred:
 inline-execute <path_to_bof_file> [arguments]
 ```
 
 ## PInject
 
-In-memory shellcode injection into a remote process
+This module interfaces with an active agent for In-memory shellcode injection into a remote process
 
 #### Compatibility
 - Go_agent
@@ -85,7 +87,7 @@ run pinject <shellcode> [agent_id=<agent_id>] # METHOD - 2 (Non-interactive mode
 
 ## PEInject
 
-Inject an unmanaged PE(Portable Executable) using Process Hollowing into a remote process
+This module interfaces with an agent and enables In-memory Injection of an unmanaged PE(Portable Executable) using Process Hollowing into a remote process
 
 #### Compatibility
 - Go_agent

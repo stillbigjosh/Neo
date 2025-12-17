@@ -26,12 +26,11 @@ MODULES & EXECUTION:
   taskchain   - Task Orchestration
 
 OPERATIONS & TACTICS:
-  evasion     - AMSI/ETW bypass
   upload      - Upload files to agents
   download    - Download files from agents/C2 server
   persist     - Persist an executable or script
   inline-execute - Execute bofs on agent session
-  peinject    - Injects PE files by Process Hollowing into svchost.exe
+  peinject    - Injects unmanaged PE by Process Hollowing into svchost.exe
   pinject     - Injects shellcode into notepad.exe or explorer.exe
   pwsh        - Execute powershell script on agent session
   tty_shell   - Start tty shell
@@ -71,11 +70,14 @@ Available Listener Commands:
 
 COMMANDS:
   • listener list                     List listeners
-  • listener create <name> <type> <port>    Create listeners
-       Example: listener create myhttp http 443
+  • listener create <name> <type> <port> <ip> <profile_name=>   Create listeners
   • listener start <name>             Start a listener
   • listener stop <name>              Stop an active listener
   • listener delete <name>            Delete a stopped listener
+
+EXAMPLES:
+  • listener create myhttps https 443 127.0.0.1 profile_name=my_htttps_profile
+  • listener start myhttps
 
 TIPS:
   • Use 'listener list' to see existing listeners
@@ -146,31 +148,6 @@ TIPS:
   • Module parameters vary by module type
     """
 
-
-def get_evasion_help_display():
-    return """
-Available Evasion Commands:
-══════════════════════════════════════════════════════════════════════
-
-SYNTAX:
-  • evasion <enable|disable> <technique>
-
-COMMANDS:
-  • evasion enable <technique>              Enable evasion technique on current agent
-  • evasion disable <technique>             Disable evasion technique on current agent
-
-EXAMPLES:
-  • evasion enable amsi_bypass
-  • evasion disable etw_bypass
-
-TECHNIQUES:
-  • amsi_bypass, etw_bypass, obfuscation
-
-TIPS:
-  • Execute from within agent interactive session
-  • Evasion techniques help avoid detection
-  • Use 'evasion help' for detailed command usage
-    """
 
 
 

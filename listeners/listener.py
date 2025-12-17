@@ -20,10 +20,9 @@ from dnslib import DNSRecord, DNSHeader, RR, QTYPE, RCODE
 from teamserver.agent_manager import AgentManager
 
 class NeoC2Listener:
-    def __init__(self, config, db, evasion_manager, protocol_manager):
+    def __init__(self, config, db, protocol_manager):
         self.config = config
         self.db = db
-        self.evasion_manager = evasion_manager
         self.protocol_manager = protocol_manager
         self.listeners = []
         self.setup_default_listeners()
