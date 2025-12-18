@@ -28,6 +28,9 @@
 - [ ] URI endpoint rotation in malleable profiles
 - [ ] Runtime obfuscation
 - [ ] Enhanced and Opsec safe P2P Agent comm
+- [ ] Keylogging, screenshot module
+- [ ] Early bird APC injection
+- [ ] 
 
 
 ## Premium
