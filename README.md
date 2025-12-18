@@ -38,7 +38,7 @@ _A modular server-client architecture post-exploitation framework built for coll
 - User presence and status management
 
 ### Advanced Features
-- In-memory BOF execution
+- Load and Execute BOFs in-memory
 - Load and Execute .NET assemblies in-memory
 - Execute unmanaged Windows executables (PE) in a sacrificial process in-memory
 - Shellcode injection into sacrificial processes in-memory

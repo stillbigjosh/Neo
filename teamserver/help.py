@@ -29,7 +29,7 @@ OPERATIONS & TACTICS:
   upload      - Upload files to agents
   download    - Download files from agents/C2 server
   persist     - Persist an executable or script
-  execute-bof - Execute bofs on agent session
+  execute-bof - Load and execute bofs on agent session
   execute-assembly - Load and execute .NET assemblies in-memory on agents
   peinject    - Injects unmanaged PE by Process Hollowing into svchost.exe
   pinject     - Injects shellcode into notepad.exe or explorer.exe
