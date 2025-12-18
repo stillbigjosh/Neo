@@ -26,14 +26,12 @@ try:
 except ImportError:
     RICH_AVAILABLE = False
 
-# Initialize color support - always define Fore and Style
 try:
     from colorama import init, Fore, Back, Style
     init(autoreset=True)
     COLORS_ENABLED = True
 except ImportError:
     COLORS_ENABLED = False
-    # Define fallback color codes if colorama is not available
     class Fore:
         RED = '\033[31m'
         GREEN = '\033[32m'
@@ -53,7 +51,6 @@ except ImportError:
         RESET_ALL = '\033[0m'
 
 def colored(text, color_code):
-    """Add ANSI color code to text"""
     if COLORS_ENABLED:
         return f"{color_code}{text}{Style.RESET_ALL}"
     return text
@@ -94,7 +91,6 @@ class NeoC2RemoteCLI:
         self.is_interactive_mode = False
         self.current_agent = None
 
-        # Color definitions
         try:
             self.COLORS = {
                 'success': Fore.GREEN,
@@ -105,7 +101,6 @@ class NeoC2RemoteCLI:
                 'reset': Style.RESET_ALL
             }
         except NameError:
-            # In case color libraries aren't available, define empty color strings
             self.COLORS = {
                 'success': '',
                 'error': '',
