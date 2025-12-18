@@ -172,7 +172,12 @@ This module interfaces with an agent and enables In-memory Injection of an unman
 
 peinject pe_file=<payload_filename> # METHOD - 1 (Interactive mode) - File will be resolved automatically
 run peinject pe_file=<payload_filename> [agent_id=<agent_id>] # METHOD - 2 (Non-interactive mode)
+
 # Examples:
+
+peinject payload.exe
+peinject payload.exe agent_id=abc123-4567-8901-2345-67890abcdef1
+
 peinject pe_file=payload.exe
 peinject pe_file=payload.exe agent_id=abc123-4567-8901-2345-67890abcdef1
 ```
