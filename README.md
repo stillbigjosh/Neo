@@ -3,47 +3,24 @@
 
 _A modular server-client architecture post-exploitation framework built for collaborative agent management in red team operations and security testing. Enables flexibility by allowing operators to add their own modules._
 
-### Architecture
-- Teamserver: Integrates the various managers of the command-and-control
-- Flask based web application handles all agent's HTTP/S communication endpoints
-- Listener stack: Runs as a separate processes from the Flask application, acting as internal redirectors, forwards traffic from agents to the web application
-- Remote Client: Separate from the C2 Server and can be operated from anywhere. CLI allows operators to connect to the C2 via the Multiplayer co-ordinator
-- Polymorphic Payloads: These are unique, obfuscated implants with Anti-sandbox & Anti-debugger capability
-- Malleable profiles: For customizing agent behavior and communication patterns
-- Extensible modules: Seamless integration of custom modules
-- SQLite-based storage for persistent data storage
+### Features
+- **Multiplayer-mode:** Real-time collaboration between operators with Interactive session locking
+- **Task Orchestrator**: Chain modules for complex operations
+- **Role-Based Access Control:** Co-ordinates access and permissions with admin/operator/viewer roles 
+- **Polymorphic Payloads:** Randomized variable and function names, XOR-based string obfuscation
+- **Malleable profiles:** Customize agent behavior and communication patterns
+- **Sanbox & Debugger Detection**: Anti-analysis self-deletion 
+- **Payload staging** Seamless staging of payloads, files
+- **File Operations**: Upload and download files
+- **Redirector Support**: Manage external infrastructure pointing to internal listeners via profiles
+- **Failover deployment**: Agent embeds failover C2 servers
+- **Fernet layer over HTTPS:** Per-agent symmetric keys (AES-128-CBC + HMAC-SHA256) Secure comms over HTTPS
+- **Shellcode Injection**: Shellcode injection into sacrificial processes
+- **Process Hollowing**: Unmanaged Portable Executables injection into sacrificial processes
+- **.NET Assembly Execution**: In-memory execution of .NET Assemblies
+- **BOF Execution**: Load and Execute Beacon Object Files 
+- **Reporting handler:** Easy post-operation report writing
 
-### Managers
-- The Agent Manager: Core component coordinating communication between agents and other framework components.
-- Modules manager: Manages post-exploitation modules that can be executed on agents. 
-- Role and User Manager: Co-ordinates role-based access control (RBAC) with admin/operator/viewer roles 
-- Audit logger: Tracks user actions and permissions
-- Multiplayer session management: allows multiple operators to work simultaneously
-- Task Orchestrator: Chain modules for complex operations
-- Remote CLI Server: manages remote command-line interface for synchronized agent management and interactive sessions
-- Reporting handler to make post-operation report writing easy 
-
-### Security Features
-- HTTPS is the primary C2 channel. 
-- Implants are pre-registered with an ID and per-agent symmetric keys (AES-128-CBC + HMAC-SHA256). The framework validates the secret key and enforces encrypted communication using Fernet layer over HTTPS
-- All tasking and results JSON bodies are Fernet-encrypted per agent
-- Multiple authentication layers (sessions, tokens, roles)
-- Input validation and command injection prevention
-- Role-Based Access Control
-
-### Multiplayer Features
-- Real-time collaboration between operators
-- Agent presence tracking
-- Interactive session locking
-- User presence and status management
-
-### Advanced Features
-- Load and Execute BOFs in-memory
-- Load and Execute .NET assemblies in-memory
-- Execute unmanaged Windows executables (PE) in a sacrificial process in-memory
-- Shellcode injection into sacrificial processes in-memory
-- C2 redirectors support
-- Multi-server failover deployment support
 
 ## Installation:
 NeoC2 works well on Kali Linux. See the [Installations](https://neoc2.readthedocs.io/en/latest/Installation/) docs for instructions. 
