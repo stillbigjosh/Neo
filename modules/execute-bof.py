@@ -4,7 +4,7 @@ from pathlib import Path
 
 def get_info():
     return {
-        "name": "inline-execute",
+        "name": "execute-bof",
         "description": "Load and execute Beacon Object Files (BOFs) in-memory using the embedded COFF loader on agents",
         "type": "post-exploitation",
         "platform": "windows",

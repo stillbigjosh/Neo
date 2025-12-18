@@ -16,7 +16,7 @@ modules info pwsh
 pwsh <script_path> [agent_id=<agent_id>] [arguments=<script_arguments>]
 ```
 
-## Inline-Execute
+## Execute-BOF
 
 This module interfaces with an agent and enables pure in-memory execution of Beacon Object Files (BOFs) without any disk writes. The solution leverages the goffloader library to execute BOFs directly in the agent's memory space.
 
@@ -32,15 +32,15 @@ This module interfaces with an agent and enables pure in-memory execution of Bea
 5. No files written to disk at any stage; complete execution in agent's memory space
 
 ### Command syntax
-Execute BOFs using the inline-execute command:
+Execute BOFs using the execute-bof command:
 
 ```
-modules info inline-execute
+modules info execute-bof
 # In interactive mode, the agent ID is automatically inferred:
-inline-execute <path_to_bof_file> [arguments]
+execute-bof <path_to_bof_file> [arguments]
 ```
 
-## Inline-Execute-Assembly
+## Execute-Assembly
 
 This module interfaces with an agent and enables in-memory execution of .NET assemblies without any disk writes. The solution leverages the go-clr library to execute .NET assemblies directly in the agent's memory space, supporting both .NET executables (.exe) and libraries (.dll).
 
@@ -56,12 +56,12 @@ This module interfaces with an agent and enables in-memory execution of .NET ass
 5. No files written to disk at any stage; complete execution in agent's memory space
 
 ### Command syntax
-Execute .NET assemblies using the inline-assembly command:
+Execute .NET assemblies using the execute-assembly command:
 
 ```
-modules info inline-assembly
+modules info execute-assembly
 # In interactive mode, the agent ID is automatically inferred:
-inline-execute-assembly <assembly_path> [agent_id=<agent_id>]
+execute-assembly <assembly_path> [agent_id=<agent_id>]
 ```
 
 ### Key Features:

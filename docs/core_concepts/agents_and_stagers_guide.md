@@ -30,8 +30,8 @@ The Go Agent is a second stage exe compiled, multi-functional agent with feature
 - **PowerShell Module Execution**: Runs external powershell modules with `pwsh` 
 - **Shellcode Injection**: Shellcode injection into notepad.exe or explorer.exe with `pinject`
 - **Process Hollowing**: Unmanaged Portable Executables injection into svchost.exe with `peinject`
-- **.NET Assembly Execution**: In-memory execution of .NET Assemblies with `inline-execute-assembly`
-- **BOF Execution**: In-memory BOF execution in in own process with no disk writes `inline-execute`
+- **.NET Assembly Execution**: In-memory execution of .NET Assemblies with `execute-assembly`
+- **BOF Execution**: In-memory BOF execution in in own process with no disk writes `execute-bof`
 
 ### Limitations
 - Larger payload size due to comprehensive feature set
@@ -39,7 +39,7 @@ The Go Agent is a second stage exe compiled, multi-functional agent with feature
 ### Usage
 ```
 NeoC2 > payload go_agent <listener_name> [--disable-sandbox] [--windows] [--redirector] [--use-failover] [--obfuscate]
-NeoC2 [INTERACTIVE:abc123] > [pwsh, pinject, peinject, inline-execute, inline-execute-assembly, upload, download, tty_shell, sleep, kill, interact, run]
+NeoC2 [INTERACTIVE:abc123] > [pwsh, pinject, peinject, execute-bof, execute-assembly, upload, download, tty_shell, sleep, kill, interact, run]
 ```
 
 ### Additional note

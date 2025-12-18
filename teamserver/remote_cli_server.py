@@ -891,10 +891,10 @@ class RemoteCLIServer:
             return f"Error running pwsh: {str(e)}", 'error'
 
     def handle_inline_execute_command(self, command_parts, session):  # Changed function name from handle_coff_loader_command to handle_inline_execute_command
-        module_name = "inline-execute"
+        module_name = "execute-bof"
 
         if len(command_parts) < 2:
-            return "USAGE: inline-execute <bof_path> [arguments] [agent_id=<agent_id>]", 'error'
+            return "USAGE: execute-bof <bof_path> [arguments] [agent_id=<agent_id>]", 'error'
 
         try:
             db = session.agent_manager.db if session.agent_manager else self.db
@@ -904,13 +904,13 @@ class RemoteCLIServer:
 
             # Parse command arguments - handle both positional and key-value format
             if '=' in command_parts[1] and 'agent_id=' in command_parts[1]:
-                # Handle format like: inline-execute agent_id=abc-123-def bof_path
+                # Handle format like: execute-bof agent_id=abc-123-def bof_path
                 for part in command_parts[1:]:
                     if '=' in part:
                         key, value = part.split('=', 1)
                         options[key] = value
             else:
-                # Handle format: inline-execute bof_path [arguments] [agent_id=value]
+                # Handle format: execute-bof bof_path [arguments] [agent_id=value]
                 bof_path = command_parts[1]
                 options['bof_path'] = bof_path
 
@@ -1052,13 +1052,13 @@ class RemoteCLIServer:
                 return f"Could not load module: {module_name}", 'error'
 
         except Exception as e:
-            return f"Error running inline-execute: {str(e)}", 'error'
+            return f"Error running execute-bof: {str(e)}", 'error'
 
     def handle_inline_execute_assembly_command(self, command_parts, session):
-        module_name = "inline-assembly"
+        module_name = "execute-assembly"
 
         if len(command_parts) < 2:
-            return "USAGE: inline-execute-assembly <assembly_path> [agent_id=<agent_id>]", 'error'
+            return "USAGE: execute-assembly <assembly_path> [agent_id=<agent_id>]", 'error'
 
         try:
             db = session.agent_manager.db if session.agent_manager else self.db
@@ -1068,13 +1068,13 @@ class RemoteCLIServer:
 
             # Parse command arguments - handle both positional and key-value format
             if '=' in command_parts[1] and 'agent_id=' in command_parts[1]:
-                # Handle format like: inline-execute-assembly agent_id=abc-123-def assembly_path
+                # Handle format like: execute-assembly agent_id=abc-123-def assembly_path
                 for part in command_parts[1:]:
                     if '=' in part:
                         key, value = part.split('=', 1)
                         options[key] = value
             else:
-                # Handle format: inline-execute-assembly assembly_path [agent_id=value]
+                # Handle format: execute-assembly assembly_path [agent_id=value]
                 assembly_path = command_parts[1]
                 options['assembly_path'] = assembly_path
 
@@ -1207,7 +1207,7 @@ class RemoteCLIServer:
                 return f"Could not load module: {module_name}", 'error'
 
         except Exception as e:
-            return f"Error running inline-execute-assembly: {str(e)}", 'error'
+            return f"Error running execute-assembly: {str(e)}", 'error'
 
     def handle_persist_command(self, command_parts, session):
         module_name = "persist"
@@ -4722,9 +4722,9 @@ DB Inactive:       {stats['db_inactive_agents']}
                     return 'Clear command only works in local CLI', 'info'
                 elif base_command == 'payload':
                     return self.handle_payload_command(command_parts, session)
-                elif base_command == 'inline-execute':
+                elif base_command == 'execute-bof':
                     return self.handle_inline_execute_command(command_parts, session)
-                elif base_command == 'inline-execute-assembly':
+                elif base_command == 'execute-assembly':
                     return self.handle_inline_execute_assembly_command(command_parts, session)
                 elif base_command == 'interact':
                     # Handle the interact command (alias for agent interact)
@@ -4856,9 +4856,9 @@ DB Inactive:       {stats['db_inactive_agents']}
             return self.handle_upload_command(command_parts, session)
         elif base_command == 'payload':
             return self.handle_payload_command(command_parts, session)
-        elif base_command == 'inline-execute':
+        elif base_command == 'execute-bof':
             return self.handle_inline_execute_command(command_parts, session)
-        elif base_command == 'inline-execute-assembly':
+        elif base_command == 'execute-assembly':
             return self.handle_inline_execute_assembly_command(command_parts, session)
         elif base_command == 'interact':
             if len(command_parts) < 2:
@@ -5171,7 +5171,7 @@ DB Inactive:       {stats['db_inactive_agents']}
     def _is_framework_command(self, base_cmd):
         framework_commands = {
             'agent', 'listener', 'modules', 'run', 'pwsh', 'persist', 'pinject', 'peinject', 'encryption',
-            'download', 'upload', 'stager', 'profile', 'payload', 'inline-execute', 'inline-execute-assembly',
+            'download', 'upload', 'stager', 'profile', 'payload', 'execute-bof', 'execute-assembly',
             'interact', 'event', 'task', 'result', 'addtask', 'back', 'exit',
             'quit', 'clear', 'help', 'status', 'save', 'protocol', 'interactive',
             'taskchain', 'beacon'
@@ -5226,8 +5226,8 @@ DB Inactive:       {stats['db_inactive_agents']}
                 'taskchain': 'modules.execute',
                 'pwsh': 'modules.execute',  # pwsh command requires modules.execute permission
                 'persist': 'modules.execute',  # persist command requires modules.execute permission
-                'inline-execute': 'modules.execute',  # inline-execute command requires modules.execute permission
-                'inline-execute-assembly': 'modules.execute',  # inline-execute-assembly command requires modules.execute permission
+                'execute-bof': 'modules.execute',  # execute-bof command requires modules.execute permission
+                'execute-assembly': 'modules.execute',  # execute-assembly command requires modules.execute permission
                 'help': 'agents.list',  # Help command should be available to all roles with basic access
             }
             
@@ -5591,9 +5591,9 @@ DB Inactive:       {stats['db_inactive_agents']}
                         result, status = self.handle_payload_command(command_parts, remote_session)
                     elif base_cmd == 'payload_upload':
                         result, status = self.handle_payload_upload_command(command_parts, remote_session)
-                    elif base_cmd == 'inline-execute':
+                    elif base_cmd == 'execute-bof':
                         result, status = self.handle_inline_execute_command(command_parts, remote_session)
-                    elif base_cmd == 'inline-execute-assembly':
+                    elif base_cmd == 'execute-assembly':
                         result, status = self.handle_inline_execute_assembly_command(command_parts, remote_session)
                     elif base_cmd == 'interact':
                         if len(command_parts) < 2:
@@ -5921,9 +5921,9 @@ DB Inactive:       {stats['db_inactive_agents']}
                 result, status = self.handle_payload_command(command_parts, remote_session)
             elif base_cmd == 'payload_upload':
                 result, status = self.handle_payload_upload_command(command_parts, remote_session)
-            elif base_cmd == 'inline-execute':
+            elif base_cmd == 'execute-bof':
                 result, status = self.handle_inline_execute_command(command_parts, remote_session)
-            elif base_cmd == 'inline-execute-assembly':
+            elif base_cmd == 'execute-assembly':
                 result, status = self.handle_inline_execute_assembly_command(command_parts, remote_session)
             elif base_cmd == 'interact':
                 # Handle the interact command (alias for agent interact)

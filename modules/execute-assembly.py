@@ -4,7 +4,7 @@ from pathlib import Path
 
 def get_info():
     return {
-        "name": "inline-execute-assembly",
+        "name": "execute-assembly",
         "description": "Load and execute .NET assemblies in-memory on agents",
         "type": "post-exploitation",
         "platform": "windows",
