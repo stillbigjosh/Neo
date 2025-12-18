@@ -73,7 +73,8 @@ def execute(options, session):
 
             if not os.path.exists(bof_full_path):
                 possible_paths = [
-                    os.path.join(os.path.dirname(__file__), 'external', 'bof', bof_path),  # Default location
+                    os.path.join(os.path.dirname(__file__), 'external', 'bof', bof_path),  # modules/external/bof/ location
+                    os.path.join(os.path.dirname(__file__), 'external', os.path.basename(bof_path)),  # modules/external/ location (for legacy compatibility)
                     bof_path,  # Direct relative path
                     os.path.join('modules', 'external', 'bof', os.path.basename(bof_path)),  # Just filename in default
                     os.path.join('/opt/modules/external/bof', os.path.basename(bof_path)),  # /opt location
@@ -88,15 +89,35 @@ def execute(options, session):
                         break
 
                 if not found:
-                    bof_dir = os.path.join(os.path.dirname(__file__), 'external', 'bof')
-                    available_files = []
-                    if os.path.exists(bof_dir):
-                        available_files = [f for f in os.listdir(bof_dir) if os.path.isfile(os.path.join(bof_dir, f))]
+                    # Look for the file in modules/external directory as well
+                    external_dir = os.path.join(os.path.dirname(__file__), 'external')
+                    if os.path.exists(external_dir):
+                        for item in os.listdir(external_dir):
+                            item_path = os.path.join(external_dir, item)
+                            if os.path.isfile(item_path) and item == os.path.basename(bof_path):
+                                bof_full_path = item_path
+                                found = True
+                                break
 
-                    return {
-                        "success": False,
-                        "error": f"BOF file does not exist: {bof_path}. Searched in default locations. Available BOF files in modules/external/bof/: {available_files if available_files else ['No files found']}"
-                    }
+                    if not found:
+                        # Collect available files from both directories for error message
+                        bof_dir = os.path.join(os.path.dirname(__file__), 'external', 'bof')
+                        external_dir = os.path.join(os.path.dirname(__file__), 'external')
+
+                        available_bofs = []
+                        if os.path.exists(bof_dir):
+                            available_bofs = [f for f in os.listdir(bof_dir) if os.path.isfile(os.path.join(bof_dir, f))]
+
+                        available_external = []
+                        if os.path.exists(external_dir):
+                            available_external = [f for f in os.listdir(external_dir) if os.path.isfile(os.path.join(external_dir, f)) and f not in ['__init__.py']]
+
+                        all_available = list(set(available_bofs + available_external))
+
+                        return {
+                            "success": False,
+                            "error": f"BOF file does not exist: {bof_path}. Searched in default locations. Available BOF files in modules/external/ and modules/external/bof/: {all_available if all_available else ['No files found']}"
+                        }
 
         with open(bof_full_path, 'rb') as f:
             bof_content = f.read()

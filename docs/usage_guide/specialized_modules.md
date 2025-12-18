@@ -25,8 +25,8 @@ This module interfaces with an agent and enables pure in-memory execution of Bea
 - Windows x64
 
 #### Usage
-1. Place BOFs in modules/external of the C2 Server
-2. Use the module with a BOF path
+1. Place BOFs in the `modules/external/` or `modules/external/bof/` directories on the C2 Server
+2. Use the module with a BOF filename (path will be resolved automatically)
 3. The agent will in-memory execute the BOF using its COFFloader library
 4. BOF results are captured and sent back through C2 channel to operator
 5. No files written to disk at any stage; complete execution in agent's memory space
@@ -37,8 +37,19 @@ Execute BOFs using the execute-bof command:
 ```
 modules info execute-bof
 # In interactive mode, the agent ID is automatically inferred:
-execute-bof <path_to_bof_file> [arguments]
+execute-bof <bof_filename> [arguments]
+# Examples:
+execute-bof whoami.x64.o
+execute-bof whoami.x64.o -h
 ```
+
+### File Location Resolution
+When only a filename is provided (without a full path), the module will automatically search for the BOF file in the following locations in order:
+1. `modules/external/bof/<filename>` - The dedicated BOF subdirectory
+2. `modules/external/<filename>` - The general external directory
+3. Direct relative paths from the current working directory
+
+If the BOF file is not found, the command will return an error listing all available BOF files in the external directories.
 
 ## Execute-Assembly
 
@@ -49,8 +60,8 @@ This module interfaces with an agent and enables in-memory execution of .NET ass
 - Windows x64
 
 #### Usage
-1. Place .NET assemblies in accessible locations on the C2 Server
-2. Use the module with an assembly file path
+1. Place .NET assemblies in the `modules/external/` or `modules/external/assemblies/` directories on the C2 Server
+2. Use the module with an assembly filename (path will be resolved automatically)
 3. The agent will load the CLR runtime and execute the assembly in-memory
 4. Assembly output is captured and sent back through the C2 channel to the operator
 5. No files written to disk at any stage; complete execution in agent's memory space
@@ -61,7 +72,10 @@ Execute .NET assemblies using the execute-assembly command:
 ```
 modules info execute-assembly
 # In interactive mode, the agent ID is automatically inferred:
-execute-assembly <assembly_path> [agent_id=<agent_id>]
+execute-assembly <assembly_filename> [agent_id=<agent_id>]
+# Examples:
+execute-assembly Rubeus.exe
+execute-assembly SharpHound.exe agent_id=abc123-4567-8901-2345-67890abcdef1
 ```
 
 ### Key Features:
@@ -70,6 +84,15 @@ execute-assembly <assembly_path> [agent_id=<agent_id>]
 - Handles both .NET executables and libraries
 - Direct in-memory execution without file system access
 - Compatible with tools like Rubeus, SharpHound, and other .NET utilities
+- Supports both positional arguments and named parameters (e.g., `execute-assembly Rubeus.exe` or `execute-assembly assembly_path=Rubeus.exe`)
+
+### File Location Resolution
+When only a filename is provided (without a full path), the module will automatically search for the assembly file in the following locations in order:
+1. `modules/external/assemblies/<filename>` - The dedicated assemblies subdirectory
+2. `modules/external/<filename>` - The general external directory
+3. Direct relative paths from the current working directory
+
+If the assembly file is not found, the command will return an error listing all available assembly files (.exe, .dll) in the external directories.
 
 ## PInject
 

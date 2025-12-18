@@ -64,10 +64,10 @@ def execute(options, session):
             assembly_full_path = assembly_path
         else:
             possible_paths = [
-                assembly_path,
+                os.path.join(os.path.dirname(__file__), 'external', os.path.basename(assembly_path)),  # modules/external/ location
+                os.path.join(os.path.dirname(__file__), 'external', 'assemblies', os.path.basename(assembly_path)),  # modules/external/assemblies/ location
+                assembly_path,  # Direct relative path
                 os.path.join(os.getcwd(), assembly_path),
-                os.path.join(os.path.dirname(__file__), 'external', os.path.basename(assembly_path)),
-                os.path.join(os.path.dirname(__file__), 'external', 'assemblies', os.path.basename(assembly_path)),
                 os.path.join(os.path.dirname(__file__), '..', 'external', os.path.basename(assembly_path)),
                 os.path.join(os.path.dirname(__file__), '..', 'external', 'assemblies', os.path.basename(assembly_path)),
             ]
@@ -80,6 +80,17 @@ def execute(options, session):
                     break
 
             if not found:
+                # Look for the file in modules/external directory as well
+                external_dir = os.path.join(os.path.dirname(__file__), 'external')
+                if os.path.exists(external_dir):
+                    for item in os.listdir(external_dir):
+                        item_path = os.path.join(external_dir, item)
+                        if os.path.isfile(item_path) and item == os.path.basename(assembly_path) and item.lower().endswith(('.exe', '.dll')):
+                            assembly_full_path = item_path
+                            found = True
+                            break
+
+            if not found:
                 assembly_dirs = [
                     os.path.join(os.path.dirname(__file__), 'external', 'assemblies'),
                     os.path.join(os.path.dirname(__file__), 'external'),
@@ -90,11 +101,13 @@ def execute(options, session):
                 available_files = []
                 for asm_dir in assembly_dirs:
                     if os.path.exists(asm_dir):
-                        available_files.extend([f for f in os.listdir(asm_dir) if f.lower().endswith(('.exe', '.dll'))])
+                        for f in os.listdir(asm_dir):
+                            if f.lower().endswith(('.exe', '.dll')):
+                                available_files.append(f)
 
                 return {
                     "success": False,
-                    "error": f"Assembly file does not exist: {assembly_path}. Searched in common locations. Available assembly files: {available_files if available_files else ['No files found']}"
+                    "error": f"Assembly file does not exist: {assembly_path}. Searched in common locations. Available assembly files in modules/external/ and modules/external/assemblies/: {available_files if available_files else ['No files found']}"
                 }
 
         with open(assembly_full_path, 'rb') as f:
