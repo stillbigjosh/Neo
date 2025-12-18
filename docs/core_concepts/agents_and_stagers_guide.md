@@ -22,15 +22,16 @@ The Go Agent is a second stage exe compiled, multi-functional agent with feature
 - **TTY Shell Enabled**: Enter a full TTY Shell
 - **Polymorphic Obfuscation**: Randomized variable and function names to evade static analysis
 - **Jitter & Sleep Obfuscation**: Configurable sleep intervals with jitter during agent generation and in deployment
-- **Module Execution Capability**: Runs extensible modules from C2
 - **Sanbox & Debugger Detection**: Self deletes in sandboxed environment
 - **Working hours & Kill dates**: The Go-agent incorporates a profile configurable kill-dates and working-hours restrictions
-- **Shellcode Injection**: Shellcode injection into notepad.exe or explorer.exe with pinject
-- **Process Hollowing**: PE files injection into svchost.exe with peinject
 - **Redirector Support**: Allows operators to define and manage external infrastructure that points to the internal listeners
 - **Failover deployment**: Embeds failover C2 servers
 - **XOR string encryption**: Encrypts DLL imports and Windows API functions strings to evade static analysis and signature-based detection, which typically inspect the Import Address Table (IAT). At runtime, a XOR decryption routine is used to reconstruct the correct names.
-- **BOF Execution**: In-memory BOF execution with no disk writes
+- **PowerShell Module Execution**: Runs external powershell modules with `pwsh` 
+- **Shellcode Injection**: Shellcode injection into notepad.exe or explorer.exe with `pinject`
+- **Process Hollowing**: Unmanaged Portable Executables injection into svchost.exe with `peinject`
+- **.NET Assembly Execution**: In-memory execution of .NET Assemblies with `inline-execute-assembly`
+- **BOF Execution**: In-memory BOF execution in in own process with no disk writes `inline-execute`
 
 ### Limitations
 - Larger payload size due to comprehensive feature set
@@ -38,7 +39,7 @@ The Go Agent is a second stage exe compiled, multi-functional agent with feature
 ### Usage
 ```
 NeoC2 > payload go_agent <listener_name> [--disable-sandbox] [--windows] [--redirector] [--use-failover] [--obfuscate]
-NeoC2 [INTERACTIVE:abc123] > [upload, download, tty_shell, pinject, peinject, sleep, kill, interact, run, inline-execute]
+NeoC2 [INTERACTIVE:abc123] > [pwsh, pinject, peinject, inline-execute, inline-execute-assembly, upload, download, tty_shell, sleep, kill, interact, run]
 ```
 
 ### Additional note
@@ -63,21 +64,20 @@ Phantom Hawk is a Python variant with limited capability.
 - **Polymorphic Obfuscation**: Randomized variable and function names to evade static analysis
 - **Jitter & Sleep Obfuscation**: Configurable sleep intervals with jitter during agent generation and in deployment
 - **Cross-Platform**: Works on Windows, Linux 
-- **Module Execution Capability**: Runs extensible modules from C2
 - **P2P Agent Communication**: Configurable Agent command forwarding to other Agents in same network (Under development)
 - **Sanbox & Debugger Detection**: Self deletes in sandboxed environment
 - **Working hours & Kill dates**: Incorporates a profile configurable kill-dates and working-hours restrictions
 - **Redirector Support**: Allows operators to define and manage external infrastructure that points to the internal listeners
 - **Failover deployment**: Embeds failover C2 servers
+- **PowerShell Module Execution**: Runs external powershell modules with `pwsh` 
 
 ### Limitations
-- No shellcode injection capability
-- No Process Hollowing capability
+- Lightweight and doesn't pack advanced feature-set
 
 ### Usage
 ```
 NeoC2 > payload phantom_hawk <listener_id> [--obfuscate] [--disable-sandbox] [--linux] [--redirector] [--use-failover]
-NeoC2 [INTERACTIVE:abc123] > [upload, download, tty_shell, sleep, kill, interact, run]
+NeoC2 [INTERACTIVE:abc123] > [pwsh, upload, download, tty_shell, sleep, kill, interact, run]
 ```
 
 

@@ -109,7 +109,7 @@ NeoC2 > interact <agent-id>
 NeoC2 > profile add profiles/profile.json
 
 # Create a HTTPS listener
-NeoC2 > listener create <listener_name> https <port> <IP> profile_name=my_https_profile
+NeoC2 > listener create <listener_name> https <port> <IP> profile_name=<your_custom_profile_name>
 NeoC2 > listener start <listener_name>
 
 # Build payload 
