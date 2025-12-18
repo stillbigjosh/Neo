@@ -16,6 +16,7 @@ import select
 import signal
 import subprocess
 
+# Initialize color support
 try:
     from rich.console import Console
     from rich.text import Text
@@ -24,16 +25,59 @@ try:
     console = Console()
 except ImportError:
     RICH_AVAILABLE = False
-    try:
-        from colorama import init, Fore, Back, Style
-        init(autoreset=True)
-        COLORS_ENABLED = True
-    except ImportError:
-        COLORS_ENABLED = False
-        class Fore:
-            RED = GREEN = YELLOW = BLUE = MAGENTA = CYAN = WHITE = RESET = ''
-        class Style:
-            BRIGHT = DIM = RESET_ALL = ''
+
+# Initialize color support - always define Fore and Style
+try:
+    from colorama import init, Fore, Back, Style
+    init(autoreset=True)
+    COLORS_ENABLED = True
+except ImportError:
+    COLORS_ENABLED = False
+    # Define fallback color codes if colorama is not available
+    class Fore:
+        RED = '\033[31m'
+        GREEN = '\033[32m'
+        YELLOW = '\033[33m'
+        BLUE = '\033[34m'
+        MAGENTA = '\033[35m'
+        CYAN = '\033[36m'
+        WHITE = '\033[37m'
+        RESET = '\033[0m'
+
+    class Back:
+        pass  # Add background colors if needed later
+
+    class Style:
+        BRIGHT = '\033[1m'
+        DIM = '\033[2m'
+        RESET_ALL = '\033[0m'
+
+def colored(text, color_code):
+    """Add ANSI color code to text"""
+    if COLORS_ENABLED:
+        return f"{color_code}{text}{Style.RESET_ALL}"
+    return text
+
+def red(text):
+    return colored(text, Fore.RED)
+
+def green(text):
+    return colored(text, Fore.GREEN)
+
+def yellow(text):
+    return colored(text, Fore.YELLOW)
+
+def blue(text):
+    return colored(text, Fore.BLUE)
+
+def magenta(text):
+    return colored(text, Fore.MAGENTA)
+
+def cyan(text):
+    return colored(text, Fore.CYAN)
+
+def bright(text):
+    return f"{Style.BRIGHT}{text}{Style.RESET_ALL}" if COLORS_ENABLED else text
 
 class NeoC2RemoteCLI:
 
@@ -50,15 +94,26 @@ class NeoC2RemoteCLI:
         self.is_interactive_mode = False
         self.current_agent = None
 
-        # Remove all color codes
-        self.COLORS = {
-            'success': '',
-            'error': '',
-            'info': '',
-            'warning': '',
-            'prompt': '',
-            'reset': ''
-        }
+        # Color definitions
+        try:
+            self.COLORS = {
+                'success': Fore.GREEN,
+                'error': Fore.RED,
+                'info': Fore.BLUE,
+                'warning': Fore.YELLOW,
+                'prompt': Fore.CYAN,
+                'reset': Style.RESET_ALL
+            }
+        except NameError:
+            # In case color libraries aren't available, define empty color strings
+            self.COLORS = {
+                'success': '',
+                'error': '',
+                'info': '',
+                'warning': '',
+                'prompt': '',
+                'reset': ''
+            }
 
         self.history_file = os.path.expanduser("~/.neoc2_remote_cli_history")
         if os.path.exists(self.history_file):
@@ -116,7 +171,7 @@ class NeoC2RemoteCLI:
 
     def connect(self):
         try:
-            print(f"[*] Connecting to {self.server_host}:{self.server_port}")
+            print(f"{blue('[*]')} Connecting to {self.server_host}:{self.server_port}")
 
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -130,17 +185,17 @@ class NeoC2RemoteCLI:
             self.sock.connect((self.server_host, self.server_port))
             self.connected = True
 
-            print(f"[+] Connected to NeoC2 server")
+            print(f"{green('[+]')} Connected to NeoC2 server")
 
             if self._authenticate():
-                print(f"[+] Authentication successful")
+                print(f"{green('[+]')} Authentication successful")
                 return True
             else:
-                print(f"[-] Authentication failed")
+                print(f"{red('[-]')} Authentication failed")
                 return False
 
         except Exception as e:
-            print(f"[-] Connection error: {str(e)}")
+            print(f"{red('[-]')} Connection error: {str(e)}")
             return False
 
     def _authenticate(self):
@@ -162,8 +217,8 @@ class NeoC2RemoteCLI:
 
                 user_info = response.get('user_info', {})
                 if user_info:
-                    print(f"[+] User: {user_info.get('username', 'unknown')}")
-                    print(f"[+] Role: {user_info.get('role', 'unknown')}")
+                    print(f"{green('[+]')} User: {user_info.get('username', 'unknown')}")
+                    print(f"{green('[+]')} Role: {user_info.get('role', 'unknown')}")
 
                 # Handle initial agents data from server (if any were active)
                 agents = response.get('agents', [])
@@ -173,16 +228,16 @@ class NeoC2RemoteCLI:
                             agent_id = agent.get('id')
                             if agent_id:
                                 self.active_agents[agent_id] = agent
-                    print(f"[+] Received {len(agents)} active agents from server")
+                    print(f"{green('[+]')} Received {len(agents)} active agents from server")
 
                 return True
             else:
                 error_msg = response.get('error', 'Authentication failed')
-                print(f"[-] Authentication error: {error_msg}")
+                print(f"{red('[-]')} Authentication error: {error_msg}")
                 return False
 
         except Exception as e:
-            print(f"[-] Authentication error: {str(e)}")
+            print(f"{red('[-]')} Authentication error: {str(e)}")
             return False
 
     def _send_data(self, data):
@@ -372,7 +427,7 @@ class NeoC2RemoteCLI:
             if 'loading_stop_event' in locals():
                 loading_stop_event.set()
 
-            print(f"[-] Error sending command: {str(e)}")
+            print(f"{red('[-]')} Error sending command: {str(e)}")
             self.connected = False
             return None
 
@@ -393,21 +448,21 @@ class NeoC2RemoteCLI:
                     with open(local_path, 'wb') as f:
                         f.write(file_bytes)
 
-                    print(f"[+] File '{filename}' downloaded successfully!")
-                    print(f"[+] Saved as: {local_path}")
-                    print(f"[+] Size: {size} bytes")
+                    print(f"{green('[+]')} File '{filename}' downloaded successfully!")
+                    print(f"{green('[+]')} Saved as: {local_path}")
+                    print(f"{green('[+]')} Size: {size} bytes")
                 else:
                     print(str(message))
             except Exception as e:
-                print(f"[-] Error processing file download: {str(e)}")
+                print(f"{red('[-]')} Error processing file download: {str(e)}")
         elif status == 'success':
-            print(f"{message}")
+            print(f"{green('[+]')} {message}" if message.startswith('[+]') else f"{message}")
         elif status == 'error':
-            print(f"{message}")
+            print(f"{red('[-]')} {message}" if message.startswith('[-]') else f"{message}")
         elif status == 'info':
-            print(f"{message}")
+            print(f"{blue('[*]')} {message}" if message.startswith('[*]') else f"{message}")
         elif status == 'warning':
-            print(f"{message}")
+            print(f"{yellow('[!]')} {message}" if message.startswith('[!]') else f"{message}")
         else:
             print(str(message))
 
@@ -463,7 +518,18 @@ class NeoC2RemoteCLI:
                     interactive_result = self._try_receive_interactive_result()
                     while interactive_result:
                         result_text = interactive_result.get('result', '')
-                        print(f"{result_text}")
+                        # Colorize result text based on content patterns
+                        if result_text.startswith('[+]'):
+                            colored_result = green(result_text)
+                        elif result_text.startswith('[-]'):
+                            colored_result = red(result_text)
+                        elif result_text.startswith('[*]'):
+                            colored_result = blue(result_text)
+                        elif result_text.startswith('[!]'):
+                            colored_result = yellow(result_text)
+                        else:
+                            colored_result = result_text
+                        print(colored_result)
 
                         self.interactive_command_sent = False
                         self.interactive_command_start_time = None
@@ -474,9 +540,9 @@ class NeoC2RemoteCLI:
                 self._process_agent_update_queue()
 
                 if self.is_interactive_mode and self.current_agent:
-                    prompt = f"NeoC2 [INTERACTIVE:{self.current_agent[:8]}] > "
+                    prompt = f"{cyan('NeoC2 [INTERACTIVE:' + self.current_agent[:8] + '] > ')}"
                 else:
-                    prompt = f"NeoC2 ({self.username}@remote) > "
+                    prompt = f"{cyan('NeoC2 (' + self.username + '@remote) > ')}"
 
                 # Show the prompt and get input
                 command = input(prompt)
@@ -534,15 +600,15 @@ class NeoC2RemoteCLI:
                 else:
                     self.print_result("No response from server", 'error')
                     if not self.connected:
-                        print(f"[-] Connection to server lost")
+                        print(f"{red('[-]')} Connection to server lost")
                         break
 
             except KeyboardInterrupt:
-                print(f"\n[!] Use 'exit' to quit")
+                print(f"\n{yellow('[!]')} Use 'exit' to quit")
             except EOFError:
                 break
             except Exception as e:
-                print(f"[-] Error: {str(e)}")
+                print(f"{red('[-]')} Error: {str(e)}")
                 break
 
 
@@ -592,7 +658,7 @@ class NeoC2RemoteCLI:
             if RICH_AVAILABLE:
                 from rich.text import Text
                 text = Text()
-                text.append("[+]")
+                text.append(green("[+]"))
                 text.append(" Sending command... ")
                 text.append(f"{chars[idx % len(chars)]}")
 
@@ -603,7 +669,7 @@ class NeoC2RemoteCLI:
                 sys.stdout.write(f"\r{output}")
                 sys.stdout.flush()
             else:
-                sys.stdout.write(f"\r[+] Sending command... {chars[idx % len(chars)]}")
+                sys.stdout.write(f"\r{green('[+]')} Sending command... {chars[idx % len(chars)]}")
                 sys.stdout.flush()
             idx += 1
             time.sleep(delay)
@@ -674,7 +740,7 @@ class NeoC2RemoteCLI:
 
     def display_agent_alert(self, agent):
         try:
-            alert_msg = f"\n[+] NEW AGENT: ID={agent.get('id', 'N/A')} HOST={agent.get('hostname', 'N/A')} USER={agent.get('user', 'N/A')} IP={agent.get('ip_address', 'N/A')} OS={agent.get('os_info', 'N/A')} TIME={datetime.now().strftime('%H:%M:%S')}\n"
+            alert_msg = f"\n{green('[+]')} NEW AGENT: ID={agent.get('id', 'N/A')} HOST={agent.get('hostname', 'N/A')} USER={agent.get('user', 'N/A')} IP={agent.get('ip_address', 'N/A')} OS={agent.get('os_info', 'N/A')} TIME={datetime.now().strftime('%H:%M:%S')}\n"
 
             sys.stdout.write(alert_msg)
             sys.stdout.flush()
@@ -683,7 +749,7 @@ class NeoC2RemoteCLI:
             sys.stdout.flush()
 
         except Exception as e:
-            sys.stdout.write(f"[-] Error displaying agent alert: {str(e)}\n")
+            sys.stdout.write(f"{red('[-]')} Error displaying agent alert: {str(e)}\n")
             sys.stdout.flush()
 
     def _try_receive_interactive_result(self):
@@ -767,7 +833,7 @@ def main():
             cli.interactive_mode()
         finally:
             cli.disconnect()
-            print(f"\n[*] Disconnected from NeoC2 server")
+            print(f"\n{blue('[*]')} Disconnected from NeoC2 server")
     else:
         sys.exit(1)
 
