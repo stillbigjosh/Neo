@@ -10,7 +10,7 @@ _A modular server-client architecture post-exploitation framework built for coll
 - Remote Client: Separate from the C2 Server and can be operated from anywhere. CLI allows operators to connect to the C2 via the Multiplayer co-ordinator
 - Polymorphic Payloads: These are unique, obfuscated implants with Anti-sandbox & Anti-debugger capability
 - Malleable profiles: For customizing agent behavior and communication patterns
-- Extensible modules: For post-exploitation tasks. External custom module are made operationally available via a Python-wrapper
+- Extensible modules: Seamless integration of custom modules
 - SQLite-based storage for persistent data storage
 
 ### Managers
