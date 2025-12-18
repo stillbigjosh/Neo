@@ -265,7 +265,7 @@ class NeoC2RemoteCLI:
 
     def _receive_command_response_with_agent_updates(self):
         start_time = time.time()
-        timeout = 30  # 30 second timeout
+        timeout = 60  # 60 second timeout
 
         while time.time() - start_time < timeout:
             try:
