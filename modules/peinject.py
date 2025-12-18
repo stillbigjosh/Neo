@@ -114,13 +114,7 @@ def process_pe_input(pe_input):
     if not isinstance(pe_input, str):
         raise ValueError("PE file input must be a string (file path) or bytes")
 
-    if os.path.isfile(pe_input):
-        with open(pe_input, 'rb') as f:
-            file_content = f.read()
-        if len(file_content) == 0:
-            raise ValueError(f"PE file is empty: {pe_input}")
-        return file_content
-
+    # If it's a base64 string, process it directly
     if is_base64(pe_input):
         try:
             if pe_input.startswith('pe'):
@@ -128,17 +122,44 @@ def process_pe_input(pe_input):
             decoded = base64.b64decode(pe_input)
             return decoded
         except Exception:
-            pass  # Not valid base64, continue to other formats
+            pass  # Not valid base64, continue to file searching
 
     # If it's a hex string, convert it
     clean_hex = pe_input.replace('0x', '').replace(',', '').replace('\\', '').replace(' ', '').replace('\n', '').replace('\t', '')
-
     if re.match(r'^[0-9a-fA-F]+$', clean_hex) and len(clean_hex) % 2 == 0:
         try:
             result = bytes.fromhex(clean_hex)
             return result
         except ValueError:
             raise ValueError("Invalid hex string for PE file")
+
+    # Check if it's a path and try to locate the file
+    if os.path.isfile(pe_input):
+        with open(pe_input, 'rb') as f:
+            file_content = f.read()
+        if len(file_content) == 0:
+            raise ValueError(f"PE file is empty: {pe_input}")
+        return file_content
+
+    # If not an absolute path, look for the file in the external directory
+    if not os.path.isabs(pe_input):
+        # Look in modules/external directory
+        external_path = os.path.join(os.path.dirname(__file__), 'external', os.path.basename(pe_input))
+        if os.path.isfile(external_path):
+            with open(external_path, 'rb') as f:
+                file_content = f.read()
+            if len(file_content) == 0:
+                raise ValueError(f"PE file is empty: {external_path}")
+            return file_content
+
+        # Look in current working directory
+        cwd_path = os.path.join(os.getcwd(), os.path.basename(pe_input))
+        if os.path.isfile(cwd_path):
+            with open(cwd_path, 'rb') as f:
+                file_content = f.read()
+            if len(file_content) == 0:
+                raise ValueError(f"PE file is empty: {cwd_path}")
+            return file_content
 
     return pe_input.encode('utf-8')
 
