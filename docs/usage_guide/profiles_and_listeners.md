@@ -177,11 +177,12 @@ profile reload <profile_path> <profile_name>
 
 ## Listener Management
 
-HTTP listeners run as separate processes from the main Flask application, acting as internal redirectors, forwarding traffic from agents to the main web interface. Listeners in NeoC2 are profile-driven: they use predefined communication profiles.
+HTTPS listeners(which are the supported listener type) run as separate processes from the main Flask application, acting as internal redirectors, forwarding traffic from agents to the main web interface. Listeners in NeoC2 are profile-driven: they use predefined communication profiles.
 
 ### Listener Commands
 
 ```
+# Type should be HTTPS
 listener create <name> <type> <port> [profile_name=<profile>]
 listener list
 listener start <name>
@@ -193,5 +194,6 @@ listener delete <name>
 
 When creating a listener, you associate it with a communication profile:
 ```
-listener create my_http_listener type=http port=443 profile_name=stealth_crawler
+listener create my_http_listener type=https port=443 profile_name=stealth_crawler
 ```
+
