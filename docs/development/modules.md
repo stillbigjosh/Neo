@@ -27,15 +27,15 @@ The NeoC2 framework is extendible with:
 
 4. **Windows Powershell scripts**: via the Framework's [PWSH](../usage_guide/specialized_modules.md/#powershell) module
 
-5. **Linux Shell & Python scripts**:
+5. **Windows .NET Assemblies**: via the Framework's [PWSH](../usage_guide/specialized_modules.md/#execute-assembly) module
 
 
 ## Creating a Basic Module
 
-To create a module, the following are required by the Framework:
+To create a module not yet covered by the above handlers, the following are required by the Framework:
 
-1. **External modules**: The PowerShell and shell scripts located in the `modules/external/` directory to be executed on the active agent
-2. **Python wrapper modules**: Python files that interface with external scripts
+1. **External modules**: The script or executable located in the `modules/external/` directory to be executed on the active agent
+2. **Python wrapper modules**: Python files that interface with external file
    
 Every Python wrapper modules must be a Python file that implements two required functions:
 
@@ -118,14 +118,14 @@ def execute(options, session):
         }
 ```
 
-## Integrating External Scripts (PowerShell)
+## Integrating External Scripts
 
-To integrate external PowerShell scripts:
+To integrate external scripts:
 
-1. Place the `.ps1` script in the `modules/external/` directory
+1. Place the script in the `modules/external/` directory
 2. Create a Python wrapper module that references the script
 
-### Example: PowerShell Integration
+### Example: Integration
 
 ```python
 import os
@@ -133,13 +133,13 @@ import re
 
 def get_info():
     return {
-        "name": "example-powershell-module",
-        "description": "Execute an external PowerShell script",
+        "name": "example-module",
+        "description": "Execute an external script",
         "type": "post-exploitation",
         "platform": "windows",
         "author": "NeoC2 Framework",
         "references": ["https://example.com"],
-        "technique_id": "T1059.001",  # Command and Scripting Interpreter: PowerShell
+        "technique_id": "T1059.001",  # Command and Scripting Interpreter: Script
         "mitre_tactics": ["Execution"],
         "options": {
             "agent_id": {
@@ -147,7 +147,7 @@ def get_info():
                 "required": True
             },
             "parameter": {
-                "description": "Parameter to pass to the PowerShell script",
+                "description": "Parameter to pass to the script",
                 "required": False,
                 "default": ""
             }
@@ -171,7 +171,7 @@ def execute(options, session):
     # Set the current agent in the session
     session.current_agent = agent_id
 
-    # Read the external PowerShell script
+    # Read the external script
     script_path = os.path.join(os.path.dirname(__file__), 'external', 'YourScript.ps1')
     try:
         with open(script_path, 'r', encoding='utf-8') as f:
@@ -179,12 +179,12 @@ def execute(options, session):
     except FileNotFoundError:
         return {
             "success": False,
-            "error": f"Could not find PowerShell script at {script_path}"
+            "error": f"Could not find script at {script_path}"
         }
     except Exception as e:
         return {
             "success": False,
-            "error": f"Error reading PowerShell script: {str(e)}"
+            "error": f"Error reading script: {str(e)}"
         }
 
     # Build the execution command with parameters
@@ -197,7 +197,7 @@ def execute(options, session):
         if task_id:
             return {
                 "success": True,
-                "output": f"PowerShell task {task_id} queued for agent {agent_id}",
+                "output": f"Script task {task_id} queued for agent {agent_id}",
                 "task_id": task_id
             }
         else:
@@ -350,7 +350,7 @@ def get_info():
         "platform": "windows",
         "author": "NeoC2 Framework",
         "references": ["https://example.com"],
-        "technique_id": "T1056.001,T1059.001",  # Input Capture: Keylogging, PowerShell
+        "technique_id": "T1056.001,T1059.001",  # Input Capture: Keylogging
         "mitre_tactics": ["Collection", "Execution"],
         "options": {
             "agent_id": {
@@ -394,7 +394,7 @@ def execute(options, session):
     # Set the current agent in the session
     session.current_agent = agent_id
 
-    # Read the original PowerShell script
+    # Read the original script
     script_path = os.path.join(os.path.dirname(__file__), 'external', 'Get-Keystrokes.ps1')
     try:
         with open(script_path, 'r', encoding='utf-8') as f:
@@ -440,5 +440,5 @@ def execute(options, session):
         }
 ```
 
-This example demonstrates the complete module pattern including proper input validation, error handling, and integration with external PowerShell scripts.
+This example demonstrates the complete module pattern including proper input validation, error handling, and integration with external scripts.
 
