@@ -43,9 +43,9 @@ Users are responsible for ensuring their use of this framework complies with law
 By downloading this software you are accepting the terms of use and the licensing agreement.
 
 ### Acknowledgments, Contributors & Involuntary Contributors
-- [@TrustedSec](https://github.com/trustedsec/COFFLoader) For their awesome COFFLoader and BOF collections
-- [@Praetorian](https://github.com/praetorian-inc) For making BOF loading functionality possible within the Go ecosystem
-- [@PowerShellMafia](https://github.com/PowerShellMafia/PowerSploit) For their repository of powershell modules to practice the extendibility of the C2
+- [@TrustedSec](https://github.com/trustedsec/COFFLoader) Awesome BOF collections
+- [@Praetorian](https://github.com/praetorian-inc) COFFloader implementation for Go-ecosystem
+- [@ropnop](https://github.com/ropnop) CLR library made executing .NET from Go 
 
 ### Support
 - **Bug Reports**: [Open an Issue](https://github.com/stillbigjosh/Neo/issues)
