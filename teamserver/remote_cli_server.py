@@ -3297,14 +3297,6 @@ UPLOADED PAYLOAD STATUS:
 
 
     def _parse_taskchain_modules(self, modules_str):
-        """
-        Parse the new taskchain module format: execute-bof=whoami.x64.o,tasklist.x64.o,pwsh=Get-ComputerName.ps1,execute-assembly=rubeus.exe
-        This should result in:
-        - execute-bof whoami.x64.o
-        - execute-bof tasklist.x64.o
-        - pwsh Get-ComputerName.ps1
-        - execute-assembly rubeus.exe
-        """
         module_tasks = []
 
         i = 0
@@ -3473,7 +3465,6 @@ OPTIONS:
 EXAMPLES:
   • taskchain create AGENT001 execute-bof=whoami.x64.o,tasklist.x64.o,pwsh=Get-ComputerName.ps1,execute-assembly=rubeus.exe name=test
   • taskchain create execute-bof=whoami.x64.o,tasklist.x64.o name=test (in interactive mode)
-  • taskchain create AGENT001 get_system,whoami,pslist name=priv_escalation  # Legacy format still supported
   • taskchain list
   • taskchain list agent_id=AGENT001 status=pending
   • taskchain status CHAIN123
