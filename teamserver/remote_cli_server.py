@@ -3296,6 +3296,172 @@ UPLOADED PAYLOAD STATUS:
             pass
 
 
+    def _parse_taskchain_modules(self, modules_str):
+        """
+        Parse the new taskchain module format: execute-bof=whoami.x64.o,tasklist.x64.o,pwsh=Get-ComputerName.ps1,execute-assembly=rubeus.exe
+        This should result in:
+        - execute-bof whoami.x64.o
+        - execute-bof tasklist.x64.o
+        - pwsh Get-ComputerName.ps1
+        - execute-assembly rubeus.exe
+        """
+        module_tasks = []
+
+        # Use a different approach:
+        # 1. Identify module=argument sections by looking for patterns where a comma is followed by a word containing '='
+        # 2. Split the string accordingly
+        # 3. Process each module's arguments
+
+        # First, let's find all module boundaries by looking for commas that separate modules
+        # These are commas followed by a word that contains an '=' not enclosed in parentheses
+        i = 0
+        parts = []
+
+        current_part_start = 0
+
+        while i < len(modules_str):
+            char = modules_str[i]
+            if char == ',':
+                # Check if this comma is a module separator by looking at what follows
+                j = i + 1
+                # Skip whitespace
+                while j < len(modules_str) and modules_str[j].isspace():
+                    j += 1
+
+                if j < len(modules_str):
+                    # Find the next segment (up to the next comma or end)
+                    word_start = j
+                    word_paren_count = 0
+                    word_bracket_count = 0
+                    word_quote_count = 0
+
+                    # Find the boundary of the next segment - until the next comma at the same level
+                    temp_j = j
+                    while temp_j < len(modules_str) and (modules_str[temp_j] != ',' or word_paren_count > 0 or word_bracket_count > 0 or word_quote_count > 0):
+                        if modules_str[temp_j] == '(':
+                            word_paren_count += 1
+                        elif modules_str[temp_j] == ')':
+                            word_paren_count -= 1
+                        elif modules_str[temp_j] == '[':
+                            word_bracket_count += 1
+                        elif modules_str[temp_j] == ']':
+                            word_bracket_count -= 1
+                        elif modules_str[temp_j] in ['"', "'"]:
+                            word_quote_count = 1 - word_quote_count
+                        temp_j += 1
+
+                    # Check if this segment contains an '=' not inside parentheses/brackets/quotes
+                    segment_text = modules_str[word_start:temp_j]
+                    has_equals = False
+                    temp_paren_count = 0
+                    temp_bracket_count = 0
+                    temp_quote_count = 0
+
+                    for w_char in segment_text:
+                        if w_char == '(':
+                            temp_paren_count += 1
+                        elif w_char == ')':
+                            temp_paren_count -= 1
+                        elif w_char == '[':
+                            temp_bracket_count += 1
+                        elif w_char == ']':
+                            temp_bracket_count -= 1
+                        elif w_char in ['"', "'"]:
+                            temp_quote_count = 1 - temp_quote_count
+                        elif w_char == '=' and temp_paren_count == 0 and temp_bracket_count == 0 and temp_quote_count == 0:
+                            has_equals = True
+                            break
+
+                    if has_equals:
+                        # This comma is a module separator
+                        # Add the part before the comma to our list
+                        parts.append(modules_str[current_part_start:i].strip())
+                        # Start the next part from where the segment after the comma starts
+                        current_part_start = word_start  # Start from the beginning of next segment
+                        # Continue from where we left off scanning (after the next comma or at end)
+                        i = temp_j
+                        continue
+            i += 1
+
+        # Add the last part
+        if current_part_start < len(modules_str):
+            parts.append(modules_str[current_part_start:].strip())
+
+        # Now process each part
+        for part in parts:
+            if '=' in part and part.strip():
+                # Find the first occurrence of = that's not inside parentheses/brackets/quotes
+                module_name = None
+                args_str = None
+                eq_pos = -1
+                temp_paren_count = 0
+                temp_bracket_count = 0
+                temp_quote_count = 0
+
+                for idx, char in enumerate(part):
+                    if char == '(':
+                        temp_paren_count += 1
+                    elif char == ')':
+                        temp_paren_count -= 1
+                    elif char == '[':
+                        temp_bracket_count += 1
+                    elif char == ']':
+                        temp_bracket_count -= 1
+                    elif char in ['"', "'"]:
+                        temp_quote_count = 1 - temp_quote_count
+                    elif char == '=' and temp_paren_count == 0 and temp_bracket_count == 0 and temp_quote_count == 0:
+                        eq_pos = idx
+                        break
+
+                if eq_pos != -1:
+                    module_name = part[:eq_pos].strip()
+                    args_str = part[eq_pos + 1:].strip()
+
+                    # Now split the arguments within this module by commas that are not inside parentheses/brackets/quotes
+                    args = []
+                    current_arg = ""
+                    arg_paren_count = 0
+                    arg_bracket_count = 0
+                    arg_quote_count = 0
+
+                    for char in args_str:
+                        if char == '(':
+                            arg_paren_count += 1
+                            current_arg += char
+                        elif char == ')':
+                            arg_paren_count -= 1
+                            current_arg += char
+                        elif char == '[':
+                            arg_bracket_count += 1
+                            current_arg += char
+                        elif char == ']':
+                            arg_bracket_count -= 1
+                            current_arg += char
+                        elif char in ['"', "'"]:
+                            arg_quote_count = 1 - arg_quote_count
+                            current_arg += char
+                        elif char == ',' and arg_paren_count == 0 and arg_bracket_count == 0 and arg_quote_count == 0:
+                            if current_arg.strip():
+                                args.append(current_arg.strip())
+                            current_arg = ""
+                        else:
+                            current_arg += char
+
+                    if current_arg.strip():
+                        args.append(current_arg.strip())
+
+                    # Add each argument as a separate task with the same module name
+                    for arg in args:
+                        module_tasks.append((module_name, arg.strip()))
+                else:
+                    # No valid = found, treat as plain module
+                    module_tasks.append((part.strip(), None))
+            else:
+                # Plain module without arguments
+                module_tasks.append((part.strip(), None))
+
+        return module_tasks
+
     def handle_taskchain_command(self, command_parts, session):
         if len(command_parts) < 2:
             return """
@@ -3303,8 +3469,8 @@ TASK CHAIN COMMANDS
 ═══════════════════════════════════════════════════════════════════
 
 COMMANDS:
-  • taskchain create <agent_id> <module1,module2,module3> [name=chain_name] [execute=true]
-  • taskchain create <module1,module2,module3> [name=chain_name] [execute=true] (in interactive mode)
+  • taskchain create <agent_id> <module1=arg1,arg2,module2=arg3,module3> [name=chain_name] [execute=true]
+  • taskchain create <module1=arg1,arg2,module2=arg3,module3> [name=chain_name] [execute=true] (in interactive mode)
   • taskchain list [agent_id=<agent_id>] [status=<status>] [limit=<limit>]
   • taskchain status <chain_id>
   • taskchain execute <chain_id>
@@ -3318,8 +3484,9 @@ OPTIONS:
   • limit=limit        - Limit number of results (for list command)
 
 EXAMPLES:
-  • taskchain create AGENT001 get_system,whoami,pslist name=priv_escalation
-  • taskchain create get_system,whoami,pslist name=priv_escalation (in interactive mode)
+  • taskchain create AGENT001 execute-bof=whoami.x64.o,tasklist.x64.o,pwsh=Get-ComputerName.ps1,execute-assembly=rubeus.exe name=test
+  • taskchain create execute-bof=whoami.x64.o,tasklist.x64.o name=test (in interactive mode)
+  • taskchain create AGENT001 get_system,whoami,pslist name=priv_escalation  # Legacy format still supported
   • taskchain create AGENT001 recon_enum,net_scan execute=true
   • taskchain list
   • taskchain list agent_id=AGENT001 status=pending
@@ -3342,20 +3509,20 @@ EXAMPLES:
 
             if action == 'create':
                 if len(command_parts) < 3:
-                    return "Usage: taskchain create <agent_id> <module1,module2,module3> [name=chain_name] [execute=true] OR taskchain create <module1,module2,module3> (in interactive mode)", 'error'
+                    return "Usage: taskchain create <agent_id> <module1=arg1,arg2,module2=arg3,module3> [name=chain_name] [execute=true] OR taskchain create <module1=arg1,arg2,module2=arg3,module3> (in interactive mode)", 'error'
 
                 if len(command_parts) == 3 and session.interactive_mode and session.current_agent:
-                    # Handle: taskchain create <module1,module2,module3> (in interactive mode)
+                    # Handle: taskchain create <module1=arg1,arg2,module2=arg3,module3> (in interactive mode)
                     agent_id = session.current_agent
                     modules_str = command_parts[2]
                     command_parts_mod = [command_parts[0], command_parts[1]] + command_parts[2:]  # Update command_parts for option parsing
                 elif len(command_parts) >= 4:
-                    # Handle: taskchain create <agent_id> <module1,module2,module3> [options...]
+                    # Handle: taskchain create <agent_id> <module1=arg1,arg2,module2=arg3,module3> [options...]
                     agent_id = command_parts[2]
                     modules_str = command_parts[3]
                     command_parts_mod = command_parts  # Use original
                 else:
-                    return "Usage: taskchain create <agent_id> <module1,module2,module3> [name=chain_name] [execute=true] OR taskchain create <module1,module2,module3> (in interactive mode)", 'error'
+                    return "Usage: taskchain create <agent_id> <module1=arg1,arg2,module2=arg3,module3> [name=chain_name] [execute=true] OR taskchain create <module1=arg1,arg2,module2=arg3,module3> (in interactive mode)", 'error'
 
                 options = {}
                 for part in command_parts_mod[4 if len(command_parts_mod) > 3 else 3:]:
@@ -3363,7 +3530,47 @@ EXAMPLES:
                         key, value = part.split('=', 1)
                         options[key.lower()] = value.lower()
 
-                module_names = [name.strip() for name in modules_str.split(',')]
+                # Parse the module string using the new format
+                parsed_tasks = self._parse_taskchain_modules(modules_str)
+
+                # Map parsed tasks to module names for chain creation
+                module_names = []
+                args_list = []
+
+                for module_name, module_arg in parsed_tasks:
+                    module_names.append(module_name)
+                    if module_arg:
+                        # For each module, we need to determine which argument field to use based on the module type
+                        module_info = self.module_manager.get_module(module_name)
+                        if module_info:
+                            module_def = module_info['module']
+                            info = module_info.get('info', {})
+
+                            # Determine which option field to use based on the module type
+                            arg_option = None
+                            if 'bof_path' in info.get('options', {}):
+                                arg_option = 'bof_path'
+                            elif 'script_path' in info.get('options', {}):
+                                arg_option = 'script_path'
+                            elif 'assembly_path' in info.get('options', {}):
+                                arg_option = 'assembly_path'
+                            else:
+                                # Use the first non-required option that seems like a path
+                                for opt_name, opt_info in info.get('options', {}).items():
+                                    if opt_name != 'agent_id' and not opt_info.get('required', False):
+                                        if 'path' in opt_name or 'script' in opt_name or 'file' in opt_name:
+                                            arg_option = opt_name
+                                            break
+
+                            if arg_option:
+                                args_list.append({arg_option: module_arg})
+                            else:
+                                args_list.append({})  # Add empty args if no appropriate option found
+                        else:
+                            args_list.append({})  # Add empty args if module not found
+                    else:
+                        args_list.append({})  # Add empty args if no argument specified
+
                 if not module_names:
                     return "No modules specified for the chain", 'error'
 
@@ -3383,7 +3590,8 @@ EXAMPLES:
                 result = orchestrator.create_chain(
                     agent_id=agent_id,
                     module_names=module_names,
-                    chain_name=chain_name
+                    chain_name=chain_name,
+                    args_list=args_list  # Pass the arguments list to the orchestrator
                 )
 
                 if not result['success']:
@@ -3428,9 +3636,9 @@ EXAMPLES:
                     return "No task chains found", 'info'
 
                 output = f"Task Chains (limit: {limit}):\n"
-                output += "-" * 120 + "\n"
-                output += f"{'Chain ID':<20} {'Name':<20} {'Agent ID':<15} {'Status':<12} {'Modules':<25} {'Created':<20}\n"
-                output += "-" * 120 + "\n"
+                output += "-" * 150 + "\n"
+                output += f"{'Chain ID':<38} {'Name':<20} {'Agent ID':<15} {'Status':<12} {'Modules':<25} {'Created':<20}\n"
+                output += "-" * 150 + "\n"
 
                 for chain in chains:
                     modules_list = ', '.join(chain['module_names'][:3])  # Show first 3 modules
@@ -3441,7 +3649,7 @@ EXAMPLES:
                     if created_at and len(created_at) > 19:
                         created_at = created_at[:19]  # Truncate to show only datetime part
 
-                    output += f"{chain['chain_id'][:19]:<20} "
+                    output += f"{chain['chain_id']:<38} "
                     output += f"{chain['name'][:19]:<20} "
                     output += f"{chain['agent_id'][:14]:<15} "
                     output += f"{chain['status']:<12} "
