@@ -3307,13 +3307,6 @@ UPLOADED PAYLOAD STATUS:
         """
         module_tasks = []
 
-        # Use a different approach:
-        # 1. Identify module=argument sections by looking for patterns where a comma is followed by a word containing '='
-        # 2. Split the string accordingly
-        # 3. Process each module's arguments
-
-        # First, let's find all module boundaries by looking for commas that separate modules
-        # These are commas followed by a word that contains an '=' not enclosed in parentheses
         i = 0
         parts = []
 
@@ -3350,7 +3343,6 @@ UPLOADED PAYLOAD STATUS:
                             word_quote_count = 1 - word_quote_count
                         temp_j += 1
 
-                    # Check if this segment contains an '=' not inside parentheses/brackets/quotes
                     segment_text = modules_str[word_start:temp_j]
                     has_equals = False
                     temp_paren_count = 0
@@ -3373,12 +3365,8 @@ UPLOADED PAYLOAD STATUS:
                             break
 
                     if has_equals:
-                        # This comma is a module separator
-                        # Add the part before the comma to our list
                         parts.append(modules_str[current_part_start:i].strip())
-                        # Start the next part from where the segment after the comma starts
                         current_part_start = word_start  # Start from the beginning of next segment
-                        # Continue from where we left off scanning (after the next comma or at end)
                         i = temp_j
                         continue
             i += 1
@@ -3390,7 +3378,6 @@ UPLOADED PAYLOAD STATUS:
         # Now process each part
         for part in parts:
             if '=' in part and part.strip():
-                # Find the first occurrence of = that's not inside parentheses/brackets/quotes
                 module_name = None
                 args_str = None
                 eq_pos = -1
@@ -3487,7 +3474,6 @@ EXAMPLES:
   • taskchain create AGENT001 execute-bof=whoami.x64.o,tasklist.x64.o,pwsh=Get-ComputerName.ps1,execute-assembly=rubeus.exe name=test
   • taskchain create execute-bof=whoami.x64.o,tasklist.x64.o name=test (in interactive mode)
   • taskchain create AGENT001 get_system,whoami,pslist name=priv_escalation  # Legacy format still supported
-  • taskchain create AGENT001 recon_enum,net_scan execute=true
   • taskchain list
   • taskchain list agent_id=AGENT001 status=pending
   • taskchain status CHAIN123
@@ -3533,20 +3519,17 @@ EXAMPLES:
                 # Parse the module string using the new format
                 parsed_tasks = self._parse_taskchain_modules(modules_str)
 
-                # Map parsed tasks to module names for chain creation
                 module_names = []
                 args_list = []
 
                 for module_name, module_arg in parsed_tasks:
                     module_names.append(module_name)
                     if module_arg:
-                        # For each module, we need to determine which argument field to use based on the module type
                         module_info = self.module_manager.get_module(module_name)
                         if module_info:
                             module_def = module_info['module']
                             info = module_info.get('info', {})
 
-                            # Determine which option field to use based on the module type
                             arg_option = None
                             if 'bof_path' in info.get('options', {}):
                                 arg_option = 'bof_path'
@@ -3713,7 +3696,7 @@ TASK CHAIN COMMANDS
 ═══════════════════════════════════════════════════════════════════
 
 COMMANDS:
-  • taskchain create <agent_id> <module1,module2,module3> [name=chain_name] [execute=true]
+  • taskchain create <agent_id> <module1=args1,module2=args2,module3=args3> [name=chain_name] [execute=true]
   • taskchain list [agent_id=<agent_id>] [status=<status>] [limit=<limit>]
   • taskchain status <chain_id>
   • taskchain execute <chain_id>
@@ -3728,7 +3711,6 @@ OPTIONS:
 
 EXAMPLES:
   • taskchain create AGENT001 get_system,whoami,pslist name=priv_escalation
-  • taskchain create AGENT001 recon_enum,net_scan execute=true
   • taskchain list
   • taskchain list agent_id=AGENT001 status=pending
   • taskchain status CHAIN123
