@@ -28,7 +28,7 @@ The Go Agent is a second stage exe compiled, multi-functional agent with feature
 - **Failover deployment**: Embeds failover C2 servers
 - **XOR string encryption**: Encrypts DLL imports and Windows API functions strings to evade static analysis and signature-based detection, which typically inspect the Import Address Table (IAT). At runtime, a XOR decryption routine is used to reconstruct the correct names.
 - **PowerShell Module Execution**: Runs external powershell modules with `pwsh` 
-- **Shellcode Injection**: Shellcode injection into notepad.exe or explorer.exe with `pinject`
+- **Shellcode Injection**: CreateRemoteThread Shellcode injection into notepad.exe or explorer.exe with `pinject`
 - **Process Hollowing**: Unmanaged Portable Executables injection into svchost.exe with `peinject`
 - **.NET Assembly Execution**: In-memory execution of .NET Assemblies with `execute-assembly`
 - **BOF Execution**: In-memory BOF execution in in own process with no disk writes `execute-bof`
