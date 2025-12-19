@@ -107,7 +107,7 @@ If the assembly file is not found, the command will return an error listing all 
 
 ## PInject
 
-This module interfaces with an active agent for In-memory shellcode injection into a sacrificial process
+This module interfaces with an active agent for In-memory shellcode injection into a sacrificial process using CreateRemoteThread
 
 #### Compatibility
 - Go_agent
