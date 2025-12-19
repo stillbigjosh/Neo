@@ -312,15 +312,59 @@ class TaskOrchestrator:
         return command
 
     def _execute_module_sync(self, module, args, previous_result, agent_id):
+        """
+        Execute a module with the given arguments synchronously
+        """
+        try:
+            module_info = module['info']
+            module_obj = module['module']
 
-        module_info = module['info']
+            # Prepare session for module execution
+            class MinimalSession:
+                def __init__(self, agent_manager, agent_id):
+                    self.agent_manager = agent_manager
+                    self.current_agent = agent_id  # Set the current agent ID
+                    # Add commonly needed attributes to prevent errors
+                    self.module_manager = agent_manager.module_manager if hasattr(agent_manager, 'module_manager') else None
+                    self.is_interactive_execution = False
 
-        return {
-            'module': module_info['name'],
-            'status': 'completed',
-            'output': f"Simulated execution of {module_info['name']}",
-            'args': args
-        }
+            session = MinimalSession(self.agent_manager, agent_id)
+
+            # Prepare module arguments
+            module_args = args.copy() if args else {}
+            if 'agent_id' not in module_args:
+                module_args['agent_id'] = agent_id
+
+            if previous_result and 'previous_result' not in module_args:
+                module_args['previous_result'] = previous_result
+
+            # Execute the module
+            result = module_obj.execute(module_args, session)
+
+            # Format the result appropriately
+            if result.get('success'):
+                return {
+                    'module': module_info['name'],
+                    'status': 'completed',
+                    'output': result.get('output', ''),
+                    'args': args,
+                    'task_id': result.get('task_id')
+                }
+            else:
+                return {
+                    'module': module_info['name'],
+                    'status': 'failed',
+                    'error': result.get('error', 'Module execution failed'),
+                    'args': args
+                }
+
+        except Exception as e:
+            return {
+                'module': module_info['name'],
+                'status': 'failed',
+                'error': str(e),
+                'args': args
+            }
 
     def _mark_chain_failed(self, chain_id, error):
         """Mark a chain as failed"""

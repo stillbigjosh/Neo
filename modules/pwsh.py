@@ -52,13 +52,27 @@ def execute(options, session):
 
     session.current_agent = agent_id
 
+    # First try the original path
+    script_file_path = script_path
+
+    # If it's not an absolute path, look for the file in the external directory first
+    if not os.path.isabs(script_path):
+        external_script_path = os.path.join(os.path.dirname(__file__), 'external', os.path.basename(script_path))
+        if os.path.isfile(external_script_path):
+            script_file_path = external_script_path
+        else:
+            # Also check in current working directory
+            cwd_script_path = os.path.join(os.getcwd(), os.path.basename(script_path))
+            if os.path.isfile(cwd_script_path):
+                script_file_path = cwd_script_path
+
     try:
-        with open(script_path, 'r', encoding='utf-8') as f:
+        with open(script_file_path, 'r', encoding='utf-8') as f:
             original_script = f.read()
     except FileNotFoundError:
         return {
             "success": False,
-            "error": f"PowerShell script file not found: {script_path}"
+            "error": f"PowerShell script file not found: {script_path}. Searched in current path, modules/external/, and current working directory"
         }
     except Exception as e:
         return {

