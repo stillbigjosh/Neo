@@ -6,7 +6,8 @@ _A modular server-client architecture post-exploitation framework built for coll
 ### Features
 - **Multiplayer-mode:** Real-time collaboration between operators with Interactive session locking
 - **Task Orchestrator**: Chain modules for complex operations
-- **Role-Based Access Control:** Co-ordinates access and permissions with admin/operator/viewer roles 
+- **Role-Based Access Control:** Co-ordinates access and permissions with admin/operator/viewer roles
+- **Multi-Operator Extension Module System:** Operators use their own local extension modules without interfering with each other
 - **Polymorphic Payloads:** Randomized variable and function names, XOR-based string obfuscation
 - **Malleable profiles:** Customize agent behavior and communication patterns
 - **Sanbox & Debugger Detection**: Anti-analysis self-deletion 
@@ -15,7 +16,6 @@ _A modular server-client architecture post-exploitation framework built for coll
 - **Redirector Support**: Manage external infrastructure pointing to internal listeners via profiles
 - **Failover deployment**: Agent embeds failover C2 servers
 - **Fernet layer over HTTPS:** Per-agent symmetric keys (AES-128-CBC + HMAC-SHA256) Secure comms over HTTPS
-- **Multi-Operator Extension Module System:** Operators use their own local extension modules without interfering with each other
 - **Shellcode Injection**: Shellcode injection into sacrificial processes with CreateRemoteThread
 - **Process Hollowing**: Unmanaged Portable Executables injection into sacrificial processes
 - **.NET Assembly Execution**: In-memory execution of .NET Assemblies
