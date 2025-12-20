@@ -54,18 +54,29 @@ def execute(options, session):
 
     session.current_agent = agent_id
 
-    try:
-        pe_bytes = process_pe_input(pe_input)
-    except ValueError as e:
-        return {
-            "success": False,
-            "error": f"Invalid PE format: {str(e)}"
-        }
+    # Check if pe_input is already base64 encoded content (indicates client-side file)
+    is_base64_content = _is_base64(pe_input)
 
-    # Base64 encode the PE file bytes with 'pe' prefix
-    encoded_pe = base64.b64encode(pe_bytes).decode('utf-8')
+    if is_base64_content:
+        # The pe_input is already base64 encoded content from the client
+        # If it already has the 'pe' prefix, use as is; otherwise add it
+        if pe_input.startswith('pe'):
+            prefixed_encoded_pe = pe_input
+        else:
+            prefixed_encoded_pe = "pe" + pe_input
+    else:
+        # The pe_input is a file path, so we need to read the file
+        try:
+            pe_bytes = process_pe_input(pe_input)
+        except ValueError as e:
+            return {
+                "success": False,
+                "error": f"Invalid PE format: {str(e)}"
+            }
 
-    prefixed_encoded_pe = "pe" + encoded_pe  # Adding 'pe' prefix so agent knows it's a PE file
+        # Base64 encode the PE file bytes with 'pe' prefix
+        encoded_pe = base64.b64encode(pe_bytes).decode('utf-8')
+        prefixed_encoded_pe = "pe" + encoded_pe  # Adding 'pe' prefix so agent knows it's a PE file
 
     command = f"peinject {prefixed_encoded_pe}"
 
@@ -141,27 +152,80 @@ def process_pe_input(pe_input):
             raise ValueError(f"PE file is empty: {pe_input}")
         return file_content
 
-    # If not an absolute path, look for the file in the external directory
+    # If not an absolute path, look for the file in various directories
     if not os.path.isabs(pe_input):
-        # Look in modules/external directory
-        external_path = os.path.join(os.path.dirname(__file__), 'external', os.path.basename(pe_input))
-        if os.path.isfile(external_path):
-            with open(external_path, 'rb') as f:
-                file_content = f.read()
-            if len(file_content) == 0:
-                raise ValueError(f"PE file is empty: {external_path}")
-            return file_content
+        possible_paths = [
+            os.path.join(os.path.dirname(__file__), 'external', os.path.basename(pe_input)),  # modules/external/ location
+            os.path.join(os.path.dirname(__file__), 'external', 'pe', os.path.basename(pe_input)),  # modules/external/pe/ location
+            pe_input,  # Direct relative path
+            os.path.join(os.getcwd(), os.path.basename(pe_input)),
+            os.path.join(os.path.dirname(__file__), '..', 'external', os.path.basename(pe_input)),
+            os.path.join(os.path.dirname(__file__), '..', 'external', 'pe', os.path.basename(pe_input)),
+        ]
 
-        # Look in current working directory
-        cwd_path = os.path.join(os.getcwd(), os.path.basename(pe_input))
-        if os.path.isfile(cwd_path):
-            with open(cwd_path, 'rb') as f:
-                file_content = f.read()
-            if len(file_content) == 0:
-                raise ValueError(f"PE file is empty: {cwd_path}")
-            return file_content
+        for path in possible_paths:
+            if os.path.exists(path):
+                with open(path, 'rb') as f:
+                    file_content = f.read()
+                if len(file_content) == 0:
+                    raise ValueError(f"PE file is empty: {path}")
+                return file_content
+
+        # Look for the file in modules/external directory as well
+        external_dir = os.path.join(os.path.dirname(__file__), 'external')
+        if os.path.exists(external_dir):
+            for item in os.listdir(external_dir):
+                item_path = os.path.join(external_dir, item)
+                if os.path.isfile(item_path) and item == os.path.basename(pe_input):
+                    with open(item_path, 'rb') as f:
+                        file_content = f.read()
+                    if len(file_content) == 0:
+                        raise ValueError(f"PE file is empty: {item_path}")
+                    return file_content
+
+        # Also check in pe subdirectory
+        pe_dir = os.path.join(os.path.dirname(__file__), 'external', 'pe')
+        if os.path.exists(pe_dir):
+            for item in os.listdir(pe_dir):
+                item_path = os.path.join(pe_dir, item)
+                if os.path.isfile(item_path) and item == os.path.basename(pe_input):
+                    with open(item_path, 'rb') as f:
+                        file_content = f.read()
+                    if len(file_content) == 0:
+                        raise ValueError(f"PE file is empty: {item_path}")
+                    return file_content
 
     return pe_input.encode('utf-8')
+
+
+def _is_base64(s):
+    try:
+        # Check if the string contains only valid base64 characters
+        if not re.match(r'^[A-Za-z0-9+/]*={0,2}$', s):
+            return False
+
+        # Pad the string if necessary for decoding
+        padded = s
+        padding_needed = len(s) % 4
+        if padding_needed:
+            padded = s + '=' * (4 - padding_needed)
+
+        # Try to decode
+        decoded = base64.b64decode(padded, validate=True)
+
+        # Re-encode the decoded content
+        re_encoded = base64.b64encode(decoded).decode('utf-8')
+
+        # Check if the re-encoded version matches the original when both are padded the same way
+        # Pad the original to 4-byte boundary for comparison
+        orig_padded = s
+        orig_padding_needed = len(s) % 4
+        if orig_padding_needed:
+            orig_padded = s + '=' * (4 - orig_padding_needed)
+
+        return re_encoded == orig_padded
+    except Exception:
+        return False
 
 
 def is_base64(s):

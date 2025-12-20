@@ -360,7 +360,26 @@ class NeoC2RemoteCLI:
     def send_command(self, command):
         try:
             command_parts = command.strip().split()
-            if len(command_parts) >= 3 and command_parts[0].lower() == 'profile' and command_parts[1].lower() == 'add':
+
+            # Check if this is an extension command that needs client-side file lookup
+            if command_parts and command_parts[0].lower() in ['execute-bof', 'execute-assembly', 'peinject', 'pwsh']:
+                modified_command = self._handle_extension_command(command)
+                if modified_command:
+                    command_data = {
+                        'type': 'command',
+                        'command': modified_command,
+                        'token': self.auth_token,
+                        'session_id': self.session_id
+                    }
+                else:
+                    # If file not found locally, send original command to server for fallback
+                    command_data = {
+                        'type': 'command',
+                        'command': command,
+                        'token': self.auth_token,
+                        'session_id': self.session_id
+                    }
+            elif len(command_parts) >= 3 and command_parts[0].lower() == 'profile' and command_parts[1].lower() == 'add':
                 profile_file_path = command_parts[2]
 
                 if not profile_file_path.startswith('base64:'):
@@ -424,6 +443,110 @@ class NeoC2RemoteCLI:
 
             print(f"{red('[-]')} Error sending command: {str(e)}")
             self.connected = False
+            return None
+
+    def _handle_extension_command(self, command):
+        """
+        Handle extension commands by looking for files on the client side first.
+        If found, base64 encode the file and send it to the server.
+        If not found, return None to let the server handle the fallback.
+        """
+        import os
+        import base64
+        import re
+
+        command_parts = command.strip().split()
+        if not command_parts:
+            return None
+
+        cmd_name = command_parts[0].lower()
+        if len(command_parts) < 2:
+            return None  # Not enough arguments
+
+        file_path = command_parts[1]
+
+        # Define file search paths for different extension types
+        if cmd_name == 'execute-bof':
+            search_paths = [
+                os.path.join('modules', 'external', 'bof', file_path),
+                os.path.join('modules', 'external', file_path),
+                file_path,  # Direct path
+                os.path.join(os.getcwd(), file_path),
+                os.path.join('modules', 'external', 'bof', os.path.basename(file_path)),
+                os.path.join('modules', 'external', os.path.basename(file_path)),
+            ]
+
+        elif cmd_name == 'execute-assembly':
+            search_paths = [
+                os.path.join('modules', 'external', 'assemblies', file_path),
+                os.path.join('modules', 'external', file_path),
+                file_path,  # Direct path
+                os.path.join(os.getcwd(), file_path),
+                os.path.join('modules', 'external', 'assemblies', os.path.basename(file_path)),
+                os.path.join('modules', 'external', os.path.basename(file_path)),
+            ]
+
+        elif cmd_name == 'peinject':
+            search_paths = [
+                os.path.join('modules', 'external', file_path),
+                os.path.join('modules', 'external', 'pe', file_path),
+                file_path,  # Direct path
+                os.path.join(os.getcwd(), file_path),
+                os.path.join('modules', 'external', os.path.basename(file_path)),
+                os.path.join('modules', 'external', 'pe', os.path.basename(file_path)),
+            ]
+
+        elif cmd_name == 'pwsh':
+            # For pwsh, we look for PowerShell script files
+            search_paths = [
+                os.path.join('modules', 'external', 'powershell', file_path),
+                os.path.join('modules', 'external', file_path),
+                file_path,  # Direct path
+                os.path.join(os.getcwd(), file_path),
+                os.path.join('modules', 'external', 'powershell', os.path.basename(file_path)),
+                os.path.join('modules', 'external', os.path.basename(file_path)),
+            ]
+        else:
+            return None
+
+        # Look for the file in the search paths
+        found_file_path = None
+        for path in search_paths:
+            if os.path.exists(path):
+                found_file_path = path
+                break
+
+        if found_file_path:
+            # File found on client side, read and base64 encode it
+            try:
+                # For pwsh, we need to read as text, not binary
+                if cmd_name == 'pwsh':
+                    with open(found_file_path, 'r', encoding='utf-8') as f:
+                        file_content = f.read().encode('utf-8')  # Convert to bytes for base64 encoding
+                else:
+                    with open(found_file_path, 'rb') as f:
+                        file_content = f.read()
+
+                encoded_content = base64.b64encode(file_content).decode('utf-8')
+
+                # For peinject, we need to add the 'pe' prefix as the agent expects
+                if cmd_name == 'peinject':
+                    encoded_content = "pe" + encoded_content
+
+                # Reconstruct the command with the base64 encoded content
+                if len(command_parts) > 2:
+                    # If there are additional arguments, include them
+                    additional_args = ' '.join(command_parts[2:])
+                    new_command = f"{cmd_name} {encoded_content} {additional_args}"
+                else:
+                    new_command = f"{cmd_name} {encoded_content}"
+
+                return new_command
+            except Exception as e:
+                print(f"{red('[-]')} Error reading file {found_file_path}: {str(e)}")
+                return None
+        else:
+            # File not found on client side, let server handle fallback
             return None
 
     def print_result(self, message, status):
@@ -675,21 +798,18 @@ class NeoC2RemoteCLI:
         pass
 
     def _start_agent_refresh_thread(self):
-        """Start a thread to periodically refresh agent status"""
         self.agent_refresh_stop_event.clear()
         self.agent_refresh_thread = threading.Thread(target=self._agent_refresh_worker)
         self.agent_refresh_thread.daemon = True
         self.agent_refresh_thread.start()
 
     def _stop_agent_refresh_thread(self):
-        """Stop the agent refresh thread"""
         if self.agent_refresh_stop_event:
             self.agent_refresh_stop_event.set()
         if self.agent_refresh_thread and self.agent_refresh_thread.is_alive():
             self.agent_refresh_thread.join(timeout=1)
 
     def _process_agent_update_queue(self):
-        """Process any queued agent updates and display alerts for new agents"""
         with self.agent_queue_lock:
             if not self.agent_update_queue:
                 return
@@ -715,7 +835,6 @@ class NeoC2RemoteCLI:
         pass
 
     def _handle_agent_update(self, message):
-        """Handle agent update messages and display alerts"""
         agents_data = message.get('agents', [])
 
         if not agents_data:
