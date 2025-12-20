@@ -23,8 +23,8 @@ MODULES & EXECUTION:
   task        - Pending agent tasks
   result      - View task results
   taskchain   - Task Orchestration
-  cmd         - Execute direct shell command on agent (in interactive mode)
-  addtask     - Add a queued shell command on agent
+  cmd         - Execute shell command using interactive api (in interactive mode)
+  addtask     - Execute shell command using queued api
 
 OPERATIONS & TACTICS:
   upload      - Upload files to agents
