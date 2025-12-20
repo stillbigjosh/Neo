@@ -153,7 +153,7 @@ class NeoC2RemoteCLI:
         commands = [
             'help', 'agent', 'listener', 'modules', 'run', 'pwsh', 'persist', 'pinject', 'peinject', 'encryption',
             'profile', 'protocol', 'stager', 'download', 'upload', 'interactive',
-            'exit', 'quit', 'clear', 'status', 'task', 'result', 'save', 'addtask',
+            'exit', 'quit', 'clear', 'status', 'task', 'result', 'save', 'addcmd',
             'harvest', 'execute-bof', 'execute-assembly', 'cmd'
         ]
 

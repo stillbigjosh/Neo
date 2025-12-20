@@ -24,7 +24,7 @@ MODULES & EXECUTION:
   result      - View task results
   taskchain   - Task Orchestration
   cmd         - Execute shell command using interactive api (in interactive mode)
-  addtask     - Execute shell command using queued api
+  addcmd      - Execute shell command using queued api
 
 OPERATIONS & TACTICS:
   upload      - Upload files to agents
