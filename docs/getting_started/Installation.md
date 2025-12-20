@@ -9,8 +9,8 @@
 
 #### Prerequisites
 - Linux Machine
-- Python 3.*
-- Golang 1.*
+- Python 3.13
+- Golang 1.25
 - Python virtual environment (python3-venv)
 - OpenSSL for HTTPS certificates
 
