@@ -1,5 +1,78 @@
 # Specialized Modules
 
+## Multi-Operator Extension Module System
+
+### Overview
+
+The NeoC2 framework implements a sophisticated client-server compartmentalization system that allows multiple operators to use their own local extension modules without interfering with each other. This system ensures that each operator can maintain their own set of custom tools and payloads while maintaining security and operational separation.
+
+### Client-Server Compartmentalization
+
+#### Local File Discovery Process
+
+When an operator executes a command like `execute-bof whoami.x64.o`, the system follows this process:
+
+1. **Client-Side File Search**: The client first searches for the file in the operator's local environment:
+   - `modules/external/bof/` directory
+   - `modules/external/` directory
+   - Current working directory
+   - Subdirectories specific to the module type (assemblies, powershell, pe, etc.)
+
+2. **Base64 Encoding**: If the file is found locally, it is read an forwards it to the server
+
+4. **Server-Side Processing**: The server receives the content and forwards it to the agent without needing to search for the file locally
+
+#### Fallback Mechanism
+
+If the file is not found on the client side, the system gracefully falls back to the server-side search mechanism:
+
+1. The original command is forwarded to the server
+2. The server searches in its own local directories for the file
+3. If found, the server processes and forwards to the agent as usual
+4. If not found, an appropriate error message is returned
+
+### Multi-Operator Support
+
+#### Isolated Extension Spaces
+
+Each operator maintains their own local extension modules:
+
+- **Operator A** can have `modules/external/bof/steal-token.o` in their local directory
+- **Operator B** can have `modules/external/bof/dump-creds.o` in their local directory
+- Both operators can use their respective modules without interference
+
+### Supported Module Types
+
+#### Beacon Object Files (BOFs)
+- **Search Directories**: `modules/external/bof/`, `modules/external/`
+- **File Extensions**: `.o`, `.bof`, `.x64.o`, `.x86.o`
+
+#### .NET Assemblies
+- **Search Directories**: `modules/external/assemblies/`, `modules/external/`
+- **File Extensions**: `.exe`, `.dll`
+
+#### PE Injection
+- **Search Directories**: `modules/external/`, `modules/external/pe/`
+- **File Extensions**: `.exe`, `.dll`
+
+#### PowerShell Scripts
+- **Search Directories**: `modules/external/powershell/`, `modules/external/`
+- **File Extensions**: `.ps1`, `.psm1`, `.psd1`
+
+### Security and Isolation Benefits
+
+#### Operational Security
+- Each operator's extensions remain local to their client
+- No need to upload sensitive tools to the server
+- Reduced server storage requirements
+- Enhanced operational security through local storage
+
+#### Multi-Operator Isolation
+- Operators cannot access each other's local modules
+- Each operator maintains their own toolset
+- No cross-contamination between operator environments
+- Individual accountability for tools used
+
 ## Powershell
 
 This `pwsh` module helps operators run their own extendible powershell scripts on a target's Windows machine via an active agent session
