@@ -13,7 +13,7 @@ INFRASTRUCTURE MANAGEMENT:
 AGENT MANAGEMENT:
   agent       - Manage agents (list, interact, info, kill)
   beacon      - Active HTTP/S Agents
-  interact    - Eneter Interactive mode with a beacon
+  interact    - Enter Interactive mode with a beacon
   interactive - Check if session is in interactive mode
   sleep       - Change agent sleep interval
 
@@ -21,9 +21,10 @@ MODULES & EXECUTION:
   modules     - Manage modules (list, load, info, check)
   run         - Execute modules
   task        - Pending agent tasks
-  addtask     - Add a queued task to an agent directly
   result      - View task results
   taskchain   - Task Orchestration
+  cmd         - Execute direct shell command on agent (in interactive mode)
+  addtask     - Add a queued shell command on agent
 
 OPERATIONS & TACTICS:
   upload      - Upload files to agents
@@ -54,6 +55,7 @@ NOTES:
   • Parameters in < > are required
   • Parameters in [ ] are optional
   • Some commands may require additional privileges
+  • Use 'cmd <command>' in interactive mode to execute direct agent commands
 
 Use 'help' to show this message again.
     """

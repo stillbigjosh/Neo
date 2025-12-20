@@ -4995,9 +4995,6 @@ DB Inactive:       {stats['db_inactive_agents']}
                                     output += f"  {action_name}: {count}\n"
                                 return output, 'success'
                             elif action in ['monitor', 'stop_monitor']:
-                                # For real-time monitoring, we need to update session state
-                                # This is more complex and requires the session_id from the calling context
-                                # But we'll provide informative messages for now
                                 if action == 'monitor':
                                     return "Real-time event monitoring: Use 'event' message type for live events. For command line, you can use 'event list' to get current events.", 'info'
                                 else:
@@ -5355,7 +5352,7 @@ DB Inactive:       {stats['db_inactive_agents']}
             'download', 'upload', 'stager', 'profile', 'payload', 'execute-bof', 'execute-assembly',
             'interact', 'event', 'task', 'result', 'addtask', 'back', 'exit',
             'quit', 'clear', 'help', 'status', 'save', 'protocol', 'interactive',
-            'taskchain', 'beacon'
+            'taskchain', 'beacon', 'cmd'
         }
         return base_cmd.lower() in framework_commands
 
@@ -5410,6 +5407,7 @@ DB Inactive:       {stats['db_inactive_agents']}
                 'execute-bof': 'modules.execute',  # execute-bof command requires modules.execute permission
                 'execute-assembly': 'modules.execute',  # execute-assembly command requires modules.execute permission
                 'help': 'agents.list',  # Help command should be available to all roles with basic access
+                'cmd': 'agents.interact',  # cmd command requires agents.interact permission
             }
             
             required_permission = permission_map.get(base_cmd, f'{base_cmd}.list')
@@ -5642,7 +5640,7 @@ DB Inactive:       {stats['db_inactive_agents']}
                                 status = 'success'
                     elif base_cmd == 'addtask':
                         if len(command_parts) < 2:
-                            result = "Usage: addtask <agent_id> <command> OR addtask <command> (in interactive mode)"
+                            result = "USAGE: addtask <agent_id> <command> OR addtask <command> (in interactive mode)\n\nNote: Uses the standard queued API for task execution."
                             status = 'error'
                         elif len(command_parts) == 2 and remote_session.interactive_mode and remote_session.current_agent:
                             # Handle: addtask <command> in interactive mode
@@ -5653,8 +5651,9 @@ DB Inactive:       {stats['db_inactive_agents']}
                             agent_id = command_parts[1]
                             command_to_send = ' '.join(command_parts[2:])
                         else:
-                            result = "Usage: addtask <agent_id> <command> OR addtask <command> (in interactive mode)"
+                            result = "USAGE: addtask <agent_id> <command> OR addtask <command> (in interactive mode)\n\nNote: Uses the standard queued API for task execution."
                             status = 'error'
+                            return {'output': result, 'status': status}
 
                         if self.is_agent_locked_interactively(agent_id):
                             lock_info = self.get_interactive_lock_info(agent_id)
@@ -5666,7 +5665,7 @@ DB Inactive:       {stats['db_inactive_agents']}
                         task_result = self.agent_manager.add_task(agent_id, command_to_send)
                         if task_result and task_result.get('success'):
                             task_id = task_result['task_id']
-                            result = f"[+] Task created successfully!\n    Task ID:  {task_id}\n    Agent:    {agent_id}\n    Command:  {command_to_send[:20]}{'...' if len(command_to_send) > 20 else ''}"
+                            result = f"[+] Task created successfully!\n    Task ID:  {task_id}\n    Agent:    {agent_id}\n    Command:  {command_to_send[:20]}{'...' if len(command_to_send) > 20 else ''}\n\nNote: Task uses the standard queued API for execution."
                             status = 'success'
                         else:
                             error_msg = task_result.get('error', 'Unknown error') if task_result else 'Failed to create task'
@@ -5785,10 +5784,39 @@ DB Inactive:       {stats['db_inactive_agents']}
                             result, status = self.handle_agent_command(agent_command_parts, remote_session)
                     elif base_cmd == 'taskchain':
                         result, status = self.handle_taskchain_command(command_parts, remote_session)
+                    elif base_cmd == 'cmd':
+                        if len(command_parts) < 2:
+                            result = "Usage: cmd <command> (in interactive mode)"
+                            status = 'error'
+                        elif not remote_session.interactive_mode or not remote_session.current_agent:
+                            result = "Must be in interactive mode to use cmd command", 'error'
+                        else:
+                            # Extract the command to send to the agent
+                            command_to_send = ' '.join(command_parts[1:])
+
+                            # Send the command via the interactive API
+                            interactive_result, error = remote_session.agent_manager.send_interactive_command(
+                                remote_session.current_agent, command_to_send, timeout=120
+                            )
+
+                            if error:
+                                result = f"Error executing interactive command: {error}"
+                                status = 'error'
+                            elif interactive_result is not None:
+                                formatted_result = str(interactive_result).strip()
+                                if len(formatted_result) > 10000:  # Truncate very long results
+                                    formatted_result = formatted_result[:10000] + "\n... (truncated)"
+
+                                result = f"[+] Interactive command execution completed:\n{formatted_result}"
+                                status = 'success'
+                            else:
+                                result = "No response from agent"
+                                status = 'warning'
                     else:
                         result, status = f"Unknown framework command: {base_cmd}", 'error'
                 else:
-                    result, status = self.handle_interactive_command(command, remote_session)
+                    # In interactive mode, non-framework commands must use the 'cmd' command
+                    result, status = f"Unknown command: {base_cmd}. In interactive mode, use 'cmd <command>' to execute shell commands directly.", 'error'
             elif base_cmd == 'agent':
                 result, status = self.handle_agent_command(command_parts, remote_session)
             elif base_cmd == 'beacon':
@@ -5819,6 +5847,8 @@ DB Inactive:       {stats['db_inactive_agents']}
                 result, status = handle_interactive_stager_command(command_parts, remote_session)
             elif base_cmd == 'profile':
                 result, status = self.handle_profile_command(command_parts, remote_session)
+            elif base_cmd == 'cmd':
+                result, status = "The 'cmd' command can only be used in interactive mode. Use 'agent interact <agent_id>' to enter interactive mode first.", 'error'
             elif base_cmd == 'interactive':
                 if remote_session.interactive_mode and remote_session.current_agent:
                     result, status = self.handle_interactive_command(' '.join(command_parts[1:]), remote_session)
@@ -5988,8 +6018,9 @@ DB Inactive:       {stats['db_inactive_agents']}
                         status = 'success'
             elif base_cmd == 'addtask':
                 if len(command_parts) < 2:
-                    result = "Usage: addtask <agent_id> <command> OR addtask <command> (in interactive mode)"
+                    result = "USAGE: addtask <agent_id> <command> OR addtask <command> (in interactive mode)\n\nNote: Uses the standard queued API for task execution."
                     status = 'error'
+                    return {'output': result, 'status': status}
                 elif len(command_parts) == 2 and remote_session.interactive_mode and remote_session.current_agent:
                     # Handle: addtask <command> in interactive mode
                     agent_id = remote_session.current_agent
@@ -5999,8 +6030,9 @@ DB Inactive:       {stats['db_inactive_agents']}
                     agent_id = command_parts[1]
                     command_to_send = ' '.join(command_parts[2:])
                 else:
-                    result = "Usage: addtask <agent_id> <command> OR addtask <command> (in interactive mode)"
+                    result = "USAGE: addtask <agent_id> <command> OR addtask <command> (in interactive mode)\n\nNote: Uses the standard queued API for task execution."
                     status = 'error'
+                    return {'output': result, 'status': status}
 
                 if self.is_agent_locked_interactively(agent_id):
                     lock_info = self.get_interactive_lock_info(agent_id)
@@ -6012,7 +6044,7 @@ DB Inactive:       {stats['db_inactive_agents']}
                 task_result = self.agent_manager.add_task(agent_id, command_to_send)
                 if task_result and task_result.get('success'):
                     task_id = task_result['task_id']
-                    result = f"[+] Task created successfully!\n    Task ID:  {task_id}\n    Agent:    {agent_id}\n    Command:  {command_to_send[:20]}{'...' if len(command_to_send) > 20 else ''}"
+                    result = f"[+] Task created successfully!\n    Task ID:  {task_id}\n    Agent:    {agent_id}\n    Command:  {command_to_send[:20]}{'...' if len(command_to_send) > 20 else ''}\n\nNote: Task uses the standard queued API for execution."
                     status = 'success'
                 else:
                     error_msg = task_result.get('error', 'Unknown error') if task_result else 'Failed to create task'

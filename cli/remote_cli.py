@@ -154,7 +154,7 @@ class NeoC2RemoteCLI:
             'help', 'agent', 'listener', 'modules', 'run', 'pwsh', 'persist', 'pinject', 'peinject', 'encryption',
             'profile', 'protocol', 'stager', 'download', 'upload', 'interactive',
             'exit', 'quit', 'clear', 'status', 'task', 'result', 'save', 'addtask',
-            'harvest', 'execute-bof', 'execute-assembly'
+            'harvest', 'execute-bof', 'execute-assembly', 'cmd'
         ]
 
         options = [cmd for cmd in commands if cmd.startswith(text.lower())]

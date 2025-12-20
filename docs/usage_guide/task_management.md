@@ -4,13 +4,22 @@ Tasks are commands executed on an active agent session. NeoC2 implements a sophi
 
 ## Task Types and Commands
 
-1. **Queued Tasks**: Standard command execution
+1. **Queued Tasks**: An agent id would have to be specified for agent tasking in non-interactive mode of the command-and-control. Agent uses the standard queued api which takes longer than the interactive api. 
 ```
-addtask
+# Examples:
+addtask <agent_id> <command>
+execute-bof <agent_id> [options]
+execute-assembly <agent_id> [options]
+pwsh <sgent_id> [options]
+.....
 ```
-2. **Interactive Tasks**: Direct Real-time command execution in interactive mode
+2. **Interactive Tasks**: Direct Real-time command execution in interactive mode. Agent ids are automatically inferred in the interactive mode. Agent uses the fast polling interactive api.
 ```
-interact
+# Examples:
+cmd <command>
+execute-bof [options]
+execute-assembly [options]
+pwsh [options]
 ```
 
 ## Task Lifecycle
