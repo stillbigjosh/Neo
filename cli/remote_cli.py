@@ -446,11 +446,6 @@ class NeoC2RemoteCLI:
             return None
 
     def _handle_extension_command(self, command):
-        """
-        Handle extension commands by looking for files on the client side first.
-        If found, base64 encode the file and send it to the server.
-        If not found, return None to let the server handle the fallback.
-        """
         import os
         import base64
         import re
