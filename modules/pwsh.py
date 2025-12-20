@@ -6,7 +6,7 @@ import re
 def get_info():
     return {
         "name": "pwsh",
-        "description": "Execute PowerShell scripts on agents by uploading and executing them",
+        "description": "Execute PowerShell scripts on agents session in-memory",
         "type": "execution",
         "platform": "windows",
         "author": "NeoC2 Framework by @stillbigjosh",
