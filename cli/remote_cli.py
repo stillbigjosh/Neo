@@ -362,7 +362,7 @@ class NeoC2RemoteCLI:
             command_parts = command.strip().split()
 
             # Check if this is an extension command that needs client-side file lookup
-            if command_parts and command_parts[0].lower() in ['execute-bof', 'execute-assembly', 'peinject', 'pwsh']:
+            if command_parts and command_parts[0].lower() in ['execute-bof', 'execute-assembly', 'peinject', 'pwsh', 'pinject']:
                 modified_command = self._handle_extension_command(command)
                 if modified_command:
                     command_data = {
@@ -501,6 +501,17 @@ class NeoC2RemoteCLI:
                 os.path.join('modules', 'external', 'powershell', os.path.basename(file_path)),
                 os.path.join('modules', 'external', os.path.basename(file_path)),
             ]
+
+        elif cmd_name == 'pinject':
+            # For pinject, we look for shellcode files in the external directory
+            search_paths = [
+                os.path.join('modules', 'external', file_path),
+                os.path.join('modules', 'external', 'shellcode', file_path),
+                file_path,  # Direct path
+                os.path.join(os.getcwd(), file_path),
+                os.path.join('modules', 'external', os.path.basename(file_path)),
+                os.path.join('modules', 'external', 'shellcode', os.path.basename(file_path)),
+            ]
         else:
             return None
 
@@ -518,11 +529,15 @@ class NeoC2RemoteCLI:
                 if cmd_name == 'pwsh':
                     with open(found_file_path, 'r', encoding='utf-8') as f:
                         file_content = f.read().encode('utf-8')  # Convert to bytes for base64 encoding
+                    encoded_content = base64.b64encode(file_content).decode('utf-8')
+                # For pinject, we read the file content as-is (should be base64 shellcode)
+                elif cmd_name == 'pinject':
+                    with open(found_file_path, 'r', encoding='utf-8') as f:
+                        encoded_content = f.read().strip()  # Read base64 content directly
                 else:
                     with open(found_file_path, 'rb') as f:
                         file_content = f.read()
-
-                encoded_content = base64.b64encode(file_content).decode('utf-8')
+                    encoded_content = base64.b64encode(file_content).decode('utf-8')
 
                 # For peinject, we need to add the 'pe' prefix as the agent expects
                 if cmd_name == 'peinject':

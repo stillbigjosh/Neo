@@ -602,6 +602,38 @@ class RemoteCLIServer:
                         key, value = part.split('=', 1)
                         options[key] = value
 
+            # Check if shellcode is a file path and try to read it from server's external directory
+            shellcode_value = options.get('shellcode', '')
+            if shellcode_value and os.path.exists(shellcode_value):
+                # This is a file path, read the content
+                try:
+                    with open(shellcode_value, 'r') as f:
+                        file_content = f.read().strip()
+                    options['shellcode'] = file_content  # Replace with file content
+                except Exception as e:
+                    return f"Failed to read server-side file {shellcode_value}: {str(e)}", 'error'
+            elif shellcode_value:  # Check for file in modules/external directory
+                # Try to find the file in the external directory
+                possible_paths = [
+                    os.path.join('modules', 'external', shellcode_value),
+                    os.path.join('modules', 'external', 'shellcode', shellcode_value),
+                    os.path.join(os.getcwd(), shellcode_value)
+                ]
+
+                found_file_path = None
+                for path in possible_paths:
+                    if os.path.exists(path):
+                        found_file_path = path
+                        break
+
+                if found_file_path:
+                    try:
+                        with open(found_file_path, 'r') as f:
+                            file_content = f.read().strip()
+                        options['shellcode'] = file_content  # Replace with file content
+                    except Exception as e:
+                        return f"Failed to read server-side file {found_file_path}: {str(e)}", 'error'
+
             if session.interactive_mode and session.current_agent and 'agent_id' not in options:
                 options['agent_id'] = session.current_agent
 

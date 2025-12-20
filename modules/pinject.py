@@ -54,6 +54,20 @@ def execute(options, session):
 
     session.current_agent = agent_id
 
+    # Check if shellcode_input is a file path by checking if it's a valid file
+    if os.path.exists(shellcode_input):
+        # This is a file path, read the content
+        try:
+            with open(shellcode_input, 'r') as f:
+                file_content = f.read().strip()
+            # The file content should be base64 encoded shellcode
+            shellcode_input = file_content
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to read file {shellcode_input}: {str(e)}"
+            }
+
     # Check if shellcode_input is already base64 encoded content (indicates client-side file)
     is_base64_content = _is_base64(shellcode_input)
 

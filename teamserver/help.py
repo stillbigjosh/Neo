@@ -33,7 +33,7 @@ OPERATIONS & TACTICS:
   execute-bof - Load and execute bofs on agent session
   execute-assembly - Load and execute .NET assemblies in-memory on agents
   peinject    - Injects unmanaged PE by Process Hollowing into svchost.exe
-  pinject     - Injects (msfveom) shellcode into notepad.exe or explorer.exe 
+  pinject     - Injects shellcode into notepad.exe or explorer.exe 
   pwsh        - Execute powershell script on agent session
   tty_shell   - Start tty shell
 

