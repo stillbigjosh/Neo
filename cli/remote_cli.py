@@ -365,19 +365,28 @@ class NeoC2RemoteCLI:
 
             # Check if this is an extension command that needs client-side file lookup
             if command_parts and command_parts[0].lower() in ['execute-bof', 'execute-assembly', 'peinject', 'pwsh', 'pinject']:
-                modified_command = self._handle_extension_command(command)
-                if modified_command:
+                result = self._handle_extension_command(command)
+                if result and result != "FILE_NOT_FOUND_ON_CLIENT" and result != "NO_FILE_SPECIFIED":
+                    # File was found and processed successfully
                     command_data = {
                         'type': 'command',
-                        'command': modified_command,
+                        'command': result,
                         'token': self.auth_token,
                         'session_id': self.session_id
                     }
+                elif result == "FILE_NOT_FOUND_ON_CLIENT":
+                    # File was specified but not found, error was already printed
+                    # Return error response to prevent sending to server
+                    return {'success': False, 'error': f'File not found locally: {command_parts[1]}'}
                 else:
-                    # If file not found locally, don't send command to server for fallback
-                    # The error message was already printed by _handle_extension_command
-                    # Return a response indicating the command failed locally
-                    return {'success': False, 'error': f'File not found locally: {command_parts[1] if len(command_parts) > 1 else "unknown file"}'}
+                    # _handle_extension_command returned "NO_FILE_SPECIFIED", which means no filename was provided
+                    # Send original command to server for usage info
+                    command_data = {
+                        'type': 'command',
+                        'command': command,
+                        'token': self.auth_token,
+                        'session_id': self.session_id
+                    }
             elif len(command_parts) >= 3 and command_parts[0].lower() == 'profile' and command_parts[1].lower() == 'add':
                 profile_file_path = command_parts[2]
 
@@ -684,7 +693,7 @@ class NeoC2RemoteCLI:
                     arguments.append(part)  # Additional positional arguments
 
         if file_path is None:
-            return None  # No file path found
+            return "NO_FILE_SPECIFIED"  # No file path found, indicate this specifically
 
         # Define file search paths for different extension types
         if cmd_name == 'execute-bof':
@@ -781,11 +790,11 @@ class NeoC2RemoteCLI:
             except Exception as e:
                 # Print a clean error message when file reading fails
                 print(f"{red('[-]')} Error reading file {found_file_path}: {str(e)}")
-                return None
+                return "FILE_NOT_FOUND_ON_CLIENT"  # Special marker to indicate file error
         else:
-            # File not found on client side, return None to indicate failure
-            # The error will be handled by the calling function
-            return None  # Return None to indicate failure and prevent sending to server
+            # File not found on client side, print error and return special marker
+            print(f"{red('[-]')} File not found: {file_path}")
+            return "FILE_NOT_FOUND_ON_CLIENT"  # Special marker to indicate file not found
 
     def print_result(self, message, status):
         if status == 'file_download':
