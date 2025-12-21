@@ -598,18 +598,19 @@ class NeoC2RemoteCLI:
         return data
 
     def _relay_data_through_c2(self, client_socket, target_addr, target_port):
-        """Relay data between client socket and target through C2 channel"""
+        """
+        Relay data between client socket and target through the server's CLI SOCKS proxy.
+        The CLI connects to the server's CLI SOCKS proxy port which bridges to the agent.
+        """
         try:
-            # Create a connection to the C2 server's reverse proxy port (5555)
-            # This is where the agent connects back to the C2 server
-            c2_host = self.server_host
-            c2_port = 5555  # Default reverse proxy port
-
-            # Connect to the C2 server's reverse proxy port
+            # Connect to the server's CLI SOCKS proxy port (determined when 'socks' command was run)
+            # This assumes the server has started the CLI SOCKS proxy for this agent
+            server_port = getattr(self, 'server_socks_proxy_port', 1080)  # Default to 1080 if not set
             proxy_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            proxy_socket.connect((c2_host, c2_port))
+            proxy_socket.connect((self.server_host, server_port))
 
-            # Now relay data between the client and the C2 server's reverse proxy
+            # Now relay data between the client and the server's CLI SOCKS proxy
+            # which will forward to the agent
             def relay(src, dst, name1, name2):
                 try:
                     while True:
@@ -630,8 +631,8 @@ class NeoC2RemoteCLI:
                         pass
 
             # Start two threads for bidirectional relay
-            thread1 = threading.Thread(target=relay, args=(client_socket, proxy_socket, "client", "proxy"), daemon=True)
-            thread2 = threading.Thread(target=relay, args=(proxy_socket, client_socket, "proxy", "client"), daemon=True)
+            thread1 = threading.Thread(target=relay, args=(client_socket, proxy_socket, "client", "server_cli_proxy"), daemon=True)
+            thread2 = threading.Thread(target=relay, args=(proxy_socket, client_socket, "server_cli_proxy", "client"), daemon=True)
 
             thread1.start()
             thread2.start()
@@ -640,6 +641,12 @@ class NeoC2RemoteCLI:
             thread1.join()
             thread2.join()
 
+        except ConnectionRefusedError:
+            print(f"{red('[-]')} Connection refused: Server CLI SOCKS proxy may not be running. Make sure to run 'socks' command first.")
+            try:
+                client_socket.close()
+            except:
+                pass
         except Exception as e:
             print(f"{red('[-]')} Error in C2 data relay: {str(e)}")
             try:
@@ -898,23 +905,72 @@ class NeoC2RemoteCLI:
                     self._handle_agent_unmonitor(command)
                     continue
                 elif command.lower().startswith('socks'):
-                    # Handle local SOCKS proxy command
+                    # Parse the command - format is always: socks <agent_id> [port]
                     parts = command.strip().split()
-                    if len(parts) >= 2:
+
+                    if len(parts) < 2:
+                        print(f"{red('[-]')} Usage: socks <agent_id> [port]")
+                        continue
+
+                    # First arg should be agent ID
+                    agent_id = parts[1]
+                    local_socks_port = 1080  # Default local port
+
+                    # Check if there's a second arg for port
+                    if len(parts) > 2:
                         try:
-                            port = int(parts[1])
-                            if 1 <= port <= 65535:
-                                print(f"{green('[*]')} Starting local SOCKS5 proxy on port {port}...")
-                                print(f"{green('[*]')} Use Ctrl+C to stop the proxy")
-                                self.start_socks_proxy(port)
+                            port_arg = int(parts[2])
+                            if 1 <= port_arg <= 65535:
+                                local_socks_port = port_arg
                             else:
                                 print(f"{red('[-]')} Port must be between 1 and 65535")
+                                continue
                         except ValueError:
-                            print(f"{red('[-]')} Invalid port number: {parts[1]}")
+                            print(f"{red('[-]')} Invalid port number: {parts[2]}")
+                            continue
+
+                    # Send command to start CLI SOCKS proxy on server
+                    cli_socks_cmd = f"cli_socks_proxy start {agent_id} 1080"
+                    socks_start_response = self.send_command(cli_socks_cmd)
+                    if socks_start_response and socks_start_response.get('status') == 'success':
+                        print(f"{green('[+]')} Server CLI SOCKS proxy started for agent {agent_id} on port 1080")
                     else:
-                        print(f"{green('[*]')} Starting local SOCKS5 proxy on default port 1080...")
-                        print(f"{green('[*]')} Use Ctrl+C to stop the proxy")
-                        self.start_socks_proxy(1080)
+                        error_msg = socks_start_response.get('result', 'Unknown error') if socks_start_response else 'Failed to start server CLI SOCKS proxy'
+                        print(f"{red('[-]')} Failed to start server CLI SOCKS proxy: {error_msg}")
+                        continue
+
+                    # Store the server port to use in _relay_data_through_c2
+                    self.server_socks_proxy_port = 1080
+                    self.current_agent_for_socks = agent_id  # Store for potential use
+
+                    print(f"{green('[*]')} Starting local SOCKS5 proxy on port {local_socks_port}...")
+                    print(f"{green('[*]')} Use Ctrl+C to stop the proxy")
+                    self.start_socks_proxy(local_socks_port)
+                    continue
+                elif command.lower() == 'socks stop':
+                    # Stop the server's CLI SOCKS proxy
+                    agent_id = getattr(self, 'current_agent_for_socks', None)
+
+                    # If no agent was used for socks, try current agent if in interactive mode
+                    if not agent_id and self.is_interactive_mode and self.current_agent:
+                        agent_id = self.current_agent
+                    elif not agent_id:
+                        print(f"{red('[-]')} No SOCKS proxy was started. Usage: socks <agent_id> [port]")
+                        continue
+
+                    # Send command to stop CLI SOCKS proxy on server
+                    cli_socks_cmd = f"cli_socks_proxy stop {agent_id}"
+                    socks_stop_response = self.send_command(cli_socks_cmd)
+                    if socks_stop_response and socks_stop_response.get('status') == 'success':
+                        print(f"{green('[+]')} Server CLI SOCKS proxy stopped for agent {agent_id}")
+                        # Clear the stored port and agent
+                        if hasattr(self, 'server_socks_proxy_port'):
+                            delattr(self, 'server_socks_proxy_port')
+                        if hasattr(self, 'current_agent_for_socks'):
+                            delattr(self, 'current_agent_for_socks')
+                    else:
+                        error_msg = socks_stop_response.get('result', 'Unknown error') if socks_stop_response else 'Failed to stop server CLI SOCKS proxy'
+                        print(f"{red('[-]')} Failed to stop server CLI SOCKS proxy: {error_msg}")
                     continue
 
                 response = self.send_command(command)
@@ -1119,6 +1175,25 @@ class NeoC2RemoteCLI:
     def disconnect(self):
         try:
             if self.connected:
+                # Try to stop the server's CLI SOCKS proxy if it was started
+                agent_id = getattr(self, 'current_agent_for_socks', None)
+                if not agent_id and hasattr(self, 'current_agent') and self.current_agent:
+                    agent_id = self.current_agent
+
+                if agent_id:
+                    try:
+                        cli_socks_cmd = f"cli_socks_proxy stop {agent_id}"
+                        # Send this command but don't wait for response since we're disconnecting
+                        cmd_data = {
+                            'type': 'command',
+                            'command': cli_socks_cmd,
+                            'token': self.auth_token,
+                            'session_id': self.session_id
+                        }
+                        self._send_data(cmd_data)
+                    except:
+                        pass  # Ignore errors when disconnecting
+
                 disconnect_data = {
                     'type': 'disconnect',
                     'token': self.auth_token,

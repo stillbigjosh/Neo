@@ -103,6 +103,10 @@ class RemoteCLIServer:
 
         # Start the agent broadcast thread
         self._start_agent_broadcast_thread()
+
+        # Dictionary to store active reverse proxy connections for agents
+        self.reverse_proxy_connections = {}  # agent_id -> list of client connections
+        self.reverse_proxy_locks = {}  # agent_id -> threading.Lock
     
     def _start_agent_broadcast_thread(self):
         self.agent_broadcast_stop_event = threading.Event()
@@ -6337,6 +6341,72 @@ DB Inactive:       {stats['db_inactive_agents']}
                             status = 'error'
                     else:
                         result = f"Unknown reverse_proxy action: {action}. Use: start, stop"
+                        status = 'error'
+            elif base_cmd == 'cli_socks_proxy':
+                if len(command_parts) < 2:
+                    result = "Usage: cli_socks_proxy <start|stop> [agent_id] [port]"
+                    status = 'error'
+                else:
+                    action = command_parts[1].lower()
+                    agent_id = None
+                    port = 1080  # Default CLI SOCKS port
+
+                    # Look for agent_id in command parts
+                    for i, part in enumerate(command_parts[2:], 2):
+                        if not part.startswith('-') and '=' not in part:
+                            if self.agent_manager.get_agent(part):  # Check if this looks like an agent ID
+                                agent_id = part
+                                # Check if there's a port specified after the agent ID
+                                if i + 1 < len(command_parts):
+                                    try:
+                                        port = int(command_parts[i + 1])
+                                        if not (1 <= port <= 65535):
+                                            result = f"Port must be between 1 and 65535, got: {port}"
+                                            status = 'error'
+                                            return {'output': result, 'status': status}
+                                    except ValueError:
+                                        pass  # Not a valid port number
+                                break
+                        elif '=' in part:
+                            key, value = part.split('=', 1)
+                            if key == 'agent_id':
+                                agent_id = value
+                            elif key == 'port':
+                                try:
+                                    port = int(value)
+                                    if not (1 <= port <= 65535):
+                                        result = f"Port must be between 1 and 65535, got: {port}"
+                                        status = 'error'
+                                        return {'output': result, 'status': status}
+                                except ValueError:
+                                    result = f"Invalid port number: {value}"
+                                    status = 'error'
+                                    return {'output': result, 'status': status}
+
+                    if not agent_id and remote_session.current_agent:
+                        agent_id = remote_session.current_agent
+
+                    if not agent_id:
+                        result = "No agent specified and no current agent in interactive mode"
+                        status = 'error'
+                        return {'output': result, 'status': status}
+
+                    if action == 'start':
+                        if self.agent_manager.start_cli_socks_proxy(agent_id, port):
+                            result = f"[+] CLI SOCKS proxy started for agent {agent_id} on port {port}"
+                            status = 'success'
+                        else:
+                            result = f"[-] Failed to start CLI SOCKS proxy for agent {agent_id}"
+                            status = 'error'
+                    elif action == 'stop':
+                        if self.agent_manager.stop_cli_socks_proxy(agent_id):
+                            result = f"[+] CLI SOCKS proxy stopped for agent {agent_id}"
+                            status = 'success'
+                        else:
+                            result = f"[-] Failed to stop CLI SOCKS proxy for agent {agent_id}"
+                            status = 'error'
+                    else:
+                        result = f"Unknown cli_socks_proxy action: {action}. Use: start, stop"
                         status = 'error'
             else:
                 result, status = self.handle_neoc2_command(command, remote_session)
