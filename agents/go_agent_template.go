@@ -908,9 +908,6 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_STOP_REVERSE_PROXY_FUNC}() {
 	}
 }
 
-// {AGENT_HANDLE_SOCKS5_FUNC} implements a minimal SOCKS5 server that resolves domains on the agent.
-// It will handle multiple sequential SOCKS requests over the same TCP connection
-// and uses proper half-close semantics so both sides receive the full response.
 func (a *{AGENT_STRUCT_NAME}) {AGENT_HANDLE_SOCKS5_FUNC}(serverConn net.Conn) {
 	defer func() {
 		_ = serverConn.Close()
