@@ -16,6 +16,7 @@ The Go Agent is a second stage exe compiled, multi-functional agent with feature
 - Windows x64
 
 ### Capabilities
+- **Proxy Awareness**: Supports Network pivoting using its built-in SOCKS5 proxy 
 - **Command Execution**: Execute arbitrary shell commands on the target system
 - **File Transfer**: Upload and download files using base64 encoding
 - **Interactive Mode**: Enter real-time interactive session with the target
