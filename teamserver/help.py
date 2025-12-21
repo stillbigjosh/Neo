@@ -29,6 +29,8 @@ MODULES & EXECUTION:
 OPERATIONS & TACTICS:
   upload      - Upload files to agents
   download    - Download files from agents/C2 server
+  reverse_proxy- Start reverse proxy on agent session
+  socks       - Start a local socks5 proxy server
   persist     - Persist an executable or script
   execute-bof - Load and execute bofs on agent session
   execute-assembly - Load and execute .NET assemblies in-memory on agents
@@ -47,7 +49,6 @@ REPORTING & LOGGING:
 
 FRAMEWORK UTILITIES:
   status      - Show framework status
-  history     - Show command history
   clear       - Clear terminal
   back        - Exit interactive mode
 
