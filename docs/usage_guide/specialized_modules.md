@@ -1,5 +1,14 @@
 # Specialized Modules
 
+## General Syntax
+
+```
+modules list                  # List available modules
+modules load <module_name>    # Load a specific module to DB
+modules info <module_name>    # Get module information
+modules check <module_name>   # Check module compatibility
+```
+
 ## Multi-Operator Extension Module System
 
 ### Overview
