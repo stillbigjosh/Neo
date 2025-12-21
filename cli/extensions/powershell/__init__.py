@@ -1,3 +1,3 @@
 """
-PLace your PowerShell here for NeoC2 Framework
+Place your PowerShell client extensions here
 """
