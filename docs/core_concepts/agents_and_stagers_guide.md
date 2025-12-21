@@ -65,7 +65,6 @@ Phantom Hawk is a Python variant with limited capability.
 - **Polymorphic Obfuscation**: Randomized variable and function names to evade static analysis
 - **Jitter & Sleep Obfuscation**: Configurable sleep intervals with jitter during agent generation and in deployment
 - **Cross-Platform**: Works on Windows, Linux 
-- **P2P Agent Communication**: Configurable Agent command forwarding to other Agents in same network (Under development)
 - **Sanbox & Debugger Detection**: Self deletes in sandboxed environment
 - **Working hours & Kill dates**: Incorporates a profile configurable kill-dates and working-hours restrictions
 - **Redirector Support**: Allows operators to define and manage external infrastructure that points to the internal listeners
