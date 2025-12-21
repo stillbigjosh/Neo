@@ -1,3 +1,3 @@
 """
-PLace your .NET assemblies here for NeoC2 Framework
+Place your .NET assemblies client extensions here
 """
