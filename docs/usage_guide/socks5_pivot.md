@@ -65,7 +65,7 @@ What it does:
 - Server bridges connections from CLI proxy to agent's established connection
 
 ```
-NeoC2 (user@remote) >  socks 4c98e214-9616-4c0c-9998-d7268ca9f838 1085
+NeoC2 (user@remote) >  socks 4c98e214-9616-4c0c-9998-d7268ca9f838 1080
 ```
 
 ### Step 3: Use SOCKS5 Proxy
@@ -73,7 +73,7 @@ NeoC2 (user@remote) >  socks 4c98e214-9616-4c0c-9998-d7268ca9f838 1085
 #### Using curl:
 
 ```
-curl --socks5 127.0.0.1:1085 http://127.0.0.1
+curl --socks5 127.0.0.1:1080 http://127.0.0.1
 ```
 
 #### Using proxychains:
@@ -81,7 +81,7 @@ curl --socks5 127.0.0.1:1085 http://127.0.0.1
 Edit `/etc/proxychains4.conf` and add:
 ```
 [ProxyList]
-socks5 127.0.0.1 1085
+socks5 127.0.0.1 1080
 ```
 
 Then use tools through proxychains:
@@ -95,7 +95,14 @@ proxychains ssh user@internal-host
 #### Using other tools:
 - **Burp Suite**: Configure upstream proxy to 127.0.0.1:1080
 - **Firefox/Chrome**: Configure browser proxy settings
-- **Nmap**: `nmap --proxies socks5://127.0.0.1:1085`
+- **Nmap**: `nmap --proxies socks5://127.0.0.1:1080`
+
+#### Network Flow:
+
+```
+User Tool → Local CLI Proxy → Server CLI Proxy → Agent → Target Service
+(127.0.0.1:1080) → (Server:1080) → (Server:5555) → (Agent) → (Internal Service)
+```
 
 ### Step 4: Stop the Proxy (When Done)
 
