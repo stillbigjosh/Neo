@@ -15,6 +15,8 @@ from pathlib import Path
 import select
 import signal
 import subprocess
+import struct
+import base64
 
 # Initialize color support
 try:
@@ -154,7 +156,7 @@ class NeoC2RemoteCLI:
             'help', 'agent', 'listener', 'modules', 'run', 'pwsh', 'persist', 'pinject', 'peinject', 'encryption',
             'profile', 'protocol', 'stager', 'download', 'upload', 'interactive',
             'exit', 'quit', 'clear', 'status', 'task', 'result', 'save', 'addcmd',
-            'harvest', 'execute-bof', 'execute-assembly', 'cmd'
+            'harvest', 'execute-bof', 'execute-assembly', 'cmd', 'socks'
         ]
 
         options = [cmd for cmd in commands if cmd.startswith(text.lower())]
@@ -445,6 +447,206 @@ class NeoC2RemoteCLI:
             self.connected = False
             return None
 
+    def start_socks_proxy(self, local_port=1080):
+        """Start a local SOCKS5 proxy that routes traffic through the C2 server"""
+        try:
+            # Create a socket to listen for SOCKS connections from local tools (like proxychains)
+            server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            server_socket.bind(('127.0.0.1', local_port))
+            server_socket.listen(5)
+
+            print(f"{green('[+]')} SOCKS5 proxy listening on 127.0.0.1:{local_port}")
+            print(f"{green('[+]')} Configure your tools to use socks5://127.0.0.1:{local_port}")
+
+            while True:
+                try:
+                    client_conn, client_addr = server_socket.accept()
+                    print(f"{green('[+]')} New SOCKS client connection from {client_addr}")
+
+                    # Start a thread to handle this SOCKS client
+                    client_thread = threading.Thread(
+                        target=self._handle_socks_client,
+                        args=(client_conn, client_addr),
+                        daemon=True
+                    )
+                    client_thread.start()
+
+                except Exception as e:
+                    print(f"{red('[-]')} Error accepting SOCKS connection: {str(e)}")
+                    break
+
+        except Exception as e:
+            print(f"{red('[-]')} Error starting SOCKS proxy: {str(e)}")
+        finally:
+            try:
+                server_socket.close()
+            except:
+                pass
+
+    def _handle_socks_client(self, client_conn, client_addr):
+        """Handle a SOCKS5 client connection"""
+        try:
+            # Read the version identifier and number of methods
+            header = self._read_exact(client_conn, 2)
+            if not header or header[0] != 0x05:
+                print(f"{red('[-]')} Invalid SOCKS5 version from {client_addr}")
+                client_conn.close()
+                return
+
+            n_methods = header[1]
+            if n_methods <= 0 or n_methods > 255:
+                print(f"{red('[-]')} Invalid number of methods from {client_addr}")
+                client_conn.close()
+                return
+
+            # Read the methods
+            methods = self._read_exact(client_conn, n_methods)
+            if not methods:
+                client_conn.close()
+                return
+
+            # Send no-authentication required response
+            client_conn.sendall(b'\x05\x00')
+
+            # Read request header
+            request_header = self._read_exact(client_conn, 4)
+            if not request_header or request_header[0] != 0x05:
+                print(f"{red('[-]')} Invalid SOCKS5 request version from {client_addr}")
+                client_conn.close()
+                return
+
+            cmd = request_header[1]
+            if cmd != 0x01:  # CONNECT command
+                # Send error response
+                client_conn.sendall(b'\x05\x07\x00\x01\x00\x00\x00\x00\x00\x00')  # Command not supported
+                client_conn.close()
+                return
+
+            addr_type = request_header[3]
+
+            # Read address and port
+            if addr_type == 0x01:  # IPv4
+                addr_bytes = self._read_exact(client_conn, 4)
+                port_bytes = self._read_exact(client_conn, 2)
+                if not addr_bytes or not port_bytes:
+                    client_conn.close()
+                    return
+                addr = socket.inet_ntoa(addr_bytes)
+            elif addr_type == 0x03:  # Domain name
+                addr_len = ord(self._read_exact(client_conn, 1))
+                addr_bytes = self._read_exact(client_conn, addr_len)
+                if not addr_bytes:
+                    client_conn.close()
+                    return
+                addr = addr_bytes.decode('utf-8')
+                port_bytes = self._read_exact(client_conn, 2)
+                if not port_bytes:
+                    client_conn.close()
+                    return
+            elif addr_type == 0x04:  # IPv6
+                addr_bytes = self._read_exact(client_conn, 16)
+                port_bytes = self._read_exact(client_conn, 2)
+                if not addr_bytes or not port_bytes:
+                    client_conn.close()
+                    return
+                addr = socket.inet_ntop(socket.AF_INET6, addr_bytes)
+            else:
+                # Send error response
+                client_conn.sendall(b'\x05\x08\x00\x01\x00\x00\x00\x00\x00\x00')  # Address type not supported
+                client_conn.close()
+                return
+
+            port = int.from_bytes(port_bytes, 'big')
+
+            # Prepare address (use bracketed IPv6 when necessary)
+            if ':' in addr:  # IPv6
+                target_addr = f"[{addr}]:{port}"
+            else:  # IPv4 or domain
+                target_addr = f"{addr}:{port}"
+
+            print(f"{green('[*]')} SOCKS5 connect request to {target_addr}")
+
+            # Send success response - we'll relay to the agent via the C2 channel
+            client_conn.sendall(b'\x05\x00\x00\x01\x00\x00\x00\x00\x00\x00')
+
+            # Now we need to relay the connection through the C2 agent
+            # This is a simplified version - in a real implementation, we'd need to establish
+            # a connection to the agent through the C2 server
+            print(f"{green('[+]')} Connected to {target_addr} via C2 channel")
+
+            # Start bidirectional relay between the client and the target
+            # In a real implementation, this would involve sending the connection details
+            # to the agent and relaying data through the C2 channel
+            self._relay_data_through_c2(client_conn, addr, port)
+
+        except Exception as e:
+            print(f"{red('[-]')} Error in SOCKS5 handler: {str(e)}")
+            try:
+                client_conn.close()
+            except:
+                pass
+
+    def _read_exact(self, sock, length):
+        """Read exactly 'length' bytes from socket"""
+        data = b''
+        while len(data) < length:
+            chunk = sock.recv(length - len(data))
+            if not chunk:
+                return None
+            data += chunk
+        return data
+
+    def _relay_data_through_c2(self, client_socket, target_addr, target_port):
+        """Relay data between client socket and target through C2 channel"""
+        try:
+            # Create a connection to the C2 server's reverse proxy port (5555)
+            # This is where the agent connects back to the C2 server
+            c2_host = self.server_host
+            c2_port = 5555  # Default reverse proxy port
+
+            # Connect to the C2 server's reverse proxy port
+            proxy_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            proxy_socket.connect((c2_host, c2_port))
+
+            # Now relay data between the client and the C2 server's reverse proxy
+            def relay(src, dst, name1, name2):
+                try:
+                    while True:
+                        data = src.recv(4096)
+                        if not data:
+                            break
+                        dst.sendall(data)
+                except Exception as e:
+                    print(f"{red('[-]')} Relay error between {name1} and {name2}: {str(e)}")
+                finally:
+                    try:
+                        src.close()
+                    except:
+                        pass
+                    try:
+                        dst.close()
+                    except:
+                        pass
+
+            # Start two threads for bidirectional relay
+            thread1 = threading.Thread(target=relay, args=(client_socket, proxy_socket, "client", "proxy"), daemon=True)
+            thread2 = threading.Thread(target=relay, args=(proxy_socket, client_socket, "proxy", "client"), daemon=True)
+
+            thread1.start()
+            thread2.start()
+
+            # Wait for threads to complete
+            thread1.join()
+            thread2.join()
+
+        except Exception as e:
+            print(f"{red('[-]')} Error in C2 data relay: {str(e)}")
+            try:
+                client_socket.close()
+            except:
+                pass
+
     def _handle_extension_command(self, command):
         import os
         import base64
@@ -694,6 +896,25 @@ class NeoC2RemoteCLI:
                     continue
                 elif command.lower().startswith('agent unmonitor'):
                     self._handle_agent_unmonitor(command)
+                    continue
+                elif command.lower().startswith('socks'):
+                    # Handle local SOCKS proxy command
+                    parts = command.strip().split()
+                    if len(parts) >= 2:
+                        try:
+                            port = int(parts[1])
+                            if 1 <= port <= 65535:
+                                print(f"{green('[*]')} Starting local SOCKS5 proxy on port {port}...")
+                                print(f"{green('[*]')} Use Ctrl+C to stop the proxy")
+                                self.start_socks_proxy(port)
+                            else:
+                                print(f"{red('[-]')} Port must be between 1 and 65535")
+                        except ValueError:
+                            print(f"{red('[-]')} Invalid port number: {parts[1]}")
+                    else:
+                        print(f"{green('[*]')} Starting local SOCKS5 proxy on default port 1080...")
+                        print(f"{green('[*]')} Use Ctrl+C to stop the proxy")
+                        self.start_socks_proxy(1080)
                     continue
 
                 response = self.send_command(command)

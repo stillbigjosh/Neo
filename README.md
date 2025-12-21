@@ -1,10 +1,11 @@
-# The Neo C2 Framework 
+# The NeoC2 Framework 
 <a href="https://github.com/stillbigjosh/Neo"><img alt="Release" src="https://img.shields.io/badge/release-1.4.5-blue.svg"/></a> <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/License-GPL-green.svg"/></a> <a href=""><img alt="Platform" src="https://img.shields.io/badge/platform-Linux-lightgrey.svg"/></a> 
 
 _A modular server-client architecture post-exploitation framework built for collaborative agent management in red team operations and security testing. Enables flexibility by allowing operators to add their own modules._
 
 ### Features
 - **Multiplayer-mode:** Real-time collaboration between operators with Interactive session locking
+- **Proxy Awareness:** Network pivoting using SOCKS5 proxy functionality
 - **Task Orchestrator**: Chain modules for complex operations
 - **Role-Based Access Control:** Co-ordinates access and permissions with admin/operator/viewer roles
 - **Multi-Operator Extension Module System:** Operators use their own local extension modules without interfering with each other

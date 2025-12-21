@@ -6,6 +6,7 @@ import os
 import base64
 import re
 import logging
+import socket
 from datetime import datetime, timedelta
 from core.models import NeoC2DB
 from cryptography.fernet import Fernet
@@ -29,11 +30,19 @@ class AgentSession:
         self.tasks = []
         self.results = []
         self.lock = threading.Lock()
-        
+
         self.interactive_mode = False
         self.interactive_task = None
         self.interactive_result = None
         self.interactive_event = threading.Event()
+
+        # Reverse proxy channel support
+        self.reverse_proxy_active = False
+        self.reverse_proxy_port = 5555
+        self.reverse_proxy_socket = None
+        self.reverse_proxy_clients = []  # List of connected SOCKS clients
+        self.reverse_proxy_thread = None
+        self.reverse_proxy_stop_event = threading.Event()
     
     def to_dict(self):
         return {
@@ -1517,3 +1526,296 @@ class AgentManager:
                 self.agent_callback(agent_data)
             except Exception as e:
                 self.logger.error(f"Error in agent registration callback: {str(e)}")
+
+    # ===== REVERSE PROXY METHODS =====
+    def start_reverse_proxy(self, agent_id, port=5555):
+        """Start reverse proxy channel with an agent"""
+        agent = self.get_agent(agent_id)
+        if not agent:
+            self.logger.info(f"[-] Agent {agent_id} not found")
+            return False
+
+        with agent.lock:
+            if agent.reverse_proxy_active:
+                self.logger.info(f"[+] Reverse proxy already active for agent {agent_id}")
+                return True
+
+            agent.reverse_proxy_port = port
+            agent.reverse_proxy_stop_event.clear()
+            agent.reverse_proxy_active = True
+
+            # Start the reverse proxy thread
+            agent.reverse_proxy_thread = threading.Thread(
+                target=self._reverse_proxy_worker,
+                args=(agent_id, port),
+                daemon=True
+            )
+            agent.reverse_proxy_thread.start()
+
+            self.logger.info(f"[+] Reverse proxy started for agent {agent_id} on port {port}")
+            return True
+
+    def stop_reverse_proxy(self, agent_id):
+        """Stop reverse proxy channel with an agent"""
+        agent = self.get_agent(agent_id)
+        if not agent:
+            self.logger.info(f"[-] Agent {agent_id} not found")
+            return False
+
+        with agent.lock:
+            if not agent.reverse_proxy_active:
+                self.logger.info(f"[+] Reverse proxy already stopped for agent {agent_id}")
+                return True
+
+            # Stop the proxy
+            agent.reverse_proxy_stop_event.set()
+
+            # Close all client connections
+            for client in agent.reverse_proxy_clients[:]:
+                try:
+                    client.close()
+                except:
+                    pass
+
+            # Close the main socket
+            if agent.reverse_proxy_socket:
+                try:
+                    agent.reverse_proxy_socket.close()
+                except:
+                    pass
+
+            # Clear the list
+            agent.reverse_proxy_clients = []
+
+            agent.reverse_proxy_active = False
+            agent.reverse_proxy_socket = None
+            agent.reverse_proxy_thread = None
+
+            self.logger.info(f"[+] Reverse proxy stopped for agent {agent_id}")
+            return True
+
+    def _reverse_proxy_worker(self, agent_id, port):
+        """Worker thread to handle reverse proxy connections"""
+        agent = self.get_agent(agent_id)
+        if not agent:
+            self.logger.error(f"[-] Agent {agent_id} not found in reverse proxy worker")
+            return
+
+        try:
+            # Create a socket to listen for SOCKS connections from the agent
+            server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            server_socket.bind(('0.0.0.0', port))
+            server_socket.listen(5)
+
+            with agent.lock:
+                agent.reverse_proxy_socket = server_socket
+
+            self.logger.info(f"[+] Reverse proxy listening on port {port} for agent {agent_id}")
+
+            while not agent.reverse_proxy_stop_event.is_set():
+                try:
+                    # Set a short timeout to check stop event periodically
+                    server_socket.settimeout(1.0)
+                    try:
+                        client_conn, client_addr = server_socket.accept()
+                    except socket.timeout:
+                        continue  # Check stop event and continue
+
+                    if agent.reverse_proxy_stop_event.is_set():
+                        break
+
+                    # Add client to the list
+                    with agent.lock:
+                        agent.reverse_proxy_clients.append(client_conn)
+
+                    self.logger.info(f"[+] New reverse proxy client from {client_addr} for agent {agent_id}")
+
+                    # Start a thread to handle this connection
+                    client_thread = threading.Thread(
+                        target=self._handle_reverse_proxy_client,
+                        args=(agent_id, client_conn, client_addr),
+                        daemon=True
+                    )
+                    client_thread.start()
+
+                except Exception as e:
+                    if not agent.reverse_proxy_stop_event.is_set():
+                        self.logger.error(f"[-] Error in reverse proxy worker: {str(e)}")
+                    break
+
+        except Exception as e:
+            self.logger.error(f"[-] Error in reverse proxy worker for agent {agent_id}: {str(e)}")
+        finally:
+            # Cleanup
+            with agent.lock:
+                if agent.reverse_proxy_socket:
+                    try:
+                        agent.reverse_proxy_socket.close()
+                    except:
+                        pass
+                    agent.reverse_proxy_socket = None
+
+    def _handle_reverse_proxy_client(self, agent_id, client_conn, client_addr):
+        """Handle individual reverse proxy client connection"""
+        agent = self.get_agent(agent_id)
+        if not agent:
+            self.logger.error(f"[-] Agent {agent_id} not found in reverse proxy client handler")
+            try:
+                client_conn.close()
+            except:
+                pass
+            return
+
+        try:
+            # The agent will connect to this socket and we'll relay data between it and the SOCKS proxy
+            # This is where we implement the SOCKS5 protocol handling
+
+            self._handle_socks5_connection(agent_id, client_conn)
+
+        except Exception as e:
+            self.logger.error(f"[-] Error handling reverse proxy client for agent {agent_id}: {str(e)}")
+        finally:
+            # Remove client from the list
+            with agent.lock:
+                if client_conn in agent.reverse_proxy_clients:
+                    agent.reverse_proxy_clients.remove(client_conn)
+            try:
+                client_conn.close()
+            except:
+                pass
+
+    def _handle_socks5_connection(self, agent_id, agent_socket):
+        """Handle SOCKS5 connection with the agent"""
+        try:
+            # Read the version identifier and number of methods
+            header = self._read_exact(agent_socket, 2)
+            if not header or header[0] != 0x05:
+                self.logger.error(f"[-] Invalid SOCKS5 version from agent {agent_id}")
+                return
+
+            n_methods = header[1]
+            if n_methods <= 0 or n_methods > 255:
+                self.logger.error(f"[-] Invalid number of methods from agent {agent_id}")
+                return
+
+            # Read the methods
+            methods = self._read_exact(agent_socket, n_methods)
+            if not methods:
+                return
+
+            # Send no-authentication required response
+            agent_socket.sendall(b'\x05\x00')
+
+            # Read request header
+            request_header = self._read_exact(agent_socket, 4)
+            if not request_header or request_header[0] != 0x05:
+                self.logger.error(f"[-] Invalid SOCKS5 request version from agent {agent_id}")
+                return
+
+            cmd = request_header[1]
+            if cmd != 0x01:  # CONNECT command
+                # Send error response
+                agent_socket.sendall(b'\x05\x07\x00\x01\x00\x00\x00\x00\x00\x00')  # Command not supported
+                return
+
+            addr_type = request_header[3]
+
+            # Read address and port
+            if addr_type == 0x01:  # IPv4
+                addr_bytes = self._read_exact(agent_socket, 4)
+                port_bytes = self._read_exact(agent_socket, 2)
+                if not addr_bytes or not port_bytes:
+                    return
+                addr = socket.inet_ntoa(addr_bytes)
+            elif addr_type == 0x03:  # Domain name
+                addr_len = ord(self._read_exact(agent_socket, 1))
+                addr_bytes = self._read_exact(agent_socket, addr_len)
+                if not addr_bytes:
+                    return
+                addr = addr_bytes.decode('utf-8')
+                port_bytes = self._read_exact(agent_socket, 2)
+                if not port_bytes:
+                    return
+            elif addr_type == 0x04:  # IPv6
+                addr_bytes = self._read_exact(agent_socket, 16)
+                port_bytes = self._read_exact(agent_socket, 2)
+                if not addr_bytes or not port_bytes:
+                    return
+                addr = socket.inet_ntop(socket.AF_INET6, addr_bytes)
+            else:
+                # Send error response
+                agent_socket.sendall(b'\x05\x08\x00\x01\x00\x00\x00\x00\x00\x00')  # Address type not supported
+                return
+
+            port = int.from_bytes(port_bytes, 'big')
+
+            # Prepare address (use bracketed IPv6 when necessary)
+            if ':' in addr:  # IPv6
+                target_addr = f"[{addr}]:{port}"
+            else:  # IPv4 or domain
+                target_addr = f"{addr}:{port}"
+
+            self.logger.info(f"[+] SOCKS5 connect request from agent {agent_id} to {target_addr}")
+
+            # Try to connect to target
+            try:
+                target_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                target_socket.connect((addr, port))
+
+                # Send success response
+                agent_socket.sendall(b'\x05\x00\x00\x01\x00\x00\x00\x00\x00\x00')
+
+                # Start bidirectional relay
+                self._relay_data(agent_socket, target_socket)
+
+            except Exception as e:
+                self.logger.error(f"[-] Failed to connect to target {target_addr}: {str(e)}")
+                # Send connection refused response
+                agent_socket.sendall(b'\x05\x05\x00\x01\x00\x00\x00\x00\x00\x00')
+                return
+
+        except Exception as e:
+            self.logger.error(f"[-] Error in SOCKS5 handler for agent {agent_id}: {str(e)}")
+
+    def _read_exact(self, sock, length):
+        """Read exactly 'length' bytes from socket"""
+        data = b''
+        while len(data) < length:
+            chunk = sock.recv(length - len(data))
+            if not chunk:
+                return None
+            data += chunk
+        return data
+
+    def _relay_data(self, socket1, socket2):
+        """Relay data between two sockets bidirectionally"""
+        def relay(src, dst, name1, name2):
+            try:
+                while True:
+                    data = src.recv(4096)
+                    if not data:
+                        break
+                    dst.sendall(data)
+            except Exception as e:
+                self.logger.debug(f"[-] Relay error between {name1} and {name2}: {str(e)}")
+            finally:
+                try:
+                    src.close()
+                except:
+                    pass
+                try:
+                    dst.close()
+                except:
+                    pass
+
+        # Start two threads for bidirectional relay
+        thread1 = threading.Thread(target=relay, args=(socket1, socket2, "socket1", "socket2"), daemon=True)
+        thread2 = threading.Thread(target=relay, args=(socket2, socket1, "socket2", "socket1"), daemon=True)
+
+        thread1.start()
+        thread2.start()
+
+        # Wait for both threads to complete
+        thread1.join(timeout=1)
+        thread2.join(timeout=1)
