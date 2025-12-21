@@ -10,57 +10,68 @@ The SOCKS5 pivot feature enables you to:
 - Perform DNS resolution from the target network (not your machine)
 - Bypass network restrictions and firewalls
 
-## How It Works
-
-1. **Agent Side**: The agent starts a SOCKS5 server and connects back to the C2 server
-2. **Server Side**: Neo C2 server accepts the agent's connection and relays SOCKS5 traffic
-3. **Client Side**: Your local tools connect to the local SOCKS proxy you started
-4. **Traffic Flow**: Your tool → Local SOCKS proxy → Neo C2 server → Agent → Target network
 
 ## Step-by-Step Instructions
 
-### Step 1: Start Reverse Proxy on Agent
-
-First, you need to start the reverse proxy functionality on the target agent:
-
+### Step 1: Start Server-Side Reverse Proxy:
 ```
 NeoC2 (user@remote) > reverse_proxy start <agent_id> [port]
+
 ```
+What it does:
+- C2 server's agent manager starts listening on port 5555 for the specified agent
+- Creates a server socket bound to 0.0.0.0:5555 for that agent
+- Waits for the agent to connect and establish the SOCKS5 server protocol
 
 For example:
 ```
-NeoC2 (user@remote) > reverse_proxy start abc123-xyz789-...
+NeoC2 (user@remote) > reverse_proxy start 4c98e214-9616-4c0c-9998-d7268ca9f838
 ```
 
-This command:
-- Sends a `reverse_proxy_start` command to the specified agent
-- The agent connects back to the C2 server on port 5555 (default)
-- The agent establishes a persistent connection for SOCKS5 traffic
+### Step 2: Make Agent Connect to Server
 
-### Step 2: Start Local SOCKS Proxy
-
-In the same Neo C2 CLI session, start a local SOCKS5 proxy server:
-
+Send `reverse_proxy_start` command to the agent (via interactive mode or standard queued task):
 ```
-NeoC2 (user@remote) > socks [port]
+NeoC2 (user@remote) > addcmd <agent_id> reverse_proxy_start
 ```
+What it does:
+- Agent connects to C2 server's IP address on port 5555
+- Agent implements full SOCKS5 server protocol (waits for client requests)
+- Establishes persistent connection between agent and C2 server
 
 For example:
 ```
-NeoC2 (user@remote) > socks 1080
+NeoC2 (user@remote) > addcmd 4c98e214-9616-4c0c-9998-d7268ca9f838 reverse_proxy_start
 ```
 
-This creates a local SOCKS5 proxy server on port 1080 (or 1080 by default if no port specified) that routes traffic through the C2 channel.
+### Step 3: Start SOCKS5 Proxy Chain
 
-### Step 3: Configure Your Tools
+```
+NeoC2 (user@remote) > socks <agent_id> [port]
+```
+What it does:
+- C2 server starts CLI SOCKS proxy on port 1080 for the agent
+- CLI starts local SOCKS proxy on specified port (default 1080)
+- When user tools connect to local proxy, they connect to server's CLI proxy
+- Server bridges connections from CLI proxy to agent's established connection
 
-Configure your tools to use the local SOCKS proxy. For example:
+```
+NeoC2 (user@remote) >  socks 4c98e214-9616-4c0c-9998-d7268ca9f838 1085
+
+```
+
+### Step 3: Use SOCKS5 Proxy
+
+#### Using curl:
+```
+curl --socks5 127.0.0.1:1085 http://127.0.0.1
+```
 
 #### Using proxychains:
 Edit `/etc/proxychains4.conf` and add:
 ```
 [ProxyList]
-socks5 127.0.0.1 1080
+socks5 127.0.0.1 1085
 ```
 
 Then use tools through proxychains:
@@ -73,39 +84,22 @@ proxychains ssh user@internal-host
 #### Using other tools:
 - **Burp Suite**: Configure upstream proxy to 127.0.0.1:1080
 - **Firefox/Chrome**: Configure browser proxy settings
-- **Nmap**: `nmap --proxies socks5://127.0.0.1:1080`
+- **Nmap**: `nmap --proxies socks5://127.0.0.1:1085`
 
 ### Step 4: Stop the Proxy (When Done)
 
-To stop the reverse proxy on the agent:
-```
-NeoC2 (user@remote) > reverse_proxy stop <agent_id>
-```
-
 To stop the local SOCKS proxy, press `Ctrl+C` in the CLI where the `socks` command is running.
 
-## Example Complete Workflow
-
+To stop the reverse proxy on the C2 Server and Agent:
 ```
-NeoC2 (user@remote) > reverse_proxy start abc123-xyz789-...
-[+] Reverse proxy started for agent abc123-xyz789-... on port 5555
-
-NeoC2 (user@remote) > socks 1080
-[*] SOCKS5 proxy listening on 127.0.0.1:1080
-[*] Configure your tools to use socks5://127.0.0.1:1080
-[+] New SOCKS client connection from 127.0.0.1:54321
-
-# In another terminal:
-proxychains nmap -sn 10.0.0.0/24
-
-# When done:
-NeoC2 (user@remote) > reverse_proxy stop abc123-xyz789-...
-[+] Reverse proxy stopped for agent abc123-xyz789-...
+NeoC2 (user@remote) > reverse_proxy stop <agent_id>
+NeoC2 (user@remote) > addcmd <agent_id> reverse_proxy_stop
 ```
+
 
 ## Important Notes
 
-- The agent must support reverse proxy functionality (Go agents with the updated template)
+- The agent must be Go-based agent with the updated template
 - The agent performs DNS resolution on the target network (not on your machine)
 - Supports IPv4, IPv6, and domain name resolution
 - All traffic is encrypted through the C2 channel
