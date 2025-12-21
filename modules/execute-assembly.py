@@ -67,66 +67,28 @@ def execute(options, session):
         if is_base64_content:
             # The assembly_path is already base64 encoded content from the client
             encoded_assembly = assembly_path
+        elif "FILE_NOT_FOUND_ON_CLIENT" in assembly_path:
+            # Special flag indicating the file was not found on the client side
+            return {
+                "success": False,
+                "error": f"Assembly file not found on client: {assembly_path.replace(' FILE_NOT_FOUND_ON_CLIENT', '')}. No server-side fallback mechanism - file must exist on client."
+            }
         else:
             # The assembly_path is a file path, so we need to read the file
+            # Only check the extensions directory for server-side files (shouldn't happen in new logic)
+            # But if it does, we'll still try to handle it
             if os.path.isabs(assembly_path) and os.path.exists(assembly_path):
                 assembly_full_path = assembly_path
             else:
-                possible_paths = [
-                    os.path.join(os.path.dirname(__file__), 'external', os.path.basename(assembly_path)),  # modules/external/ location
-                    os.path.join(os.path.dirname(__file__), 'external', 'assemblies', os.path.basename(assembly_path)),  # modules/external/assemblies/ location
-                    assembly_path,  # Direct relative path
-                    os.path.join(os.getcwd(), assembly_path),
-                    os.path.join(os.path.dirname(__file__), '..', 'external', os.path.basename(assembly_path)),
-                    os.path.join(os.path.dirname(__file__), '..', 'external', 'assemblies', os.path.basename(assembly_path)),
-                ]
+                # In the new logic, this shouldn't happen since client should have already handled it
+                # But we'll keep a minimal fallback check for edge cases
+                assembly_full_path = os.path.join(os.path.dirname(__file__), '..', 'cli', 'extensions', 'assemblies', os.path.basename(assembly_path))
 
-                found = False
-                for path in possible_paths:
-                    if os.path.exists(path):
-                        assembly_full_path = path
-                        found = True
-                        break
-
-                if not found:
-                    # Look for the file in modules/external directory as well
-                    external_dir = os.path.join(os.path.dirname(__file__), 'external')
-                    if os.path.exists(external_dir):
-                        for item in os.listdir(external_dir):
-                            item_path = os.path.join(external_dir, item)
-                            if os.path.isfile(item_path) and item == os.path.basename(assembly_path) and item.lower().endswith(('.exe', '.dll')):
-                                assembly_full_path = item_path
-                                found = True
-                                break
-
-                    # Also check in assemblies subdirectory
-                    assemblies_dir = os.path.join(os.path.dirname(__file__), 'external', 'assemblies')
-                    if os.path.exists(assemblies_dir):
-                        for item in os.listdir(assemblies_dir):
-                            item_path = os.path.join(assemblies_dir, item)
-                            if os.path.isfile(item_path) and item == os.path.basename(assembly_path):
-                                assembly_full_path = item_path
-                                found = True
-                                break
-
-                if not found:
-                    assembly_dirs = [
-                        os.path.join(os.path.dirname(__file__), 'external', 'assemblies'),
-                        os.path.join(os.path.dirname(__file__), 'external'),
-                        os.path.join(os.path.dirname(__file__), '..', 'external', 'assemblies'),
-                        os.path.join(os.path.dirname(__file__), '..', 'external')
-                    ]
-
-                    available_files = []
-                    for asm_dir in assembly_dirs:
-                        if os.path.exists(asm_dir):
-                            for f in os.listdir(asm_dir):
-                                if f.lower().endswith(('.exe', '.dll')):
-                                    available_files.append(f)
-
+                if not os.path.exists(assembly_full_path):
+                    # Don't attempt server-side fallback - this should have been handled on the client
                     return {
                         "success": False,
-                        "error": f"Assembly file does not exist: {assembly_path}. Searched in common locations. Available assembly files in modules/external/ and modules/external/assemblies/: {available_files if available_files else ['No files found']}"
+                        "error": f"Assembly file not found on client and server-side fallback disabled: {assembly_path}. File must exist on client."
                     }
 
             with open(assembly_full_path, 'rb') as f:

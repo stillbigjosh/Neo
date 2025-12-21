@@ -53,9 +53,13 @@ def execute(options, session):
     session.current_agent = agent_id
 
     # Check if script_path is already base64 encoded content (indicates client-side file)
-    is_base64_content = _is_base64(script_path)
-
-    if is_base64_content:
+    if "FILE_NOT_FOUND_ON_CLIENT" in script_path:
+        # Special flag indicating the file was not found on the client side
+        return {
+            "success": False,
+            "error": f"PowerShell script file not found on client: {script_path.replace(' FILE_NOT_FOUND_ON_CLIENT', '')}. No server-side fallback mechanism - file must exist on client."
+        }
+    elif _is_base64(script_path):
         # The script_path is already base64 encoded content from the client
         # Decode the base64 content to get the PowerShell script
         try:
@@ -71,65 +75,20 @@ def execute(options, session):
             }
     else:
         # The script_path is a file path, so we need to read the file
+        # Only check the extensions directory for server-side files (shouldn't happen in new logic)
+        # But if it does, we'll still try to handle it
         if os.path.isabs(script_path) and os.path.exists(script_path):
             script_file_path = script_path
         else:
-            possible_paths = [
-                os.path.join(os.path.dirname(__file__), 'external', os.path.basename(script_path)),  # modules/external/ location
-                os.path.join(os.path.dirname(__file__), 'external', 'powershell', os.path.basename(script_path)),  # modules/external/powershell/ location
-                script_path,  # Direct relative path
-                os.path.join(os.getcwd(), script_path),
-                os.path.join(os.path.dirname(__file__), '..', 'external', os.path.basename(script_path)),
-                os.path.join(os.path.dirname(__file__), '..', 'external', 'powershell', os.path.basename(script_path)),
-            ]
+            # In the new logic, this shouldn't happen since client should have already handled it
+            # But we'll keep a minimal fallback check for edge cases
+            script_file_path = os.path.join(os.path.dirname(__file__), '..', 'cli', 'extensions', 'powershell', os.path.basename(script_path))
 
-            found = False
-            for path in possible_paths:
-                if os.path.exists(path):
-                    script_file_path = path
-                    found = True
-                    break
-
-            if not found:
-                # Look for the file in modules/external directory as well
-                external_dir = os.path.join(os.path.dirname(__file__), 'external')
-                if os.path.exists(external_dir):
-                    for item in os.listdir(external_dir):
-                        item_path = os.path.join(external_dir, item)
-                        if os.path.isfile(item_path) and item == os.path.basename(script_path) and item.lower().endswith(('.ps1', '.psm1', '.psd1')):
-                            script_file_path = item_path
-                            found = True
-                            break
-
-            if not found:
-                # Look in powershell subdirectory too
-                powershell_dir = os.path.join(os.path.dirname(__file__), 'external', 'powershell')
-                if os.path.exists(powershell_dir):
-                    for item in os.listdir(powershell_dir):
-                        item_path = os.path.join(powershell_dir, item)
-                        if os.path.isfile(item_path) and item == os.path.basename(script_path):
-                            script_file_path = item_path
-                            found = True
-                            break
-
-            if not found:
-                script_dirs = [
-                    os.path.join(os.path.dirname(__file__), 'external', 'powershell'),
-                    os.path.join(os.path.dirname(__file__), 'external'),
-                    os.path.join(os.path.dirname(__file__), '..', 'external', 'powershell'),
-                    os.path.join(os.path.dirname(__file__), '..', 'external')
-                ]
-
-                available_files = []
-                for ps_dir in script_dirs:
-                    if os.path.exists(ps_dir):
-                        for f in os.listdir(ps_dir):
-                            if f.lower().endswith(('.ps1', '.psm1', '.psd1')):
-                                available_files.append(f)
-
+            if not os.path.exists(script_file_path):
+                # Don't attempt server-side fallback - this should have been handled on the client
                 return {
                     "success": False,
-                    "error": f"PowerShell script file does not exist: {script_path}. Searched in common locations. Available PowerShell files in modules/external/ and modules/external/powershell/: {available_files if available_files else ['No files found']}"
+                    "error": f"PowerShell script file not found on client and server-side fallback disabled: {script_path}. File must exist on client."
                 }
 
         try:

@@ -55,9 +55,13 @@ def execute(options, session):
     session.current_agent = agent_id
 
     # Check if pe_input is already base64 encoded content (indicates client-side file)
-    is_base64_content = _is_base64(pe_input)
-
-    if is_base64_content:
+    if "FILE_NOT_FOUND_ON_CLIENT" in pe_input:
+        # Special flag indicating the file was not found on the client side
+        return {
+            "success": False,
+            "error": f"PE file not found on client: {pe_input.replace(' FILE_NOT_FOUND_ON_CLIENT', '')}. No server-side fallback mechanism - file must exist on client."
+        }
+    elif _is_base64(pe_input):
         # The pe_input is already base64 encoded content from the client
         # If it already has the 'pe' prefix, use as is; otherwise add it
         if pe_input.startswith('pe'):
@@ -152,48 +156,26 @@ def process_pe_input(pe_input):
             raise ValueError(f"PE file is empty: {pe_input}")
         return file_content
 
-    # If not an absolute path, look for the file in various directories
+    # For the new logic, we should not have server-side fallback since client should handle it
+    # But if this path is reached, it means the client didn't find the file
     if not os.path.isabs(pe_input):
-        possible_paths = [
-            os.path.join(os.path.dirname(__file__), 'external', os.path.basename(pe_input)),  # modules/external/ location
-            os.path.join(os.path.dirname(__file__), 'external', 'pe', os.path.basename(pe_input)),  # modules/external/pe/ location
-            pe_input,  # Direct relative path
-            os.path.join(os.getcwd(), os.path.basename(pe_input)),
-            os.path.join(os.path.dirname(__file__), '..', 'external', os.path.basename(pe_input)),
-            os.path.join(os.path.dirname(__file__), '..', 'external', 'pe', os.path.basename(pe_input)),
-        ]
-
-        for path in possible_paths:
-            if os.path.exists(path):
-                with open(path, 'rb') as f:
-                    file_content = f.read()
-                if len(file_content) == 0:
-                    raise ValueError(f"PE file is empty: {path}")
-                return file_content
-
-        # Look for the file in modules/external directory as well
-        external_dir = os.path.join(os.path.dirname(__file__), 'external')
-        if os.path.exists(external_dir):
-            for item in os.listdir(external_dir):
-                item_path = os.path.join(external_dir, item)
-                if os.path.isfile(item_path) and item == os.path.basename(pe_input):
-                    with open(item_path, 'rb') as f:
-                        file_content = f.read()
-                    if len(file_content) == 0:
-                        raise ValueError(f"PE file is empty: {item_path}")
-                    return file_content
+        # Try to find the file in the new extensions directory (minimal fallback)
+        extensions_path = os.path.join(os.path.dirname(__file__), '..', 'cli', 'extensions', os.path.basename(pe_input))
+        if os.path.exists(extensions_path):
+            with open(extensions_path, 'rb') as f:
+                file_content = f.read()
+            if len(file_content) == 0:
+                raise ValueError(f"PE file is empty: {extensions_path}")
+            return file_content
 
         # Also check in pe subdirectory
-        pe_dir = os.path.join(os.path.dirname(__file__), 'external', 'pe')
-        if os.path.exists(pe_dir):
-            for item in os.listdir(pe_dir):
-                item_path = os.path.join(pe_dir, item)
-                if os.path.isfile(item_path) and item == os.path.basename(pe_input):
-                    with open(item_path, 'rb') as f:
-                        file_content = f.read()
-                    if len(file_content) == 0:
-                        raise ValueError(f"PE file is empty: {item_path}")
-                    return file_content
+        extensions_pe_path = os.path.join(os.path.dirname(__file__), '..', 'cli', 'extensions', 'pe', os.path.basename(pe_input))
+        if os.path.exists(extensions_pe_path):
+            with open(extensions_pe_path, 'rb') as f:
+                file_content = f.read()
+            if len(file_content) == 0:
+                raise ValueError(f"PE file is empty: {extensions_pe_path}")
+            return file_content
 
     return pe_input.encode('utf-8')
 

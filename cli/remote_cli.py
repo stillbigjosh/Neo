@@ -374,13 +374,10 @@ class NeoC2RemoteCLI:
                         'session_id': self.session_id
                     }
                 else:
-                    # If file not found locally, send original command to server for fallback
-                    command_data = {
-                        'type': 'command',
-                        'command': command,
-                        'token': self.auth_token,
-                        'session_id': self.session_id
-                    }
+                    # If file not found locally, don't send command to server for fallback
+                    # The error message was already printed by _handle_extension_command
+                    # Return a response indicating the command failed locally
+                    return {'success': False, 'error': f'File not found locally: {command_parts[1] if len(command_parts) > 1 else "unknown file"}'}
             elif len(command_parts) >= 3 and command_parts[0].lower() == 'profile' and command_parts[1].lower() == 'add':
                 profile_file_path = command_parts[2]
 
@@ -654,59 +651,92 @@ class NeoC2RemoteCLI:
         if len(command_parts) < 2:
             return None  # Not enough arguments
 
-        file_path = command_parts[1]
+        # Parse arguments to extract the file path
+        # Handle both formats: pwsh whoami.ps1 and pwsh script_path=whoami.ps1
+        file_path = None
+        arguments = []
+
+        # Check if the command uses key-value format like script_path=whoami.ps1
+        for part in command_parts[1:]:
+            if '=' in part:
+                # This is a key-value pair, check if it's for file path
+                key, value = part.split('=', 1)
+                key_lower = key.lower()
+
+                # Identify the file path based on the command type
+                if cmd_name == 'pwsh' and key_lower in ['script_path', 'scriptpath']:
+                    file_path = value
+                elif cmd_name == 'execute-bof' and key_lower in ['bof_path', 'bofpath']:
+                    file_path = value
+                elif cmd_name == 'execute-assembly' and key_lower in ['assembly_path', 'assemblypath']:
+                    file_path = value
+                elif cmd_name == 'peinject' and key_lower in ['pe_file', 'pefile']:
+                    file_path = value
+                elif cmd_name == 'pinject' and key_lower in ['shellcode', 'script_path', 'scriptpath']:
+                    file_path = value
+                else:
+                    arguments.append(part)  # Add as regular argument
+            else:
+                # This is a positional argument
+                if file_path is None:
+                    file_path = part  # First positional argument is the file path
+                else:
+                    arguments.append(part)  # Additional positional arguments
+
+        if file_path is None:
+            return None  # No file path found
 
         # Define file search paths for different extension types
         if cmd_name == 'execute-bof':
             search_paths = [
-                os.path.join('modules', 'external', 'bof', file_path),
-                os.path.join('modules', 'external', file_path),
+                os.path.join('cli', 'extensions', 'bof', file_path),
+                os.path.join('cli', 'extensions', file_path),
                 file_path,  # Direct path
                 os.path.join(os.getcwd(), file_path),
-                os.path.join('modules', 'external', 'bof', os.path.basename(file_path)),
-                os.path.join('modules', 'external', os.path.basename(file_path)),
+                os.path.join('cli', 'extensions', 'bof', os.path.basename(file_path)),
+                os.path.join('cli', 'extensions', os.path.basename(file_path)),
             ]
 
         elif cmd_name == 'execute-assembly':
             search_paths = [
-                os.path.join('modules', 'external', 'assemblies', file_path),
-                os.path.join('modules', 'external', file_path),
+                os.path.join('cli', 'extensions', 'assemblies', file_path),
+                os.path.join('cli', 'extensions', file_path),
                 file_path,  # Direct path
                 os.path.join(os.getcwd(), file_path),
-                os.path.join('modules', 'external', 'assemblies', os.path.basename(file_path)),
-                os.path.join('modules', 'external', os.path.basename(file_path)),
+                os.path.join('cli', 'extensions', 'assemblies', os.path.basename(file_path)),
+                os.path.join('cli', 'extensions', os.path.basename(file_path)),
             ]
 
         elif cmd_name == 'peinject':
             search_paths = [
-                os.path.join('modules', 'external', file_path),
-                os.path.join('modules', 'external', 'pe', file_path),
+                os.path.join('cli', 'extensions', file_path),
+                os.path.join('cli', 'extensions', 'pe', file_path),
                 file_path,  # Direct path
                 os.path.join(os.getcwd(), file_path),
-                os.path.join('modules', 'external', os.path.basename(file_path)),
-                os.path.join('modules', 'external', 'pe', os.path.basename(file_path)),
+                os.path.join('cli', 'extensions', os.path.basename(file_path)),
+                os.path.join('cli', 'extensions', 'pe', os.path.basename(file_path)),
             ]
 
         elif cmd_name == 'pwsh':
             # For pwsh, we look for PowerShell script files
             search_paths = [
-                os.path.join('modules', 'external', 'powershell', file_path),
-                os.path.join('modules', 'external', file_path),
+                os.path.join('cli', 'extensions', 'powershell', file_path),
+                os.path.join('cli', 'extensions', file_path),
                 file_path,  # Direct path
                 os.path.join(os.getcwd(), file_path),
-                os.path.join('modules', 'external', 'powershell', os.path.basename(file_path)),
-                os.path.join('modules', 'external', os.path.basename(file_path)),
+                os.path.join('cli', 'extensions', 'powershell', os.path.basename(file_path)),
+                os.path.join('cli', 'extensions', os.path.basename(file_path)),
             ]
 
         elif cmd_name == 'pinject':
-            # For pinject, we look for shellcode files in the external directory
+            # For pinject, we look for shellcode files in the extensions directory
             search_paths = [
-                os.path.join('modules', 'external', file_path),
-                os.path.join('modules', 'external', 'shellcode', file_path),
+                os.path.join('cli', 'extensions', file_path),
+                os.path.join('cli', 'extensions', 'shellcode', file_path),
                 file_path,  # Direct path
                 os.path.join(os.getcwd(), file_path),
-                os.path.join('modules', 'external', os.path.basename(file_path)),
-                os.path.join('modules', 'external', 'shellcode', os.path.basename(file_path)),
+                os.path.join('cli', 'extensions', os.path.basename(file_path)),
+                os.path.join('cli', 'extensions', 'shellcode', os.path.basename(file_path)),
             ]
         else:
             return None
@@ -740,20 +770,22 @@ class NeoC2RemoteCLI:
                     encoded_content = "pe" + encoded_content
 
                 # Reconstruct the command with the base64 encoded content
-                if len(command_parts) > 2:
-                    # If there are additional arguments, include them
-                    additional_args = ' '.join(command_parts[2:])
-                    new_command = f"{cmd_name} {encoded_content} {additional_args}"
+                # Use the original command format to preserve arguments
+                original_args = [part for part in command_parts[1:] if '=' not in part or part.split('=', 1)[0].lower() not in ['script_path', 'scriptpath', 'bof_path', 'bofpath', 'assembly_path', 'assemblypath', 'pe_file', 'pefile', 'shellcode']]
+                if original_args:
+                    new_command = f"{cmd_name} {encoded_content} {' '.join(original_args)}"
                 else:
                     new_command = f"{cmd_name} {encoded_content}"
 
                 return new_command
             except Exception as e:
+                # Print a clean error message when file reading fails
                 print(f"{red('[-]')} Error reading file {found_file_path}: {str(e)}")
                 return None
         else:
-            # File not found on client side, let server handle fallback
-            return None
+            # File not found on client side, return None to indicate failure
+            # The error will be handled by the calling function
+            return None  # Return None to indicate failure and prevent sending to server
 
     def print_result(self, message, status):
         if status == 'file_download':

@@ -69,9 +69,13 @@ def execute(options, session):
             }
 
     # Check if shellcode_input is already base64 encoded content (indicates client-side file)
-    is_base64_content = _is_base64(shellcode_input)
-
-    if is_base64_content:
+    if "FILE_NOT_FOUND_ON_CLIENT" in shellcode_input:
+        # Special flag indicating the file was not found on the client side
+        return {
+            "success": False,
+            "error": f"Shellcode file not found on client: {shellcode_input.replace(' FILE_NOT_FOUND_ON_CLIENT', '')}. No server-side fallback mechanism - file must exist on client."
+        }
+    elif _is_base64(shellcode_input):
         # The shellcode_input is already base64 encoded content from the client
         encoded_shellcode = shellcode_input
     else:
