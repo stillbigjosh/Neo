@@ -14,15 +14,19 @@ The SOCKS5 pivot feature enables you to:
 ## Step-by-Step Instructions
 
 ### Step 1: Start Server-Side Reverse Proxy:
+
 ```
 NeoC2 (user@remote) > reverse_proxy start <agent_id> [port]
 ```
+
 What it does:
+
 - C2 server's agent manager starts listening on port 5555 for the specified agent
 - Creates a server socket bound to 0.0.0.0:5555 for that agent
 - Waits for the agent to connect and establish the SOCKS5 server protocol
 
 For example:
+
 ```
 NeoC2 (user@remote) > reverse_proxy start 4c98e214-9616-4c0c-9998-d7268ca9f838
 ```
@@ -30,15 +34,19 @@ NeoC2 (user@remote) > reverse_proxy start 4c98e214-9616-4c0c-9998-d7268ca9f838
 ### Step 2: Make Agent Connect to Server
 
 Send `reverse_proxy_start` command to the agent (via interactive mode or standard queued task):
+
 ```
 NeoC2 (user@remote) > addcmd <agent_id> reverse_proxy_start
 ```
+
 What it does:
+
 - Instructs Agent to connect to C2 server's IP address on port 5555
 - Agent implements full SOCKS5 server protocol (waits for client requests)
 - Establishes persistent connection between agent and C2 server
 
 For example:
+
 ```
 NeoC2 (user@remote) > addcmd 4c98e214-9616-4c0c-9998-d7268ca9f838 reverse_proxy_start
 ```
@@ -48,7 +56,9 @@ NeoC2 (user@remote) > addcmd 4c98e214-9616-4c0c-9998-d7268ca9f838 reverse_proxy_
 ```
 NeoC2 (user@remote) > socks <agent_id> [port]
 ```
+
 What it does:
+
 - C2 server starts CLI SOCKS proxy on port 1080 for the agent
 - CLI starts local SOCKS proxy on specified port (default 1080)
 - When user tools connect to local proxy, they connect to server's CLI proxy
@@ -56,17 +66,18 @@ What it does:
 
 ```
 NeoC2 (user@remote) >  socks 4c98e214-9616-4c0c-9998-d7268ca9f838 1085
-
 ```
 
 ### Step 3: Use SOCKS5 Proxy
 
 #### Using curl:
+
 ```
 curl --socks5 127.0.0.1:1085 http://127.0.0.1
 ```
 
 #### Using proxychains:
+
 Edit `/etc/proxychains4.conf` and add:
 ```
 [ProxyList]
@@ -74,6 +85,7 @@ socks5 127.0.0.1 1085
 ```
 
 Then use tools through proxychains:
+
 ```bash
 proxychains nmap -sT 10.0.0.0/24
 proxychains curl http://internal-site.local
