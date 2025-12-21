@@ -34,12 +34,13 @@ agent kill <agent_id>         # Activate self-deletion & remove agent from manag
 
 ## Interactive Mode
 
-Task-based Interactive mode provides real-time command execution similar to a reverse shell. When activated:
+Task-based Interactive mode provides real-time command execution. When activated:
 
 1. Agent polling frequency increases from 30s to 1s
-2. Commands execute immediately
-3. Results return in real-time
-4. Session maintained until 'exit' command
+2. Agent switches from the standard queued api to the interactive api
+3. Commands execute in real-time
+4. Results return in real-time
+5. Session maintained until 'back' command
 
 ### Entering Interactive Mode
 
@@ -51,12 +52,12 @@ NeoC2 [INTERACTIVE] >
 
 ### Interactive Commands
 
-Non-framework commands typed in interactive mode executes as Interactive task directly on the agent:
+Commands prefixed with `cmd <command>` typed in interactive mode executes as Interactive task directly on the agent(Uses powershell.exe on Windows & Bash shell on linux):
 ```
-NeoC2 [INTERACTIVE:abc123] > whoami
-NeoC2 [INTERACTIVE:abc123] > pwd
-NeoC2 [INTERACTIVE:abc123] > ls -la
-NeoC2 [INTERACTIVE:abc123] > exit
+NeoC2 [INTERACTIVE:abc123] > cmd whoami
+NeoC2 [INTERACTIVE:abc123] > cmd pwd
+NeoC2 [INTERACTIVE:abc123] > cmd ls -la
+NeoC2 [INTERACTIVE:abc123] > back
 ```
 
 #### Change Agent profile configured heartbeat at runtime:

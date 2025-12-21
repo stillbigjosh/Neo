@@ -13,7 +13,7 @@ INFRASTRUCTURE MANAGEMENT:
 AGENT MANAGEMENT:
   agent       - Manage agents (list, interact, info, kill)
   beacon      - Active HTTP/S Agents
-  interact    - Eneter Interactive mode with a beacon
+  interact    - Enter Interactive mode with a beacon
   interactive - Check if session is in interactive mode
   sleep       - Change agent sleep interval
 
@@ -21,9 +21,10 @@ MODULES & EXECUTION:
   modules     - Manage modules (list, load, info, check)
   run         - Execute modules
   task        - Pending agent tasks
-  addtask     - Add a queued task to an agent directly
   result      - View task results
   taskchain   - Task Orchestration
+  cmd         - Execute shell command using interactive api (in interactive mode)
+  addcmd      - Execute shell command using queued api
 
 OPERATIONS & TACTICS:
   upload      - Upload files to agents
@@ -32,7 +33,7 @@ OPERATIONS & TACTICS:
   execute-bof - Load and execute bofs on agent session
   execute-assembly - Load and execute .NET assemblies in-memory on agents
   peinject    - Injects unmanaged PE by Process Hollowing into svchost.exe
-  pinject     - Injects shellcode into notepad.exe or explorer.exe
+  pinject     - Injects shellcode into notepad.exe or explorer.exe 
   pwsh        - Execute powershell script on agent session
   tty_shell   - Start tty shell
 
@@ -54,6 +55,7 @@ NOTES:
   • Parameters in < > are required
   • Parameters in [ ] are optional
   • Some commands may require additional privileges
+  • Use 'cmd <command>' in interactive mode to execute direct agent commands
 
 Use 'help' to show this message again.
     """
