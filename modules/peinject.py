@@ -22,7 +22,7 @@ def get_info():
                 "required": True
             },
             "pe_file": {
-                "description": "Path to the PE file to inject on Neo C2 server.",
+                "description": "Path to the PE file to inject on client machine",
                 "required": True
             }
         },
@@ -69,18 +69,12 @@ def execute(options, session):
         else:
             prefixed_encoded_pe = "pe" + pe_input
     else:
-        # The pe_input is a file path, so we need to read the file
-        try:
-            pe_bytes = process_pe_input(pe_input)
-        except ValueError as e:
-            return {
-                "success": False,
-                "error": f"Invalid PE format: {str(e)}"
-            }
-
-        # Base64 encode the PE file bytes with 'pe' prefix
-        encoded_pe = base64.b64encode(pe_bytes).decode('utf-8')
-        prefixed_encoded_pe = "pe" + encoded_pe  # Adding 'pe' prefix so agent knows it's a PE file
+        # The CLI should have already handled file lookup and sent base64 content
+        # If we get here, it means the CLI didn't properly handle the file lookup
+        return {
+            "success": False,
+            "error": f"Invalid input format. CLI should send base64 encoded PE content, but received: {pe_input[:50]}..."
+        }
 
     command = f"peinject {prefixed_encoded_pe}"
 
@@ -137,7 +131,7 @@ def process_pe_input(pe_input):
             decoded = base64.b64decode(pe_input)
             return decoded
         except Exception:
-            pass  # Not valid base64, continue to file searching
+            pass  # Not valid base64, continue to other formats
 
     # If it's a hex string, convert it
     clean_hex = pe_input.replace('0x', '').replace(',', '').replace('\\', '').replace(' ', '').replace('\n', '').replace('\t', '')
@@ -148,36 +142,9 @@ def process_pe_input(pe_input):
         except ValueError:
             raise ValueError("Invalid hex string for PE file")
 
-    # Check if it's a path and try to locate the file
-    if os.path.isfile(pe_input):
-        with open(pe_input, 'rb') as f:
-            file_content = f.read()
-        if len(file_content) == 0:
-            raise ValueError(f"PE file is empty: {pe_input}")
-        return file_content
-
-    # For the new logic, we should not have server-side fallback since client should handle it
-    # But if this path is reached, it means the client didn't find the file
-    if not os.path.isabs(pe_input):
-        # Try to find the file in the new extensions directory (minimal fallback)
-        extensions_path = os.path.join(os.path.dirname(__file__), '..', 'cli', 'extensions', os.path.basename(pe_input))
-        if os.path.exists(extensions_path):
-            with open(extensions_path, 'rb') as f:
-                file_content = f.read()
-            if len(file_content) == 0:
-                raise ValueError(f"PE file is empty: {extensions_path}")
-            return file_content
-
-        # Also check in pe subdirectory
-        extensions_pe_path = os.path.join(os.path.dirname(__file__), '..', 'cli', 'extensions', 'pe', os.path.basename(pe_input))
-        if os.path.exists(extensions_pe_path):
-            with open(extensions_pe_path, 'rb') as f:
-                file_content = f.read()
-            if len(file_content) == 0:
-                raise ValueError(f"PE file is empty: {extensions_pe_path}")
-            return file_content
-
-    return pe_input.encode('utf-8')
+    # The CLI should have already handled file lookup and sent proper content
+    # If we get here, the format is invalid
+    raise ValueError(f"Invalid PE input format. Expected base64 encoded content from CLI, but received: {pe_input[:50]}...")
 
 
 def _is_base64(s):

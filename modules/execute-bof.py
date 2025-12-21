@@ -22,7 +22,7 @@ def get_info():
                 "required": True
             },
             "bof_path": {
-                "description": "Path to the Beacon Object File (BOF) relative to cli/extensions/bof/",
+                "description": "Path to the Beacon Object File (BOF) on client machine",
                 "required": True
             },
             "arguments": {
@@ -80,27 +80,12 @@ def execute(options, session):
                 "error": f"BOF file not found on client: {bof_path.replace(' FILE_NOT_FOUND_ON_CLIENT', '')}. No server-side fallback mechanism - file must exist on client."
             }
         else:
-            # The bof_path is a file path, so we need to read the file
-            # Only check the extensions directory for server-side files (shouldn't happen in new logic)
-            # But if it does, we'll still try to handle it
-            if os.path.isabs(bof_path) and os.path.exists(bof_path):
-                bof_full_path = bof_path
-            else:
-                # In the new logic, this shouldn't happen since client should have already handled it
-                # But we'll keep a minimal fallback check for edge cases
-                bof_full_path = os.path.join(os.path.dirname(__file__), '..', 'cli', 'extensions', 'bof', bof_path)
-
-                if not os.path.exists(bof_full_path):
-                    # Don't attempt server-side fallback - this should have been handled on the client
-                    return {
-                        "success": False,
-                        "error": f"BOF file not found on client and server-side fallback disabled: {bof_path}. File must exist on client."
-                    }
-
-            with open(bof_full_path, 'rb') as f:
-                bof_content = f.read()
-
-            encoded_bof = base64.b64encode(bof_content).decode('utf-8')
+            # The CLI should have already handled file lookup and sent base64 content
+            # If we get here, it means the CLI didn't properly handle the file lookup
+            return {
+                "success": False,
+                "error": f"Invalid input format. CLI should send base64 encoded BOF content, but received: {bof_path[:50]}..."
+            }
 
         if arguments:
             bof_command = f"bof {encoded_bof} {arguments}"

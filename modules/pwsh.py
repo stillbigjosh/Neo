@@ -21,7 +21,7 @@ def get_info():
                 "required": True
             },
             "script_path": {
-                "description": "Path to the PowerShell script to execute on Neo C2 server.",
+                "description": "Path to the PowerShell script on client machine",
                 "required": True
             },
             "arguments": {
@@ -74,41 +74,12 @@ def execute(options, session):
                 "error": f"Error decoding PowerShell script: {str(e)}"
             }
     else:
-        # The script_path is a file path, so we need to read the file
-        # Only check the extensions directory for server-side files (shouldn't happen in new logic)
-        # But if it does, we'll still try to handle it
-        if os.path.isabs(script_path) and os.path.exists(script_path):
-            script_file_path = script_path
-        else:
-            # In the new logic, this shouldn't happen since client should have already handled it
-            # But we'll keep a minimal fallback check for edge cases
-            script_file_path = os.path.join(os.path.dirname(__file__), '..', 'cli', 'extensions', 'powershell', os.path.basename(script_path))
-
-            if not os.path.exists(script_file_path):
-                # Don't attempt server-side fallback - this should have been handled on the client
-                return {
-                    "success": False,
-                    "error": f"PowerShell script file not found on client and server-side fallback disabled: {script_path}. File must exist on client."
-                }
-
-        try:
-            with open(script_file_path, 'r', encoding='utf-8') as f:
-                original_script = f.read()
-        except FileNotFoundError:
-            return {
-                "success": False,
-                "error": f"PowerShell script file not found: {script_path}. Searched in common locations."
-            }
-        except Exception as e:
-            return {
-                "success": False,
-                "error": f"Error reading PowerShell script: {str(e)}"
-            }
-
-        # Create the encoded command
-        script_bytes = original_script.encode('utf-16le')
-        encoded_cmd = base64.b64encode(script_bytes).decode('ascii')
-        command = f"powershell -ExecutionPolicy Bypass -EncodedCommand {encoded_cmd}"
+        # The CLI should have already handled file lookup and sent base64 content
+        # If we get here, it means the CLI didn't properly handle the file lookup
+        return {
+            "success": False,
+            "error": f"Invalid input format. CLI should send base64 encoded PowerShell script content, but received: {script_path[:50]}..."
+        }
 
     if script_args:
         # If there are arguments, we need to modify the command to include them
@@ -126,12 +97,6 @@ def execute(options, session):
                     "success": False,
                     "error": f"Error processing PowerShell script with arguments: {str(e)}"
                 }
-        else:
-            # For file-based scripts, create a command that executes the script with arguments
-            full_script = f"& '{script_file_path}' {script_args}"
-            script_bytes = full_script.encode('utf-16le')
-            encoded_cmd = base64.b64encode(script_bytes).decode('ascii')
-            command = f"powershell -ExecutionPolicy Bypass -EncodedCommand {encoded_cmd}"
 
     if not hasattr(session, 'agent_manager') or session.agent_manager is None:
         return {

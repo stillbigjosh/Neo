@@ -22,7 +22,7 @@ def get_info():
                 "required": True
             },
             "assembly_path": {
-                "description": "Path to the .NET assembly file to execute",
+                "description": "Path to the .NET assembly file on client machine",
                 "required": True
             }
         }
@@ -74,27 +74,12 @@ def execute(options, session):
                 "error": f"Assembly file not found on client: {assembly_path.replace(' FILE_NOT_FOUND_ON_CLIENT', '')}. No server-side fallback mechanism - file must exist on client."
             }
         else:
-            # The assembly_path is a file path, so we need to read the file
-            # Only check the extensions directory for server-side files (shouldn't happen in new logic)
-            # But if it does, we'll still try to handle it
-            if os.path.isabs(assembly_path) and os.path.exists(assembly_path):
-                assembly_full_path = assembly_path
-            else:
-                # In the new logic, this shouldn't happen since client should have already handled it
-                # But we'll keep a minimal fallback check for edge cases
-                assembly_full_path = os.path.join(os.path.dirname(__file__), '..', 'cli', 'extensions', 'assemblies', os.path.basename(assembly_path))
-
-                if not os.path.exists(assembly_full_path):
-                    # Don't attempt server-side fallback - this should have been handled on the client
-                    return {
-                        "success": False,
-                        "error": f"Assembly file not found on client and server-side fallback disabled: {assembly_path}. File must exist on client."
-                    }
-
-            with open(assembly_full_path, 'rb') as f:
-                assembly_content = f.read()
-
-            encoded_assembly = base64.b64encode(assembly_content).decode('utf-8')
+            # The CLI should have already handled file lookup and sent base64 content
+            # If we get here, it means the CLI didn't properly handle the file lookup
+            return {
+                "success": False,
+                "error": f"Invalid input format. CLI should send base64 encoded assembly content, but received: {assembly_path[:50]}..."
+            }
 
         assembly_command = f"assembly {encoded_assembly}"
 

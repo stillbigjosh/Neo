@@ -54,20 +54,6 @@ def execute(options, session):
 
     session.current_agent = agent_id
 
-    # Check if shellcode_input is a file path by checking if it's a valid file
-    if os.path.exists(shellcode_input):
-        # This is a file path, read the content
-        try:
-            with open(shellcode_input, 'r') as f:
-                file_content = f.read().strip()
-            # The file content should be base64 encoded shellcode
-            shellcode_input = file_content
-        except Exception as e:
-            return {
-                "success": False,
-                "error": f"Failed to read file {shellcode_input}: {str(e)}"
-            }
-
     # Check if shellcode_input is already base64 encoded content (indicates client-side file)
     if "FILE_NOT_FOUND_ON_CLIENT" in shellcode_input:
         # Special flag indicating the file was not found on the client side
@@ -79,17 +65,12 @@ def execute(options, session):
         # The shellcode_input is already base64 encoded content from the client
         encoded_shellcode = shellcode_input
     else:
-        # The shellcode_input is not base64, so process it as before
-        try:
-            shellcode_bytes = process_shellcode_input(shellcode_input)
-        except ValueError as e:
-            return {
-                "success": False,
-                "error": f"Invalid shellcode format: {str(e)}"
-            }
-
-        # Base64 encode the shellcode bytes
-        encoded_shellcode = base64.b64encode(shellcode_bytes).decode('utf-8')
+        # The CLI should have already handled file lookup and sent base64 content
+        # If we get here, it means the CLI didn't properly handle the file lookup
+        return {
+            "success": False,
+            "error": f"Invalid input format. CLI should send base64 encoded shellcode content, but received: {shellcode_input[:50]}..."
+        }
 
     command = f"shellcode {encoded_shellcode}"
 
@@ -183,8 +164,9 @@ def process_shellcode_input(shellcode_input):
         except ValueError:
             raise ValueError("Invalid hex string for shellcode")
 
-    # If it's not base64 or hex, treat as raw string (less common)
-    return shellcode_input.encode('utf-8')
+    # The CLI should have already handled file lookup and sent proper content
+    # If we get here, the format is invalid
+    raise ValueError(f"Invalid shellcode input format. Expected base64 encoded content from CLI, but received: {shellcode_input[:50]}...")
 
 
 def is_base64(s):
