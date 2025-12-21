@@ -448,7 +448,6 @@ class NeoC2RemoteCLI:
             return None
 
     def start_socks_proxy(self, local_port=1080):
-        """Start a local SOCKS5 proxy that routes traffic through the C2 server"""
         try:
             # Create a socket to listen for SOCKS connections from local tools (like proxychains)
             server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -485,7 +484,6 @@ class NeoC2RemoteCLI:
                 pass
 
     def _handle_socks_client(self, client_conn, client_addr):
-        """Handle a SOCKS5 client connection"""
         try:
             # Read the version identifier and number of methods
             header = self._read_exact(client_conn, 2)
@@ -570,14 +568,8 @@ class NeoC2RemoteCLI:
             # Send success response - we'll relay to the agent via the C2 channel
             client_conn.sendall(b'\x05\x00\x00\x01\x00\x00\x00\x00\x00\x00')
 
-            # Now we need to relay the connection through the C2 agent
-            # This is a simplified version - in a real implementation, we'd need to establish
-            # a connection to the agent through the C2 server
             print(f"{green('[+]')} Connected to {target_addr} via C2 channel")
 
-            # Start bidirectional relay between the client and the target
-            # In a real implementation, this would involve sending the connection details
-            # to the agent and relaying data through the C2 channel
             self._relay_data_through_c2(client_conn, addr, port)
 
         except Exception as e:
@@ -588,7 +580,6 @@ class NeoC2RemoteCLI:
                 pass
 
     def _read_exact(self, sock, length):
-        """Read exactly 'length' bytes from socket"""
         data = b''
         while len(data) < length:
             chunk = sock.recv(length - len(data))
@@ -598,10 +589,6 @@ class NeoC2RemoteCLI:
         return data
 
     def _relay_data_through_c2(self, client_socket, target_addr, target_port):
-        """
-        Relay data between client socket and target through the server's CLI SOCKS proxy.
-        The CLI connects to the server's CLI SOCKS proxy port which bridges to the agent.
-        """
         try:
             # Connect to the server's CLI SOCKS proxy port (determined when 'socks' command was run)
             # This assumes the server has started the CLI SOCKS proxy for this agent
