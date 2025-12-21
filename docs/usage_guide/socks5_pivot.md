@@ -16,7 +16,6 @@ The SOCKS5 pivot feature enables you to:
 ### Step 1: Start Server-Side Reverse Proxy:
 ```
 NeoC2 (user@remote) > reverse_proxy start <agent_id> [port]
-
 ```
 What it does:
 - C2 server's agent manager starts listening on port 5555 for the specified agent
@@ -35,7 +34,7 @@ Send `reverse_proxy_start` command to the agent (via interactive mode or standar
 NeoC2 (user@remote) > addcmd <agent_id> reverse_proxy_start
 ```
 What it does:
-- Agent connects to C2 server's IP address on port 5555
+- Instructs Agent to connect to C2 server's IP address on port 5555
 - Agent implements full SOCKS5 server protocol (waits for client requests)
 - Establishes persistent connection between agent and C2 server
 
@@ -100,6 +99,7 @@ NeoC2 (user@remote) > addcmd <agent_id> reverse_proxy_stop
 ## Important Notes
 
 - The agent must be Go-based agent with the updated template
+- The command `reverse_proxy` is separate from `reverse_proxy_start` (do not confuse the two) One is for the sever-side, the other is an agent command, respectively.
 - The agent performs DNS resolution on the target network (not on your machine)
 - Supports IPv4, IPv6, and domain name resolution
 - All traffic is encrypted through the C2 channel
