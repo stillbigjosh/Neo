@@ -57,6 +57,7 @@ Phantom Hawk is a Python variant with limited capability.
 - Linux Debian
 
 ### Capabilities
+- **Proxy Awareness**: Supports Network pivoting using its built-in SOCKS5 proxy
 - **Command Execution**: Execute arbitrary shell commands on the target system
 - **Anti Debugging, Sandbox Detection & Self Deletion**: Works on Windows, Linux Hosts. 
 - **File Transfer**: Upload and download files using base64 encoding

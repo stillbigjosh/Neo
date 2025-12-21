@@ -10,6 +10,11 @@ The SOCKS5 pivot feature enables you to:
 - Perform DNS resolution from the target network (not your machine)
 - Bypass network restrictions and firewalls
 
+## Compatibility
+
+- Go_agent
+- Phantom Hawk Agent
+
 
 ## Step-by-Step Instructions
 
