@@ -113,7 +113,7 @@ def execute(options, session):
     if script_args:
         # If there are arguments, we need to modify the command to include them
         # For PowerShell encoded commands with arguments, we need a different approach
-        if is_base64_content:
+        if _is_base64(script_path):
             # If it's already base64 encoded content, we need to re-encode with arguments
             try:
                 decoded_script = base64.b64decode(script_path).decode('utf-8')
