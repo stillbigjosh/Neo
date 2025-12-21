@@ -16,6 +16,7 @@ The Go Agent is a second stage exe compiled, multi-functional agent with feature
 - Windows x64
 
 ### Capabilities
+- **Proxy Awareness**: Supports Network pivoting using its built-in SOCKS5 proxy 
 - **Command Execution**: Execute arbitrary shell commands on the target system
 - **File Transfer**: Upload and download files using base64 encoding
 - **Interactive Mode**: Enter real-time interactive session with the target
@@ -56,6 +57,7 @@ Phantom Hawk is a Python variant with limited capability.
 - Linux Debian
 
 ### Capabilities
+- **Proxy Awareness**: Supports Network pivoting using its built-in SOCKS5 proxy
 - **Command Execution**: Execute arbitrary shell commands on the target system
 - **Anti Debugging, Sandbox Detection & Self Deletion**: Works on Windows, Linux Hosts. 
 - **File Transfer**: Upload and download files using base64 encoding
@@ -64,7 +66,6 @@ Phantom Hawk is a Python variant with limited capability.
 - **Polymorphic Obfuscation**: Randomized variable and function names to evade static analysis
 - **Jitter & Sleep Obfuscation**: Configurable sleep intervals with jitter during agent generation and in deployment
 - **Cross-Platform**: Works on Windows, Linux 
-- **P2P Agent Communication**: Configurable Agent command forwarding to other Agents in same network (Under development)
 - **Sanbox & Debugger Detection**: Self deletes in sandboxed environment
 - **Working hours & Kill dates**: Incorporates a profile configurable kill-dates and working-hours restrictions
 - **Redirector Support**: Allows operators to define and manage external infrastructure that points to the internal listeners

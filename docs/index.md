@@ -18,6 +18,7 @@ A modular server-client architecture post-exploitation framework built for colla
 *   [**Agent Management**](usage_guide/agent_management.md): Managing agent lifecycles and interactive sessions
 *   [**Payload Generation**](usage_guide/payload_generation.md): Creating and deploying agent payloads
 *   [**Task Management**](usage_guide/task_management.md): Executing commands and managing task results
+*   [**SOCKS5 Pivot**](usage_guide/socks5_pivot.md): Network pivoting using SOCKS5 proxy functionality
 *   [**File Operations**](usage_guide/file_operations.md): File handling
 *   [**Event Monitoring**](usage_guide/event_monitoring.md): Monitoring and logging C2 operations
 *   [**Specialized Modules**](usage_guide/specialized_modules.md): Advanced module operations (PowerShell, BOF, shellcode injection, etc.)
@@ -28,7 +29,6 @@ A modular server-client architecture post-exploitation framework built for colla
 *   [**Multiplayer**](advanced_features/multiplayer.md): Collaboration and shared usage
 *   [**Task Orchestration**](advanced_features/taskorchestration.md): Automated task chaining
 *   [**Reporting**](advanced_features/reporting.md): Generating and viewing reports
-*   [**P2P Communication**](advanced_features/p2preadme.md): Peer-to-peer agent communication
 
 ### Development & Customization
 

@@ -22,7 +22,7 @@ def get_info():
                 "required": True
             },
             "pe_file": {
-                "description": "Path to the PE file to inject on Neo C2 server.",
+                "description": "Path to the PE file to inject on client machine",
                 "required": True
             }
         },
@@ -55,9 +55,13 @@ def execute(options, session):
     session.current_agent = agent_id
 
     # Check if pe_input is already base64 encoded content (indicates client-side file)
-    is_base64_content = _is_base64(pe_input)
-
-    if is_base64_content:
+    if "FILE_NOT_FOUND_ON_CLIENT" in pe_input:
+        # Special flag indicating the file was not found on the client side
+        return {
+            "success": False,
+            "error": f"PE file not found on client: {pe_input.replace(' FILE_NOT_FOUND_ON_CLIENT', '')}. No server-side fallback mechanism - file must exist on client."
+        }
+    elif _is_base64(pe_input):
         # The pe_input is already base64 encoded content from the client
         # If it already has the 'pe' prefix, use as is; otherwise add it
         if pe_input.startswith('pe'):
@@ -65,18 +69,12 @@ def execute(options, session):
         else:
             prefixed_encoded_pe = "pe" + pe_input
     else:
-        # The pe_input is a file path, so we need to read the file
-        try:
-            pe_bytes = process_pe_input(pe_input)
-        except ValueError as e:
-            return {
-                "success": False,
-                "error": f"Invalid PE format: {str(e)}"
-            }
-
-        # Base64 encode the PE file bytes with 'pe' prefix
-        encoded_pe = base64.b64encode(pe_bytes).decode('utf-8')
-        prefixed_encoded_pe = "pe" + encoded_pe  # Adding 'pe' prefix so agent knows it's a PE file
+        # The CLI should have already handled file lookup and sent base64 content
+        # If we get here, it means the CLI didn't properly handle the file lookup
+        return {
+            "success": False,
+            "error": f"Invalid input format. CLI should send base64 encoded PE content, but received: {pe_input[:50]}..."
+        }
 
     command = f"peinject {prefixed_encoded_pe}"
 
@@ -133,7 +131,7 @@ def process_pe_input(pe_input):
             decoded = base64.b64decode(pe_input)
             return decoded
         except Exception:
-            pass  # Not valid base64, continue to file searching
+            pass  # Not valid base64, continue to other formats
 
     # If it's a hex string, convert it
     clean_hex = pe_input.replace('0x', '').replace(',', '').replace('\\', '').replace(' ', '').replace('\n', '').replace('\t', '')
@@ -144,58 +142,9 @@ def process_pe_input(pe_input):
         except ValueError:
             raise ValueError("Invalid hex string for PE file")
 
-    # Check if it's a path and try to locate the file
-    if os.path.isfile(pe_input):
-        with open(pe_input, 'rb') as f:
-            file_content = f.read()
-        if len(file_content) == 0:
-            raise ValueError(f"PE file is empty: {pe_input}")
-        return file_content
-
-    # If not an absolute path, look for the file in various directories
-    if not os.path.isabs(pe_input):
-        possible_paths = [
-            os.path.join(os.path.dirname(__file__), 'external', os.path.basename(pe_input)),  # modules/external/ location
-            os.path.join(os.path.dirname(__file__), 'external', 'pe', os.path.basename(pe_input)),  # modules/external/pe/ location
-            pe_input,  # Direct relative path
-            os.path.join(os.getcwd(), os.path.basename(pe_input)),
-            os.path.join(os.path.dirname(__file__), '..', 'external', os.path.basename(pe_input)),
-            os.path.join(os.path.dirname(__file__), '..', 'external', 'pe', os.path.basename(pe_input)),
-        ]
-
-        for path in possible_paths:
-            if os.path.exists(path):
-                with open(path, 'rb') as f:
-                    file_content = f.read()
-                if len(file_content) == 0:
-                    raise ValueError(f"PE file is empty: {path}")
-                return file_content
-
-        # Look for the file in modules/external directory as well
-        external_dir = os.path.join(os.path.dirname(__file__), 'external')
-        if os.path.exists(external_dir):
-            for item in os.listdir(external_dir):
-                item_path = os.path.join(external_dir, item)
-                if os.path.isfile(item_path) and item == os.path.basename(pe_input):
-                    with open(item_path, 'rb') as f:
-                        file_content = f.read()
-                    if len(file_content) == 0:
-                        raise ValueError(f"PE file is empty: {item_path}")
-                    return file_content
-
-        # Also check in pe subdirectory
-        pe_dir = os.path.join(os.path.dirname(__file__), 'external', 'pe')
-        if os.path.exists(pe_dir):
-            for item in os.listdir(pe_dir):
-                item_path = os.path.join(pe_dir, item)
-                if os.path.isfile(item_path) and item == os.path.basename(pe_input):
-                    with open(item_path, 'rb') as f:
-                        file_content = f.read()
-                    if len(file_content) == 0:
-                        raise ValueError(f"PE file is empty: {item_path}")
-                    return file_content
-
-    return pe_input.encode('utf-8')
+    # The CLI should have already handled file lookup and sent proper content
+    # If we get here, the format is invalid
+    raise ValueError(f"Invalid PE input format. Expected base64 encoded content from CLI, but received: {pe_input[:50]}...")
 
 
 def _is_base64(s):

