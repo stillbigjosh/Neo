@@ -53,7 +53,7 @@ Each operator maintains their own local extension modules:
 
 #### Shellcode PInject
 - **Search Directories**: `cli/extensions/`, `cli/extensions/shellcode/`
-- **File Extensions**: `.b64`,
+- **File Extensions**: `.b64`
 
 ### Security and Isolation Benefits
 
