@@ -1,38 +1,9 @@
 # Modules for the NeoC2 Framework
 
-- [General Syntax](#general-syntax)
-- [Module Types](#module-types)
-- [Creating a Basic Module](#creating-a-basic-module)
-
-## General Syntax
-
-```
-modules list                  # List available modules
-modules load <module_name>    # Load a specific module to DB
-modules info <module_name>    # Get module information
-modules check <module_name>   # Check module compatibility
-run <module_name> <agent_id> <option>=<value>
-# In interactive mode, the agent ID is automatically inferred
-```
-
-## Module Types:
-
-The NeoC2 framework is extendible with:
-
-1. **Windows Beacon Object Files**: via the Framework's [execute-bof](../usage_guide/specialized_modules.md/#execute-bof) module
-
-2. **Native Windows Portable Executables**: via the Framework's [PEInject](../usage_guide/specialized_modules.md/#peinject) module
-
-3. **Raw Shellcodes**: via the Framework's [PInject](../usage_guide/specialized_modules.md/#pinject) module
-
-4. **Windows Powershell scripts**: via the Framework's [PWSH](../usage_guide/specialized_modules.md/#powershell) module
-
-5. **Windows .NET Assemblies**: via the Framework's [PWSH](../usage_guide/specialized_modules.md/#execute-assembly) module
-
 
 ## Creating a Basic Module
 
-To create a module not yet covered by the above handlers, the following are required by the Framework:
+To create a custom module, the following are required by the Framework:
 
 1. **External modules**: The script or executable located in the `modules/external/` directory to be executed on the active agent
 2. **Python wrapper modules**: Python files that interface with external file
@@ -307,23 +278,15 @@ def execute(options, session):
         }
 ```
 
-## Security Considerations
+## Module Execution
 
-1. **Input Validation**: Always validate parameters to prevent command injection
-2. **Path Validation**: Validate file paths and avoid directory traversal
-3. **Character Filtering**: Use regex to validate input parameters
-4. **Escape Parameters**: Properly escape parameters before passing to external scripts
+To run a Custom module that passed basic compatibility check:
 
-## Error Handling
-
-Modules should return structured error responses:
-
-```python
-return {
-    "success": False,
-    "error": "Descriptive error message"
-}
 ```
+modules check <module_name>
+run <module_name> <agent_id> [options]
+```
+
 
 ## Module Registration
 
