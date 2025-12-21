@@ -12,7 +12,7 @@
 - Python 3.13
 - Golang 1.25
 - Python virtual environment (python3-venv)
-- OpenSSL certificates
+- OpenSSL/LetsEncrypt
 
 ```bash
 sudo apt-get install golang
@@ -71,8 +71,11 @@ neoc2 logs
 
 #### Default Ports
 - Default HTTP/HTTPS Listener: 443
-- The Flask Web Application and Administrative User Management components of the framework runs on Port 7443 
-- The TeamServer's Remote CLI Manager is exposed on Port 8444
+- Flask Web Application and Administrative User Management components of the framework port: 7443 
+- TeamServer's Remote Client Manager port: 8444
+- Default Tty_shell port: 5000
+- Default Server-Side Reverse Proxy: 5555
+- Default SOCKS5 Proxy Chain: 1080
 
 #### Start CLI 
 Default user set via environment variable is Administrator. Other multiplayer operators can login via register via the web and have an Administrator approve and assign a role.
