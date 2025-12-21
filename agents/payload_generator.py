@@ -194,8 +194,8 @@ class PayloadGenerator:
         headers = profile_config.get('headers', {'User-Agent': 'Python C2 Agent'})
         heartbeat = profile_config.get('heartbeat_interval', 60)
         jitter = profile_config.get('jitter', 0.2)
-        p2p_enabled = profile_config.get('p2p_enabled', False)
-        p2p_port = profile_config.get('p2p_port', 8888)
+        p2p_enabled = False  # P2P functionality has been removed
+        p2p_port = 8888  # Default port value for template compatibility
 
         class_name = poly.generate_random_name('Agent')
 
@@ -232,15 +232,6 @@ class PayloadGenerator:
         m_start_direct_shell = poly.generate_random_name('start_direct_shell_')
         m_handle_direct_shell = poly.generate_random_name('handle_direct_shell_')
 
-        m_start_p2p_server = poly.generate_random_name('start_p2p_server_')
-        m_stop_p2p_server = poly.generate_random_name('stop_p2p_server_')
-        m_discover_local_agents = poly.generate_random_name('discover_local_agents_')
-        m_broadcast_presence = poly.generate_random_name('broadcast_presence_')
-        m_handle_p2p_request = poly.generate_random_name('handle_p2p_request_')
-        m_forward_command = poly.generate_random_name('forward_command_')
-        m_receive_forwarded_command = poly.generate_random_name('receive_forwarded_command_')
-        m_p2p_worker = poly.generate_random_name('p2p_worker_')
-        m_setup_p2p_communication = poly.generate_random_name('setup_p2p_comm_')
 
         m_encrypt_data = poly.generate_random_name('encrypt_data_')
         m_decrypt_data = poly.generate_random_name('decrypt_data_')
@@ -269,12 +260,6 @@ class PayloadGenerator:
         v_secret_key = poly.generate_random_name('secret_key_')
         v_fernet = poly.generate_random_name('fernet_')
 
-        v_p2p_enabled = poly.generate_random_name('p2p_enabled_')
-        v_local_agents = poly.generate_random_name('local_agents_')
-        v_p2p_port = poly.generate_random_name('p2p_port_')
-        v_p2p_server = poly.generate_random_name('p2p_server_')
-        v_p2p_discovery_timer = poly.generate_random_name('p2p_discovery_timer_')
-        v_p2p_command_queue = poly.generate_random_name('p2p_command_queue_')
 
         v_sandbox_enabled = poly.generate_random_name('sandbox_enabled_')
 
@@ -362,15 +347,6 @@ class PayloadGenerator:
             m_handle_download=m_handle_download,
             m_start_direct_shell=m_start_direct_shell,
             m_handle_direct_shell=m_handle_direct_shell,
-            m_start_p2p_server=m_start_p2p_server,
-            m_stop_p2p_server=m_stop_p2p_server,
-            m_discover_local_agents=m_discover_local_agents,
-            m_broadcast_presence=m_broadcast_presence,
-            m_handle_p2p_request=m_handle_p2p_request,
-            m_forward_command=m_forward_command,
-            m_receive_forwarded_command=m_receive_forwarded_command,
-            m_p2p_worker=m_p2p_worker,
-            m_setup_p2p_communication=m_setup_p2p_communication,
             m_encrypt_data=m_encrypt_data,
             m_decrypt_data=m_decrypt_data,
             m_check_working_hours=m_check_working_hours,
@@ -403,12 +379,6 @@ class PayloadGenerator:
             v_current_interactive_task=v_current_interactive_task,
             v_secret_key=v_secret_key,
             v_fernet=v_fernet,
-            v_p2p_enabled=v_p2p_enabled,
-            v_local_agents=v_local_agents,
-            v_p2p_port=v_p2p_port,
-            v_p2p_server=v_p2p_server,
-            v_p2p_discovery_timer=v_p2p_discovery_timer,
-            v_p2p_command_queue=v_p2p_command_queue,
             v_sandbox_enabled=v_sandbox_enabled,
             v_redirector_host=v_redirector_host,
             v_redirector_port=v_redirector_port,

