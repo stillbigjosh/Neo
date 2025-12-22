@@ -109,7 +109,7 @@ The agent's command processing is dynamically adjusted based on included feature
   - `upload <path> <data>` - Upload files to the target
   - `sleep <seconds>` - Change agent check-in interval
   - `kill` - Self-delete the agent
-  - Direct command execution (shell commands)
+  - `cmd <command>`- Direct command execution (shell commands)
 
 - **Feature-Specific Commands** (available when feature is included):
   - `execute-bof <bof_filename> [arguments] [agent_id=<agent_id>]` - Execute BOF (when BOF feature included)
