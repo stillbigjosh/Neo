@@ -28,21 +28,21 @@ The agent supports the following modular features that can be selectively includ
 
 1. **BOF (Beacon Object File) Execution**
    - Execute COFF files in memory
-   - Commands: `execute-bof <bof_filename> [arguments] [agent_id]`
+   - Commands: `execute-bof <bof_filename> [arguments] [agent_id=<agent_id>]`
 
 2. **.NET Assembly Execution**
    - Execute .NET assemblies in memory
-   - Commands: `execute-assembly <assembly_filename> [agent_id]`
+   - Commands: `execute-assembly <assembly_filename> [agent_id=<agent_id>]`
 
 3. **Shellcode Injection**
    - Inject and execute shellcode in target processes
    - Multiple injection techniques (NtQueueApcThread, NtCreateThreadEx, CreateRemoteThread, etc.)
-   - Commands: `pinject <b64_shellcode_filename> [agent_id]`
+   - Commands: `pinject <b64_shellcode_filename> [agent_id=<agent_id>]`
 
 4. **PE Injection**
    - Inject and execute PE files in target processes
    - Process hollowing techniques
-   - Commands: `peinject <pe_filename> [agent_id]`
+   - Commands: `peinject <pe_filename> [agent_id=<agent_id>]`
 
 5. **Reverse Proxy (SOCKS5)**
    - Built-in SOCKS5 proxy functionality
@@ -104,6 +104,7 @@ The payload generation process uses a modular approach where the final agent is 
 The agent's command processing is dynamically adjusted based on included features:
 
 - **Core Commands** (always available):
+  - `pwsh <powershell_filename` - Execute powershell scripts in-memory
   - `download <path>` - Download files from the target
   - `upload <path> <data>` - Upload files to the target
   - `sleep <seconds>` - Change agent check-in interval
@@ -111,10 +112,10 @@ The agent's command processing is dynamically adjusted based on included feature
   - Direct command execution (shell commands)
 
 - **Feature-Specific Commands** (available when feature is included):
-  - `execute-bof <bof_filename> [arguments] [agent_id]` - Execute BOF (when BOF feature included)
-  - `execute-assembly <assembly_filename> [agent_id]` - Execute .NET assembly (when assembly feature included)
-  - `pinject <b64_shellcode_filename [agent_id]` - Inject shellcode (when shellcode feature included)
-  - `peinject <pe_filename> [agent_id]` - Inject PE file (when PE feature included)
+  - `execute-bof <bof_filename> [arguments] [agent_id=<agent_id>]` - Execute BOF (when BOF feature included)
+  - `execute-assembly <assembly_filename> [agent_id=<agent_id>]` - Execute .NET assembly (when assembly feature included)
+  - `pinject <b64_shellcode_filename [agent_id=<agent_id>]` - Inject shellcode (when shellcode feature included)
+  - `peinject <pe_filename> [agent_id=<agent_id>]` - Inject PE file (when PE feature included)
   - `reverse_proxy_start/stop` - Control SOCKS5 proxy (when reverse proxy feature included)
 
 When a feature is excluded, attempting to use its commands will return an appropriate error message indicating that the capability is not available in the current agent build.
