@@ -1,0 +1,31 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"crypto/tls"
+	"encoding/base64"
+	"encoding/binary"
+	"encoding/json"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"math/rand"
+	"net"
+	"net/http"
+	"net/url"
+	"os"
+	"os/exec"
+	"runtime"
+	"strconv"
+	"strings"
+	"sync"
+	"syscall"
+	"time"
+	"unsafe"
+
+	"github.com/fernet/fernet-go"
+	"github.com/praetorian-inc/goffloader/src/coff"
+	"github.com/praetorian-inc/goffloader/src/lighthouse"
+	"github.com/Ne0nd0g/go-clr"
+)

