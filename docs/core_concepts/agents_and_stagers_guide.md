@@ -9,7 +9,7 @@
 
 ## Go Agent
 
-The Go Agent is a Windows-based, feature-rich payload designed for advanced operations. It is compiled to a native executable and provides extensive capabilities for post-exploitation activities.
+The Go Agent is a Windows-based, feature-rich polymorphic payload designed for advanced operations. It is compiled to a native executable and provides extensive capabilities for post-exploitation activities.
 
 ### Architecture
 
@@ -56,7 +56,7 @@ The agent supports the following modular features that can be selectively includ
 
 ### Feature Flags
 
-The Go Agent supports feature exclusion flags to reduce payload size and complexity:
+The Go Agent supports feature exclusion flags to reduce payload size, complexity and detection risk:
 
 #### Available Exclusion Flags
 
