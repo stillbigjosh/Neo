@@ -67,7 +67,7 @@ elif [[ "$1" == "start" ]]; then
     if command -v systemctl &> /dev/null; then
         sudo systemctl start neoc2
         echo "NeoC2 Framework started. Welcome back ..."
-	echo "Run `neoc2-cli --server <IP>:8444 --username <username> --password <password>` for remote client signin"
+	echo "Run neoc2-cli --server <IP>:8444 --username <username> --password <password> for remote client signin"
     else
         echo "systemctl not available, please start service manually"
         exit 1
@@ -84,7 +84,7 @@ elif [[ "$1" == "restart" ]]; then
     if command -v systemctl &> /dev/null; then
         sudo systemctl restart neoc2
         echo "NeoC2 Framework successfully restarted!"
-	echo "Run `neoc2-cli --server <IP>:8444 --username <username> --password <password>` for remote client signin"
+	echo "Run neoc2-cli --server <IP>:8444 --username <username> --password <password> for remote client signin"
     else
         echo "systemctl not available, please restart service manually"
         exit 1
