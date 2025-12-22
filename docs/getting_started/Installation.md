@@ -22,17 +22,23 @@ nano .env
 ```
 
 #### Environment Variables
-**Using .env file for service installation**
-- Environment variables are read from the `.env` file 
+
+**Using .env file for service installation:**
+
+- Environment variables needed by the framework are read from the `.env` file in the root folder. The credentials in the file would be the default logins for adminsitrative user management and the remote client.
+
+- The secret key is needed for payload staging and other XOR-based operations.
+
+- Ensure you change the four lines below only:
+
 ```bash
 ...
-IP=<your public ip>
-SECRET_KEY=<your random key>      # CHANGE from default
-DEFAULT_USERNAME=<your username>  # REQUIRED - no default provided
-DEFAULT_PASSWORD=<your pass>      # REQUIRED - no default provided
+IP=<ip4_address>
+SECRET_KEY=<randomized_key>       # CHANGE from default
+DEFAULT_USERNAME=<admin_username>  # REQUIRED - no default provided
+DEFAULT_PASSWORD=<admin_password>      # REQUIRED - no default provided
 ```
 
-- THE CREDENTIALS SET VIA THE ENVIRONMENT VARIABLE IS THE INITIAL/DEFAULT ADMINISTRATOR. 
 
 #### Service Installation 
 
@@ -42,7 +48,7 @@ Neo command-and-control server is installed as a background service that starts 
 
 2. **Install and start the service**: 
    ```
-   sudo ./install.sh
+   sudo setup/install.sh
    ```
 This will install all dependencies in a python virtual environment. Generates an OpenSSL self-signed certificate. Installation path of the framework after running this will be `/opt/neoc2/` and would also creates two globally available commands for interacting with the C2 Server service instance `neoc2` and a launcher for the C2 Remote Client `neoc2-cli`
 
@@ -51,7 +57,7 @@ This will install all dependencies in a python virtual environment. Generates an
    neoc2 status
    ```
    
-4. Post-installation, ensure you change the secret_key and internal_api_token values in `/opt/neoc2/config.json` from the default and run `neoc2 restart`. The secret_key is used by Flask as a secret key for signing sessions and other security-related functions. It's required for Flask's session management and CSRF protection mechanisms. The internal_api_token adds a layer of protection against external access to sensitive profile configurations needed by the internal services.
+4. Post-installation, ensure you change the `secret_key` and `internal_api_token` values in `/opt/neoc2/config.json` from the default and run `neoc2 restart`. This secret_key is used by Flask as a secret key for signing sessions and other security-related functions. It's required for Flask's session management and CSRF protection mechanisms. The internal_api_token adds a layer of protection against external access to sensitive profile configurations needed by the internal services.
 
 
 #### Service Management

