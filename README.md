@@ -18,7 +18,7 @@ _A modular server-client architecture post-exploitation framework built for coll
 - **Failover deployment**: Agent embeds failover C2 servers
 - **Fernet layer over HTTPS:** Per-agent symmetric keys (AES-128-CBC + HMAC-SHA256) Secure comms over HTTPS
 - **Shellcode Injection**: Shellcode injection into sacrificial processes with NtQueueApcThread, NtCreateThreadEx, RtlCreateUserThread, CreateRemoteThread
-- **Process Hollowing**: Unmanaged Portable Executables injection into sacrificial processes
+- **Arbitrary Windows Executables injection**: Execute arbitrary Windows executables (PE) in a sacrificial process with Process Hollowing
 - **.NET Assembly Execution**: In-memory execution of .NET Assemblies
 - **BOF Execution**: Load and Execute Beacon Object Files 
 - **Reporting handler:** Easy post-operation report writing
