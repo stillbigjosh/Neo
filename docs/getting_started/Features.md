@@ -6,6 +6,7 @@
 - Flask based web application handles all agent's HTTP/S communication endpoints
 - Listener stack: Runs as a separate processes from the Flask application, acting as internal redirectors, forwards traffic from agents to the web application
 - Remote Client: Separate from the C2 Server and can be operated from anywhere. CLI allows operators to connect to the C2 via the Multiplayer co-ordinator
+- Modular Payload Design: Customize the payload capability by including or excluding specific advanced features
 - Polymorphic Payloads: These are modular, unique, obfuscated implants with Anti-sandbox & Anti-debugger capability
 - Malleable profiles: For customizing agent behavior and communication patterns (working hours, kill-date, etc)
 - Multi-Operator Extension Module System: Operators use their own local extension modules without interfering with each other
