@@ -1,5 +1,14 @@
 # Specialized Modules
 
+## General Syntax
+
+```
+modules list                  # List available modules
+modules load <module_name>    # Load a specific module to DB
+modules info <module_name>    # Get module information
+modules check <module_name>   # Check module compatibility
+```
+
 ## Multi-Operator Extension Module System
 
 ### Overview
@@ -53,7 +62,7 @@ Each operator maintains their own local extension modules:
 
 #### Shellcode PInject
 - **Search Directories**: `cli/extensions/`, `cli/extensions/shellcode/`
-- **File Extensions**: `.b64`,
+- **File Extensions**: `.b64`
 
 ### Security and Isolation Benefits
 

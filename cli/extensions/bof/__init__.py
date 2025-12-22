@@ -1,3 +1,3 @@
 """
-PLace your BOFs here for NeoC2 Framework
+Place your BOFs client extensions here
 """
