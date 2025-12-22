@@ -42,7 +42,7 @@ Neo command-and-control server is installed as a background service that starts 
 
 2. **Install and start the service**: 
    ```
-   sudo ./install.sh
+   sudo setup/install.sh
    ```
 This will install all dependencies in a python virtual environment. Generates an OpenSSL self-signed certificate. Installation path of the framework after running this will be `/opt/neoc2/` and would also creates two globally available commands for interacting with the C2 Server service instance `neoc2` and a launcher for the C2 Remote Client `neoc2-cli`
 
