@@ -6,9 +6,9 @@
 - Flask based web application handles all agent's HTTP/S communication endpoints
 - Listener stack: Runs as a separate processes from the Flask application, acting as internal redirectors, forwards traffic from agents to the web application
 - Remote Client: Separate from the C2 Server and can be operated from anywhere. CLI allows operators to connect to the C2 via the Multiplayer co-ordinator
-- Polymorphic Payloads: These are unique, obfuscated implants with Anti-sandbox & Anti-debugger capability
-- Malleable profiles: For customizing agent behavior and communication patterns
-- Extensible modules: Seamless integration of custom modules
+- Polymorphic Payloads: These are modular, unique, obfuscated implants with Anti-sandbox & Anti-debugger capability
+- Malleable profiles: For customizing agent behavior and communication patterns (working hours, kill-date, etc)
+- Multi-Operator Extension Module System: Operators use their own local extension modules without interfering with each other
 - SQLite-based storage for persistent data storage
 
 ### Managers
@@ -36,12 +36,13 @@
 - User presence and status management
 
 ### Advanced Features
+- Socks5 Reverse Proxying support
 - Load and Execute BOFs in-memory
 - Load and Execute .NET assemblies in-memory
-- Execute unmanaged Windows executables (PE) in a sacrificial process in-memory
-- Shellcode injection into sacrificial processes in-memory
+- Execute arbitrary Windows executables (PE) in a sacrificial process with Process Hollowing
+- Shellcode injection into sacrificial processes with NtQueueApcThread, NtCreateThreadEx, RtlCreateUserThread, CreateRemoteThread
 - C2 redirectors support
 - Multi-server failover deployment support
-
+- Seamless Payload staging 
 
 
