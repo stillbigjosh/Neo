@@ -28,23 +28,21 @@ The agent supports the following modular features that can be selectively includ
 
 1. **BOF (Beacon Object File) Execution**
    - Execute COFF files in memory
-   - Uses goffloader library
-   - Commands: `bof <base64_encoded_bof> [args]`
+   - Commands: `execute-bof <bof_filename> [arguments] [agent_id]`
 
 2. **.NET Assembly Execution**
    - Execute .NET assemblies in memory
-   - Uses go-clr library
-   - Commands: `assembly <base64_encoded_assembly>`
+   - Commands: `execute-assembly <assembly_filename> [agent_id]`
 
 3. **Shellcode Injection**
    - Inject and execute shellcode in target processes
    - Multiple injection techniques (NtQueueApcThread, NtCreateThreadEx, CreateRemoteThread, etc.)
-   - Commands: `shellcode <base64_encoded_shellcode>`
+   - Commands: `pinject <b64_shellcode_filename> [agent_id]`
 
 4. **PE Injection**
    - Inject and execute PE files in target processes
    - Process hollowing techniques
-   - Commands: `peinject pe<base64_encoded_pe>`
+   - Commands: `peinject <pe_filename> [agent_id]`
 
 5. **Reverse Proxy (SOCKS5)**
    - Built-in SOCKS5 proxy functionality
@@ -113,10 +111,10 @@ The agent's command processing is dynamically adjusted based on included feature
   - Direct command execution (shell commands)
 
 - **Feature-Specific Commands** (available when feature is included):
-  - `bof <encoded_bof> [args]` - Execute BOF (when BOF feature included)
-  - `assembly <encoded_assembly>` - Execute .NET assembly (when assembly feature included)
-  - `shellcode <encoded_shellcode>` - Inject shellcode (when shellcode feature included)
-  - `peinject pe<encoded_pe>` - Inject PE file (when PE feature included)
+  - `execute-bof <bof_filename> [arguments] [agent_id]` - Execute BOF (when BOF feature included)
+  - `execute-assembly <assembly_filename> [agent_id]` - Execute .NET assembly (when assembly feature included)
+  - `pinject <b64_shellcode_filename [agent_id]` - Inject shellcode (when shellcode feature included)
+  - `peinject <pe_filename> [agent_id]` - Inject PE file (when PE feature included)
   - `reverse_proxy_start/stop` - Control SOCKS5 proxy (when reverse proxy feature included)
 
 When a feature is excluded, attempting to use its commands will return an appropriate error message indicating that the capability is not available in the current agent build.
