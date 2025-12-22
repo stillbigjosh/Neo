@@ -1,3 +1,5 @@
+# Client Architecture
+
 This directory contains the Client component of the command-and-control framework, separate from the Server and can be operated from anywhere. Allowing Multiplayers connect to NeoC2 Servers, provided you have the right permissions. 
 
 ## Components 
