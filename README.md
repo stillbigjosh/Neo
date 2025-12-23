@@ -13,7 +13,7 @@
 
 **A modular server-client architecture post-exploitation framework built for collaborative agent management in red team operations and security testing. Enables flexibility by allowing operators to add their own extension modules**
 
-[Installation](https://neoc2.readthedocs.io/en/latest/getting_started/Installation/) • [Agents & Stagers](https://neoc2.readthedocs.io/en/latest/core_concepts/agents_and_stagers_guide/) • [Profiles & Listeners](https://neoc2.readthedocs.io/en/latest/usage_guide/profiles_and_listeners/) • [Specialized Modules](https://neoc2.readthedocs.io/en/latest/usage_guide/specialized_modules/) • [Multiplayer](https://neoc2.readthedocs.io/en/latest/advanced_features/multiplayer/) • [SOCKS5 Pivot](https://neoc2.readthedocs.io/en/latest/usage_guide/socks5_pivot/) • [Task Orchestration](https://neoc2.readthedocs.io/en/latest/advanced_features/taskorchestration/)
+[Installation](https://neoc2.readthedocs.io/en/latest/getting_started/Installation/) • [Agents & Stagers](https://neoc2.readthedocs.io/en/latest/core_concepts/agents_and_stagers_guide/) • [Profiles & Listeners](https://neoc2.readthedocs.io/en/latest/usage_guide/profiles_and_listeners/) • [Modules](https://neoc2.readthedocs.io/en/latest/usage_guide/specialized_modules/) • [Multiplayer](https://neoc2.readthedocs.io/en/latest/advanced_features/multiplayer/) • [SOCKS5](https://neoc2.readthedocs.io/en/latest/usage_guide/socks5_pivot/) • [Task Orchestration](https://neoc2.readthedocs.io/en/latest/advanced_features/taskorchestration/)
 
 </div>
 
