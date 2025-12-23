@@ -148,6 +148,26 @@ CLI Support: `--use-failover` flag correctly during payload generation
 - Automatic reset and failback mechanisms
 Without `--use-failover` flag, Agents are generated without embedded failover servers
 
+3. NEW: Agent Key Distribution for Failover Setup
+To enable agents to communicate with failover C2 servers, you need to share agent secret keys between primary and failover servers using the new failover commands:
+
+**Export Agent Keys from Primary C2:**
+```bash
+# Export all agent keys
+failover export-keys /path/to/agent_keys.json
+
+# Export specific agent key
+failover export-keys /path/to/single_agent.json AGENT123
+```
+
+**Import Agent Keys to Failover C2:**
+```bash
+# Import agent keys to failover server
+failover import-keys /path/to/agent_keys.json
+```
+
+This creates a secure distribution file containing agent IDs and their secret keys that can be safely transferred between C2 servers. Once imported on the failover server, agents can authenticate and communicate with the failover C2 using their existing secret keys without requiring manual database operations.
+
 ### Load Profile to DB
 
 Load a config using the `profile` handler and base-command:

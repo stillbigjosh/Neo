@@ -1442,20 +1442,203 @@ class AgentManager:
             'total_tasks': sum(len(agent.tasks) for agent in self.agents.values()),
             'pending_tasks': sum(len([t for t in agent.tasks if t['status'] == 'pending']) for agent in self.agents.values())
         }
-        
+
         db_stats = self.db.execute('''
-            SELECT 
+            SELECT
                 COUNT(*) as total_agents,
                 COUNT(CASE WHEN status = 'active' THEN 1 END) as active_agents,
                 COUNT(CASE WHEN status = 'inactive' THEN 1 END) as inactive_agents
             FROM agents
         ''').fetchone()
-        
+
+        stats['db_total_agents'] = db_stats['total_agents']
         stats['db_total_agents'] = db_stats['total_agents']
         stats['db_active_agents'] = db_stats['active_agents']
         stats['db_inactive_agents'] = db_stats['inactive_agents']
-        
+
         return stats
+
+    def export_agent_keys(self, file_path, agent_id=None):
+        """
+        Export agent IDs and secret keys to a JSON file for failover distribution
+
+        Args:
+            file_path (str): Path to save the JSON file
+            agent_id (str, optional): Specific agent ID to export. If None, exports all agents
+
+        Returns:
+            dict: Result with success status and message
+        """
+        try:
+            import json
+            import os
+            from datetime import datetime
+
+            # Query agents from the database
+            if agent_id:
+                # Export specific agent
+                agent_data = self.db.execute(
+                    "SELECT id, secret_key, ip_address, hostname, os_info, user, listener_id, first_seen, last_seen FROM agents WHERE id = ?",
+                    (agent_id,)
+                ).fetchone()
+
+                if not agent_data:
+                    return {'success': False, 'error': f'Agent {agent_id} not found'}
+
+                agents_to_export = [dict(agent_data)]
+            else:
+                # Export all agents
+                agent_data = self.db.execute(
+                    "SELECT id, secret_key, ip_address, hostname, os_info, user, listener_id, first_seen, last_seen FROM agents"
+                ).fetchall()
+
+                agents_to_export = [dict(row) for row in agent_data]
+
+            # Prepare data for export
+            export_data = {
+                'export_timestamp': datetime.now().isoformat(),
+                'agents': []
+            }
+
+            for agent in agents_to_export:
+                if agent['secret_key']:  # Only export agents that have a secret key
+                    agent_info = {
+                        'id': agent['id'],
+                        'secret_key': agent['secret_key'],
+                        'ip_address': agent.get('ip_address', ''),
+                        'hostname': agent.get('hostname', ''),
+                        'os_info': agent.get('os_info', ''),
+                        'user': agent.get('user', ''),
+                        'listener_id': agent.get('listener_id', ''),
+                        'first_seen': agent.get('first_seen', ''),
+                        'last_seen': agent.get('last_seen', '')
+                    }
+                    export_data['agents'].append(agent_info)
+
+            # Create directory if it doesn't exist
+            os.makedirs(os.path.dirname(file_path) if os.path.dirname(file_path) else '.', exist_ok=True)
+
+            # Write to JSON file
+            with open(file_path, 'w') as f:
+                json.dump(export_data, f, indent=2)
+
+            self.logger.info(f"Agent keys exported to {file_path} ({len(export_data['agents'])} agents)")
+            return {
+                'success': True,
+                'message': f"Successfully exported {len(export_data['agents'])} agent keys to {file_path}",
+                'agent_count': len(export_data['agents'])
+            }
+
+        except Exception as e:
+            self.logger.error(f"Error exporting agent keys: {str(e)}")
+            return {'success': False, 'error': f"Error exporting agent keys: {str(e)}"}
+
+    def import_agent_keys(self, file_path):
+        """
+        Import agent IDs and secret keys from a JSON file for failover setup
+
+        Args:
+            file_path (str): Path to the JSON file containing agent keys
+
+        Returns:
+            dict: Result with success status and message
+        """
+        try:
+            import json
+            import os
+            from datetime import datetime
+
+            if not os.path.exists(file_path):
+                return {'success': False, 'error': f'File not found: {file_path}'}
+
+            with open(file_path, 'r') as f:
+                import_data = json.load(f)
+
+            if 'agents' not in import_data:
+                return {'success': False, 'error': 'Invalid import file format: missing "agents" key'}
+
+            imported_count = 0
+            failed_count = 0
+            failed_agents = []
+
+            for agent_info in import_data['agents']:
+                try:
+                    agent_id = agent_info['id']
+                    secret_key = agent_info['secret_key']
+
+                    # Check if agent already exists in the database
+                    existing_agent = self.db.execute(
+                        "SELECT id FROM agents WHERE id = ?", (agent_id,)
+                    ).fetchone()
+
+                    if existing_agent:
+                        # Update existing agent's secret key
+                        self.db.execute(
+                            "UPDATE agents SET secret_key = ? WHERE id = ?",
+                            (secret_key, agent_id)
+                        )
+                        self.logger.info(f"Updated secret key for existing agent {agent_id}")
+                    else:
+                        # Insert new agent record with secret key
+                        # Use the provided details or default values
+                        ip_address = agent_info.get('ip_address', '0.0.0.0')
+                        hostname = agent_info.get('hostname', 'unknown')
+                        os_info = agent_info.get('os_info', 'unknown')
+                        user = agent_info.get('user', 'unknown')
+                        listener_id = agent_info.get('listener_id', 'imported')
+                        first_seen = agent_info.get('first_seen', datetime.now().isoformat())
+                        last_seen = agent_info.get('last_seen', datetime.now().isoformat())
+
+                        self.db.execute('''
+                            INSERT INTO agents (id, ip_address, hostname, os_info, user, listener_id, first_seen, last_seen, secret_key)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ''', (agent_id, ip_address, hostname, os_info, user, listener_id, first_seen, last_seen, secret_key))
+
+                        self.logger.info(f"Created new agent {agent_id} with imported secret key")
+
+                    # Also update the in-memory cache
+                    if agent_id not in self.agent_secret_keys:
+                        from cryptography.fernet import Fernet
+                        self.agent_secret_keys[agent_id] = Fernet(secret_key.encode())
+                    else:
+                        from cryptography.fernet import Fernet
+                        self.agent_secret_keys[agent_id] = Fernet(secret_key.encode())
+
+                    imported_count += 1
+
+                except KeyError as e:
+                    failed_count += 1
+                    failed_agents.append(f"Missing key {str(e)} for agent in import data")
+                    self.logger.error(f"Failed to import agent data: missing key {str(e)}")
+                except Exception as e:
+                    failed_count += 1
+                    failed_agents.append(f"Error importing agent {agent_info.get('id', 'unknown')}: {str(e)}")
+                    self.logger.error(f"Failed to import agent {agent_info.get('id', 'unknown')}: {str(e)}")
+
+            # Reload agent secret keys to ensure all are loaded
+            self._load_agent_secret_keys()
+
+            result_msg = f"Import completed: {imported_count} agents imported"
+            if failed_count > 0:
+                result_msg += f", {failed_count} failed"
+                result_msg += f"\nFailed agents: {', '.join(failed_agents[:5])}"  # Show first 5 failures
+                if len(failed_agents) > 5:
+                    result_msg += f" and {len(failed_agents) - 5} more"
+
+            self.logger.info(result_msg)
+            return {
+                'success': True if imported_count > 0 else False,
+                'message': result_msg,
+                'imported_count': imported_count,
+                'failed_count': failed_count
+            }
+
+        except json.JSONDecodeError as e:
+            self.logger.error(f"Invalid JSON in import file: {str(e)}")
+            return {'success': False, 'error': f"Invalid JSON in import file: {str(e)}"}
+        except Exception as e:
+            self.logger.error(f"Error importing agent keys: {str(e)}")
+            return {'success': False, 'error': f"Error importing agent keys: {str(e)}"}
     
     def remove_agent(self, agent_id):
         agent = self.get_agent(agent_id)  # Changed from checking self.agents directly
