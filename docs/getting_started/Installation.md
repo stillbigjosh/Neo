@@ -77,21 +77,22 @@ neoc2 logs
 
 #### Default Ports
 - Default HTTP/HTTPS Listener: 443
-- Flask Web Application, Administrative User Management components of the framework and the port used for Payload staging: 7443 
+- Flask Web Application, Payload Stager, and Multiplayer User Management components of the framework: 7443 
 - TeamServer's Remote Client Manager port: 8444
 - Default Tty_shell port: 5000
 - Default Server-Side Reverse Proxy: 5555
 - Default SOCKS5 Proxy Chain: 1080
 
 #### Start CLI 
-Default user set via environment variable is Administrator. Other multiplayer operators can login via register via the web and have an Administrator approve and assign a role.
+
 ```bash
 neoc2-cli --server <IP>:8444 --username <> --password <>
 ```
-
-- AFTER STARTING THE FRAMEWORK, NAVIGATE TO https://$IP:7443 (THE USER MANAGEMENT PORTAL) 
-- GIVE ITS REGISTRATION LINK TO OTHER MULTIPLAYERS.
-- REGISTERED OPERATORS CAN BE APPROVED AND ASSIGNED A ROLE VIA THE ADMINISTRATIVE USER MANAGEMENT INTERFACE.
+- Default user set via `.env` environment variable is Administrator
+- Post-installation, navigate to `https://$IP:7443` (The Multiplayer user management portal)
+- Give its registration link to other multiplayer
+- Registered operators can be approved and assigned a role via the administrative console
+- After which they can also use the CLI to connect to the REmote Client Server on port `8444`
 
 ## Basic workflow
 Building a payload using the listener created from your profile config ensures that your chosen API endpoints are visible to the Endpoint Auto-detection Background service.
