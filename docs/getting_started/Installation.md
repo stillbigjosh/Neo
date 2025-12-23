@@ -77,7 +77,7 @@ neoc2 logs
 
 #### Default Ports
 - Default HTTP/HTTPS Listener: 443
-- Flask Web Application and Administrative User Management components of the framework port: 7443 
+- Flask Web Application, Administrative User Management components of the framework and the port used for Payload staging: 7443 
 - TeamServer's Remote Client Manager port: 8444
 - Default Tty_shell port: 5000
 - Default Server-Side Reverse Proxy: 5555
