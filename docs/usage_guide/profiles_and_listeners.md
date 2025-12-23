@@ -114,6 +114,7 @@ Profiles define communication characteristics for agents:
 #### Redirector
 
 1. Add redirector settings to your C2 profile under the redirector key:
+
 ```json
  "redirector": {
       "redirector_host": "0.0.0.0",
@@ -123,14 +124,19 @@ Profiles define communication characteristics for agents:
 ```
 
 2. How it works:
-Use the --redirector flag when generating payloads
+
+Use the --redirector flag when generating payloads:
+
 - Without `--redirector`: Agent connects directly to C2 server
+
 - With `--redirector`: Agent connects to the redirector host/port specified in the profile instead of the C2 server
+  
 - All other agent behavior remains the same
 
 #### Failover deployment
 
-1. Add backup failover Neo C2 Servers to profile config
+1. Add backup failover Neo C2 Servers to profile config:
+
 ```json
 "failover_urls": [
       "https://failover1.example.com:443",
@@ -141,17 +147,25 @@ Use the --redirector flag when generating payloads
 ```
 
 2. How it works:
+
 CLI Support: `--use-failover` flag correctly during payload generation
+
 - Agents maintain connection to primary C2 with failure counting
+
 - Upon reaching failure threshold `15`, agents attempt to connect to failover servers in sequence
+
 - Success with any failover server becomes new current C2
+
 - Automatic reset and failback mechanisms
+
 Without `--use-failover` flag, Agents are generated without embedded failover servers
 
-3. NEW: Agent Key Distribution for Failover Setup
+3. Agent Key Distribution for Failover Setup:
+
 To enable agents to communicate with failover C2 servers, you need to share agent secret keys between primary and failover servers using the new failover commands:
 
 **Export Agent Keys from Primary C2:**
+
 ```bash
 # Export all agent keys
 failover export-keys /path/to/agent_keys.json
@@ -161,6 +175,7 @@ failover export-keys /path/to/single_agent.json AGENT123
 ```
 
 **Import Agent Keys to Failover C2:**
+
 ```bash
 # Import agent keys to failover server
 failover import-keys /path/to/agent_keys.json
