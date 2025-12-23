@@ -1459,16 +1459,6 @@ class AgentManager:
         return stats
 
     def export_agent_keys(self, file_path, agent_id=None):
-        """
-        Export agent IDs and secret keys to a JSON file for failover distribution
-
-        Args:
-            file_path (str): Path to save the JSON file
-            agent_id (str, optional): Specific agent ID to export. If None, exports all agents
-
-        Returns:
-            dict: Result with success status and message
-        """
         try:
             import json
             import os
@@ -1534,15 +1524,6 @@ class AgentManager:
             return {'success': False, 'error': f"Error exporting agent keys: {str(e)}"}
 
     def import_agent_keys(self, file_path):
-        """
-        Import agent IDs and secret keys from a JSON file for failover setup
-
-        Args:
-            file_path (str): Path to the JSON file containing agent keys
-
-        Returns:
-            dict: Result with success status and message
-        """
         try:
             import json
             import os

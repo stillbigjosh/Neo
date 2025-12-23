@@ -6,6 +6,7 @@ Available NeoC2 Terminal Commands:
 INFRASTRUCTURE MANAGEMENT:
   listener    - Manage listeners (create, start, stop, delete)
   profile     - Communication profile management (list, add, reload)
+  failover    - Manage failover deployment
   stager      - Generate stagers
   payload     - Generate various payload types
   payload_upload - Upload staging payload to C2 endpoint
