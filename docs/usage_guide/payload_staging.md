@@ -1,10 +1,5 @@
-# Payload Generation
 
-## Payload Generation
-
-See Agents & Stager Guide (on the sidebar) for complete agent type breakdown and usage:
-
-## Payload Staging
+# Payload Staging
 
 NeoC2 supports staging payloads directly through the `payload_upload` base-command of the remote client server, allowing operators to deploy binary executables like .exe, .dll, or other file types in addition to Python scripts. The payload to be staged must be present on the command-and-control-sever and its path provided for staging.
 
