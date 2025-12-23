@@ -1,7 +1,25 @@
-# The NeoC2 Framework 
-<a href="https://github.com/stillbigjosh/Neo"><img alt="Release" src="https://img.shields.io/badge/release-1.5.1-blue.svg"/></a> <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/License-GPL-green.svg"/></a> <a href=""><img alt="Platform" src="https://img.shields.io/badge/platform-Linux-lightgrey.svg"/></a> 
+<div align="center">
 
-_A modular server-client architecture post-exploitation framework built for collaborative agent management in red team operations and security testing. Enables flexibility by allowing operators to add their own modules._
+# The NeoC2 Framework 
+
+[![Version](https://img.shields.io/badge/Version-1.5.1-orange.svg)](https://github.com/stillbigjosh/Neo/releases)
+[![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
+[![Golang](https://img.shields.io/badge/Go-1.2%2B-blue.svg)](https://www.go.dev/)
+[![License](https://img.shields.io/badge/License-GPL-green.svg)](LICENSE)
+[![Tools](https://img.shields.io/badge/Tools-Adversary%20Emulation-red.svg)](https://github.com/stillbigjosh/Neo)
+[![Platform](https://img.shields.io/badge/platform-Linux-lightgrey.svg)](https://github.com/stillbigjosh/Neo)
+
+
+
+**A modular server-client architecture post-exploitation framework built for collaborative agent management in red team operations and security testing. Enables flexibility by allowing operators to add their own extension modules**
+
+[Installation](https://neoc2.readthedocs.io/en/latest/getting_started/Installation/) • [Agents & Stagers](https://neoc2.readthedocs.io/en/latest/core_concepts/agents_and_stagers_guide/) • [Profiles & Listeners](https://neoc2.readthedocs.io/en/latest/usage_guide/profiles_and_listeners/) • [Specialized Modules](https://neoc2.readthedocs.io/en/latest/usage_guide/specialized_modules/) • [Multiplayer](https://neoc2.readthedocs.io/en/latest/advanced_features/multiplayer/) • [SOCKS5 Pivot](https://neoc2.readthedocs.io/en/latest/usage_guide/socks5_pivot/) • [Task Orchestration] (https://neoc2.readthedocs.io/en/latest/advanced_features/taskorchestration/)
+
+</div>
+
+
+
+---
 
 ### Features
 - **Multiplayer-mode:** Real-time collaboration between operators with Interactive session locking
