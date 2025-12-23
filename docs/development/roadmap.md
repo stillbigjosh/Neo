@@ -17,7 +17,7 @@
 - [x] Failover handler for managing primary and secondary C2s
 - [x] Socks5 support for reverse proxying
 - [x] NtQueueApcThread,NtCreateThreadEx,RtlCreateUserThread Shellcode injection
-      
+
 
 ## Actively Under development
 - [ ] EDR Evasion modules
@@ -35,7 +35,7 @@
 - [ ] Enhanced and Opsec safe P2P Agent comm
 - [ ] Keylogging, screenshot module
 - [ ] Early bird APC injection
-
+- [ ] DLL Sideloading
 
 
 ## Premium
