@@ -12,6 +12,12 @@
 - [x] Powershell module handler 
 - [x] Active Agent alerting system to all connected clients
 - [x] In-memory .NET execution
+- [x] Modular Payload architecture
+- [x] Enhanced Task Orchestrator
+- [x] Failover handler for managing primary and secondary C2s
+- [x] Socks5 support for reverse proxying
+- [x] NtQueueApcThread,NtCreateThreadEx,RtlCreateUserThread Shellcode injection
+      
 
 ## Actively Under development
 - [ ] EDR Evasion modules
@@ -30,7 +36,7 @@
 - [ ] Enhanced and Opsec safe P2P Agent comm
 - [ ] Keylogging, screenshot module
 - [ ] Early bird APC injection
-- [ ] Proxy-awareness
+
 
 
 ## Premium
