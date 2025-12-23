@@ -109,7 +109,9 @@ The agent's command processing is dynamically adjusted based on included feature
   - `upload <path> <data>` - Upload files to the target
   - `sleep <seconds>` - Change agent check-in interval
   - `kill` - Self-delete the agent
-  - `cmd <command>`- Direct command execution (shell commands)
+  - `cmd <command>` - Direct command execution (shell commands)
+  - `tty_shell` - Enter a full TTY Shell
+
 
 - **Feature-Specific Commands** (available when feature is included):
   - `execute-bof <bof_filename> [arguments] [agent_id=<agent_id>]` - Execute BOF (when BOF feature included)
@@ -155,13 +157,13 @@ Phantom Hawk is a Python variant with limited capability.
 - Linux Debian
 
 ### Capabilities
-- **Proxy Awareness**: Supports Network pivoting using its built-in SOCKS5 proxy
-- **Command Execution**: Execute arbitrary shell commands on the target system
+- **Proxy Awareness**: Supports Network pivoting using its built-in SOCKS5 proxy  `reverse_proxy_start`, `reverse_proxy_stop`
+- **Command Execution**: Execute arbitrary shell commands on the target system (using PowerShell)  `cmd <command>`
 - **Anti Debugging, Sandbox Detection & Self Deletion**: Works on Windows, Linux Hosts. 
-- **File Transfer**: Upload and download files using base64 encoding
-- **Interactive Mode**: Enter real-time interactive session with the target
-- **TTY Shell Enabled**: Enter a full TTY Shell 
-- **Polymorphic Obfuscation**: Randomized variable and function names to evade static analysis
+- **File Transfer**: Upload and download files using base64 encoding `upload`, `download`
+- **Interactive Mode**: Enter real-time interactive session with the target `interact`
+- **TTY Shell Enabled**: Enter a full TTY Shell `tty_shell`
+- **Polymorphic Obfuscation**: Randomized variable and function names to evade static analysis 
 - **Jitter & Sleep Obfuscation**: Configurable sleep intervals with jitter during agent generation and in deployment
 - **Cross-Platform**: Works on Windows, Linux 
 - **Sanbox & Debugger Detection**: Self deletes in sandboxed environment
@@ -176,7 +178,7 @@ Phantom Hawk is a Python variant with limited capability.
 ### Usage
 ```
 NeoC2 > payload phantom_hawk <listener_id> [--obfuscate] [--disable-sandbox] [--linux] [--redirector] [--use-failover]
-NeoC2 [INTERACTIVE:abc123] > [pwsh, upload, download, tty_shell, sleep, kill, interact, run]
+NeoC2 [INTERACTIVE:abc123] > [reverse_proxy_start, reverse_proxy_stop, cmd, pwsh, upload, download, tty_shell, sleep, kill, interact, run]
 ```
 
 
