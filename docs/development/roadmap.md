@@ -25,7 +25,6 @@
 ## To be implemented
 - [ ] Built-in modules for network reconnaissance and internal enumeration
 - [ ] Enhanced Agent Traffic-shaping 
-- [ ] Built-in Socks Proxying and support for various pivoting protocols
 - [ ] Support for multiple communication protocols (DNS, ICMP, SSH)
 - [ ] File browser
 - [ ] Large powershell scripts broken down in chunks in-memory to bypass characater limit
