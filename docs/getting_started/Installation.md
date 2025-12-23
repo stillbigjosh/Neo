@@ -7,10 +7,10 @@
 
 ## How to install
 
-#### Prerequisites
-- Linux Machine
-- Python 3.13
-- Golang 1.25
+#### Prerequisites:
+- Linux (Debian)
+- Python 3.1
+- Golang 1.2
 - Python virtual environment (python3-venv)
 - OpenSSL/LetsEncrypt
 

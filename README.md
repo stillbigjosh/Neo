@@ -9,6 +9,7 @@ _A modular server-client architecture post-exploitation framework built for coll
 - **Task Orchestrator**: Chain modules for complex operations
 - **Role-Based Access Control:** Co-ordinates access and permissions with admin/operator/viewer roles
 - **Multi-Operator Extension Module System:** Operators use their own local extension modules without interfering with each other
+- **Modular Payload Design** Customize the payload capability by including or excluding specific advanced features. 
 - **Polymorphic Payloads:** Randomized variable and function names, XOR-based string obfuscation
 - **Malleable profiles:** Customize agent behavior and communication patterns
 - **Sanbox & Debugger Detection**: Anti-analysis self-deletion 
