@@ -5390,7 +5390,7 @@ DB Inactive:       {stats['db_inactive_agents']}
             'download', 'upload', 'stager', 'profile', 'payload', 'execute-bof', 'execute-assembly',
             'interact', 'event', 'task', 'result', 'addcmd', 'back', 'exit',
             'quit', 'clear', 'help', 'status', 'save', 'protocol', 'interactive',
-            'taskchain', 'beacon', 'cmd'
+            'taskchain', 'beacon', 'cmd', 'failover'
         }
         return base_cmd.lower() in framework_commands
 
@@ -5446,6 +5446,7 @@ DB Inactive:       {stats['db_inactive_agents']}
                 'execute-assembly': 'modules.execute',  # execute-assembly command requires modules.execute permission
                 'help': 'agents.list',  # Help command should be available to all roles with basic access
                 'cmd': 'agents.interact',  # cmd command requires agents.interact permission
+                'failover': 'agents.list',  # failover command requires agents.list permission
             }
             
             required_permission = permission_map.get(base_cmd, f'{base_cmd}.list')
@@ -6410,6 +6411,71 @@ DB Inactive:       {stats['db_inactive_agents']}
                     else:
                         result = f"Unknown cli_socks_proxy action: {action}. Use: start, stop"
                         status = 'error'
+            elif base_cmd == 'failover':
+                if len(command_parts) < 2:
+                    result = """
+FAILOVER COMMANDS
+═══════════════════════════════════════════════════════════════════
+
+COMMANDS:
+  • failover import-keys <file_path>          - Import agent keys from distribution file
+  • failover export-keys <file_path> [agent_id] - Export agent keys to distribution file
+
+DESCRIPTION:
+  Import and export agent secret keys for failover C2 server setup.
+  This allows agents to communicate with backup/secondary C2 servers.
+
+EXAMPLES:
+  • failover export-keys /tmp/agent_keys.json
+  • failover export-keys /tmp/single_agent.json AGENT123
+  • failover import-keys /tmp/agent_keys.json
+                    """
+                    status = 'info'
+                    return {'output': result, 'status': status}
+
+                action = command_parts[1].lower()
+
+                if action == 'import-keys':
+                    if len(command_parts) < 3:
+                        result = "Usage: failover import-keys <file_path>"
+                        status = 'error'
+                    else:
+                        file_path = command_parts[2]
+                        try:
+                            import_result = self.agent_manager.import_agent_keys(file_path)
+                            if import_result['success']:
+                                result = import_result['message']
+                                status = 'success'
+                            else:
+                                result = f"Failed to import agent keys: {import_result['error']}"
+                                status = 'error'
+                        except Exception as e:
+                            result = f"Error importing agent keys: {str(e)}"
+                            status = 'error'
+
+                elif action == 'export-keys':
+                    if len(command_parts) < 3:
+                        result = "Usage: failover export-keys <file_path> [agent_id]"
+                        status = 'error'
+                    else:
+                        file_path = command_parts[2]
+                        agent_id = command_parts[3] if len(command_parts) > 3 else None
+
+                        try:
+                            export_result = self.agent_manager.export_agent_keys(file_path, agent_id)
+                            if export_result['success']:
+                                result = export_result['message']
+                                status = 'success'
+                            else:
+                                result = f"Failed to export agent keys: {export_result['error']}"
+                                status = 'error'
+                        except Exception as e:
+                            result = f"Error exporting agent keys: {str(e)}"
+                            status = 'error'
+
+                else:
+                    result = f"Unknown failover action: {action}. Use: import-keys, export-keys"
+                    status = 'error'
             else:
                 result, status = self.handle_neoc2_command(command, remote_session)
             
