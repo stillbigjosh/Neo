@@ -75,7 +75,7 @@ Profiles define communication characteristics for agents:
 
 - `endpoints.interactive`: Used for interactive command functionality - the agent bypasses queued tasks, retrieves interactive commands and submits interactive command results through this endpoint
 
-- `endpoints.interactive_sttus`: Used by the agent to check the interactive mode status to determine if it should operate in interactive mode or normal task mode
+- `endpoints.interactive_status`: Used by the agent to check the interactive mode status to determine if it should operate in interactive mode or normal task mode
 
 
 #### Kill Date Configuration

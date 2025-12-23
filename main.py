@@ -465,7 +465,6 @@ class NeoC2Framework:
                         "register": "/api/users/register",
                         "tasks": "/api/users/{agent_id}/profile",
                         "results": "/api/users/{agent_id}/activity",
-                        "download": "/api/assets/main.js",
                         "interactive": "/api/users/{agent_id}/settings",
                         "interactive_status": "/api/users/{agent_id}/status"
                     },
@@ -559,7 +558,6 @@ class NeoC2Framework:
                     "register": "/api/users/register",
                     "tasks": "/api/users/{agent_id}/profile",
                     "results": "/api/users/{agent_id}/activity",
-                    "download": "/api/assets/main.js",
                     "interactive": "/api/users/{agent_id}/settings",
                     "interactive_status": "/api/users/{agent_id}/status"
                 },
