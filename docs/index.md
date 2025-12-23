@@ -16,7 +16,7 @@ A modular server-client architecture post-exploitation framework built for colla
 ### Usage Guide
 
 *   [**Agent Management**](usage_guide/agent_management.md): Managing agent lifecycles and interactive sessions
-*   [**Payload Generation**](usage_guide/payload_generation.md): Creating and deploying agent payloads
+*   [**Payload Staging**](usage_guide/payload_generation.md): Stage implants
 *   [**Task Management**](usage_guide/task_management.md): Executing commands and managing task results
 *   [**SOCKS5 Pivot**](usage_guide/socks5_pivot.md): Network pivoting using SOCKS5 proxy functionality
 *   [**File Operations**](usage_guide/file_operations.md): File handling
