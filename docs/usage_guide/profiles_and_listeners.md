@@ -12,7 +12,6 @@ Profiles define communication characteristics for agents:
   "description": "Custom HTTPS communication profile",
   "config": {
     "endpoints": {
-      "download": "/api/assets/main.js",
       "register": "/api/users/register",
       "results": "/api/users/{agent_id}/activity",
       "tasks": "/api/users/{agent_id}/profile",
