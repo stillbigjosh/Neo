@@ -159,10 +159,11 @@ Phantom Hawk is a Python variant with limited capability.
 ### Capabilities
 - **Proxy Awareness**: Supports Network pivoting using its built-in SOCKS5 proxy  `reverse_proxy_start`, `reverse_proxy_stop`
 - **Command Execution**: Execute arbitrary shell commands on the target system (using PowerShell)  `cmd <command>`
-- **Anti Debugging, Sandbox Detection & Self Deletion**: Works on Windows, Linux Hosts. 
+- **PowerShell Module Execution**: Runs external powershell modules with `pwsh` 
 - **File Transfer**: Upload and download files using base64 encoding `upload`, `download`
 - **Interactive Mode**: Enter real-time interactive session with the target `interact`
 - **TTY Shell Enabled**: Enter a full TTY Shell `tty_shell`
+- **Anti Debugging, Sandbox Detection & Self Deletion**: Works on Windows, Linux Hosts. 
 - **Polymorphic Obfuscation**: Randomized variable and function names to evade static analysis 
 - **Jitter & Sleep Obfuscation**: Configurable sleep intervals with jitter during agent generation and in deployment
 - **Cross-Platform**: Works on Windows, Linux 
@@ -170,7 +171,6 @@ Phantom Hawk is a Python variant with limited capability.
 - **Working hours & Kill dates**: Incorporates a profile configurable kill-dates and working-hours restrictions
 - **Redirector Support**: Allows operators to define and manage external infrastructure that points to the internal listeners
 - **Failover deployment**: Embeds failover C2 servers
-- **PowerShell Module Execution**: Runs external powershell modules with `pwsh` 
 
 ### Limitations
 - Lightweight and doesn't pack advanced feature-set
