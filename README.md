@@ -46,7 +46,7 @@
 
 
 ## Installation:
-NeoC2 works well on Kali Linux. See the [Installations](https://neoc2.readthedocs.io/en/latest/getting_started/Installation/) guide for instructions. 
+NeoC2 works well on Debian based Linux distribution, such as Ubuntu and Kali Linux. See the [Installations](https://neoc2.readthedocs.io/en/latest/getting_started/Installation/) guide for instructions. 
 
 ## Documentation 
 Read [https://neoc2.readthedocs.io/en/latest/](https://neoc2.readthedocs.io/en/latest/) for all Usage guides 
