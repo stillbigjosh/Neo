@@ -223,7 +223,7 @@ echo "  neoc2 restart       - Restart the C2 service"
 echo "  neoc2 logs          - View service logs in real-time"
 echo ""
 echo "IMPORTANT: Credentials are read from /opt/neoc2/.env file!"
-echo "The C2 server should now be running as a background service on port 443 using gevent."
+echo "The C2 server should now be running as a background service using gevent."
 echo "Check the status and logs to confirm it's working properly."
 
 
