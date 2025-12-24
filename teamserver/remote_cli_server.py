@@ -3551,31 +3551,7 @@ UPLOADED PAYLOAD STATUS:
                     return f"Failed to execute chain {chain_id}: {result.get('error', 'Unknown error')}", 'error'
 
             elif action == 'help':
-                return """
-TASK CHAIN COMMANDS
-═══════════════════════════════════════════════════════════════════
-
-COMMANDS:
-  • taskchain create <agent_id> <module1=args1,module2=args2,module3=args3> [name=chain_name] [execute=true]
-  • taskchain list [agent_id=<agent_id>] [status=<status>] [limit=<limit>]
-  • taskchain status <chain_id>
-  • taskchain execute <chain_id>
-  • taskchain help
-
-OPTIONS:
-  • name=chain_name    - Name for the task chain
-  • execute=true       - Execute the chain immediately after creation (default: false)
-  • agent_id=agent_id  - Filter chains by agent ID (for list command)
-  • status=status      - Filter chains by status (for list command)
-  • limit=limit        - Limit number of results (for list command)
-
-EXAMPLES:
-  • taskchain create AGENT001 get_system,whoami,pslist name=priv_escalation
-  • taskchain list
-  • taskchain list agent_id=AGENT001 status=pending
-  • taskchain status CHAIN123
-  • taskchain execute CHAIN123
-                """, 'info'
+                return help.get_taskchain_help_display(), 'info'
 
             else:
                 return f"Unknown taskchain action: {action}. Use 'taskchain help' for available commands.", 'error'
@@ -3587,57 +3563,13 @@ EXAMPLES:
             return f"Error handling taskchain_command: {str(e)}", 'error'
 
     def handle_reporting_command(self, command_parts, session):
-        """
-        Handle reporting commands for generating various reports
-        
-        Usage:
-          reporting list                    - List available reports
-          reporting <report_type>           - Generate a specific report
-          reporting <report_type> [start_date=YYYY-MM-DD] [end_date=YYYY-MM-DD] [agent_id=AGENT_ID] [user_id=USER_ID]
-          reporting export <report_type> <format> [start_date=YYYY-MM-DD] [end_date=YYYY-MM-DD] [agent_id=AGENT_ID] [user_id=USER_ID]
-          reporting help                    - Show this help
-          
-        Report Types:
-          agent_activity    - Agent activity and communication report
-          task_execution    - Task execution and results report  
-          audit_log         - Security audit log with user actions
-          module_usage      - Module usage and execution patterns
-          system_overview   - System health and configuration report
-          
-        Export Formats:
-          csv, json
-        """
         if len(command_parts) < 2:
             return help.get_reporting_help_display(), 'info'
 
         action = command_parts[1].lower()
 
         if action == 'help':
-            return """
-REPORTING COMMANDS:
-  reporting list
-  reporting <report_type> [start_date=YYYY-MM-DD] [end_date=YYYY-MM-DD] [agent_id=AGENT_ID] [user_id=USER_ID]
-  reporting export <report_type> <format> [start_date=YYYY-MM-DD] [end_date=YYYY-MM-DD] [agent_id=AGENT_ID] [user_id=USER_ID]
-  reporting help
-
-REPORT TYPES:
-  agent_activity    - Agent activity and communication report
-  task_execution    - Task execution and results report
-  audit_log         - Security audit log with user actions  
-  module_usage      - Module usage and execution patterns
-  system_overview   - System health and configuration report
-
-EXPORT FORMATS:
-  csv, json
-
-EXAMPLES:
-  reporting list
-  reporting agent_activity
-  reporting task_execution start_date=2024-01-01 end_date=2024-12-31
-  reporting audit_log agent_id=AGENT001
-  reporting export module_usage csv
-  reporting export task_execution json start_date=2024-01-01
-            """, 'info'
+            return help.get_reporting_help_display(), 'info'
 
         if action == 'list':
             reports = [
@@ -6549,7 +6481,6 @@ DB Inactive:       {stats['db_inactive_agents']}
         return False
 
     def broadcast_agent_update(self, agent_data):
-        """Broadcast agent update to all connected clients"""
         # This is for new agent registrations only
         try:
             for session_id, session_info in self.active_sessions.items():
@@ -6577,7 +6508,6 @@ DB Inactive:       {stats['db_inactive_agents']}
             self.logger.error(f"[-] Error broadcasting agent update: {str(e)}")
 
     def broadcast_all_agents_to_all_clients(self):
-        """Broadcast all current agents to all connected clients periodically"""
         try:
             # Get all current agents
             if self.agent_manager:
