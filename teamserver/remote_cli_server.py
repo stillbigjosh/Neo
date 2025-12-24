@@ -239,7 +239,7 @@ class RemoteCLIServer:
 
         elif action in ['start', 'stop', 'restart', 'delete']:
             if len(command_parts) < 3:
-                return f"USAGE: listener {action} <listener_name>", 'error'
+                return help.get_listener_usage(), 'error'
             
             listener_name = command_parts[2]
             
@@ -281,25 +281,29 @@ class RemoteCLIServer:
             try:
                 result = listener_manager.list_listeners()
                 if not result.get('success', False):
-                    return f"Failed to list listeners: {result.get('error', 'Unknown error')}", 'error'
-                
+                    return {"error": f"Failed to list listeners: {result.get('error', 'Unknown error')}"}, 'error'
+
                 listeners = result.get('listeners', [])
                 if not listeners:
-                    return "No listeners found.", 'info'
-                
-                output = "Active Listeners:\n" + ("-" * 125) + "\n"
-                output += f"{'Name':<15} {'Type':<8} {'Host':<15} {'Port':<6} {'Profile':<20} {'Status':<10} {'ID':<36}\n"
-                output += ("-" * 125) + "\n"
+                    return {"listeners": []}, 'success'
 
+                # Return raw listener data as JSON instead of formatted table
+                listener_data = []
                 for listener in listeners:
-                    port_str = str(listener['port']) if listener['port'] else 'N/A'
-                    profile = listener.get('profile_name', 'default')
-                    output += f"{listener['name']:<15} {listener['type']:<8} {listener['host']:<15} {port_str:<6} {profile:<20} {listener['status']:<10} {listener['id']:<36}\n"
-                
-                return output, 'success'
-                    
+                    listener_data.append({
+                        'name': listener['name'],
+                        'type': listener['type'],
+                        'host': listener['host'],
+                        'port': listener['port'],
+                        'profile_name': listener.get('profile_name', 'default'),
+                        'status': listener['status'],
+                        'id': listener['id']
+                    })
+
+                return {"listeners": listener_data}, 'success'
+
             except Exception as e:
-                return f"Error listing listeners: {str(e)}", 'error'
+                return {"error": f"Error listing listeners: {str(e)}"}, 'error'
                 
         else:
             return f"Unknown action: {action}. Available: create, list, start, stop, restart, delete", 'error'
@@ -318,42 +322,27 @@ class RemoteCLIServer:
                 modules_list = module_manager.list_modules()  # Call the method
 
                 if not modules_list:
-                    return "No modules found. Place modules in the modules/ directory.", 'info'
+                    return {"modules": []}, 'success'
 
-                output = "Available Modules:\n"
-                output += "-" * 120 + "\n"
-                output += f"{'Name':<25} {'Type':<15} {'Technique ID':<15} {'MITRE Tactics':<25} {'Description':<35}\n"
-                output += "-" * 120 + "\n"
-
+                # Return raw module data as JSON instead of formatted table
+                module_data = []
                 for module_info in modules_list:
-                    name = module_info.get('name', 'Unknown')
-                    module_type = module_info.get('type', 'unknown')
-                    technique_id = module_info.get('technique_id', 'unknown')
-                    mitre_tactics = ', '.join(module_info.get('mitre_tactics', []))
-                    description = module_info.get('description', 'No description')
+                    module_data.append({
+                        'name': module_info.get('name', 'Unknown'),
+                        'type': module_info.get('type', 'unknown'),
+                        'technique_id': module_info.get('technique_id', 'unknown'),
+                        'mitre_tactics': module_info.get('mitre_tactics', []),
+                        'description': module_info.get('description', 'No description')
+                    })
 
-                    # Truncate fields if too long
-                    if len(name) > 24:
-                        name = name[:22] + ".."
-                    if len(module_type) > 14:
-                        module_type = module_type[:12] + ".."
-                    if len(technique_id) > 14:
-                        technique_id = technique_id[:12] + ".."
-                    if len(mitre_tactics) > 24:
-                        mitre_tactics = mitre_tactics[:22] + ".."
-                    if len(description) > 34:
-                        description = description[:32] + ".."
-
-                    output += f"{name:<25} {module_type:<15} {technique_id:<15} {mitre_tactics:<25} {description:<35}\n"
-
-                return output, 'success'
+                return {"modules": module_data}, 'success'
 
             except Exception as e:
-                return f"Error listing modules: {str(e)}", 'error'
+                return {"error": f"Error listing modules: {str(e)}"}, 'error'
         
         elif action == 'load':
             if len(command_parts) < 3:
-                return "Usage: modules load <module_path>", 'error'
+                return help.get_modules_load_usage(), 'error'
             
             module_path = command_parts[2]
             
@@ -370,9 +359,7 @@ class RemoteCLIServer:
         
         elif action == 'info':
             if len(command_parts) < 3:
-                return """
-                USAGE:
-                modules info <module_name>""", 'error'
+                return help.get_modules_info_usage(), 'error'
             
             module_name = command_parts[2]
             
@@ -419,31 +406,33 @@ class RemoteCLIServer:
                 
                 module_info = loaded_modules_dict[module_name]['info']
                 
-                output = f"Module Information: {module_info.get('name', 'Unknown')}\n"
-                output += "=" * 80 + "\n"
-                output += f"Description: {module_info.get('description', 'No description')}\n"
-                output += f"Type: {module_info.get('type', 'Unknown')}\n"
-                output += f"Platform: {module_info.get('platform', 'Unknown')}\n"
-                output += f"Author: {module_info.get('author', 'Unknown')}\n"
-                output += f"References: {', '.join(module_info.get('references', []))}\n"
-                
+                # Return raw module info as JSON instead of formatted output
+                module_info_data = {
+                    'name': module_info.get('name', 'Unknown'),
+                    'description': module_info.get('description', 'No description'),
+                    'type': module_info.get('type', 'Unknown'),
+                    'platform': module_info.get('platform', 'Unknown'),
+                    'author': module_info.get('author', 'Unknown'),
+                    'references': module_info.get('references', []),
+                    'options': {}
+                }
+
                 if 'options' in module_info:
-                    output += "\nOptions:\n"
                     for opt_name, opt_info in module_info['options'].items():
-                        output += f"  {opt_name}: {opt_info.get('description', 'No description')}\n"
-                        if opt_info.get('required', False):
-                            output += "    (Required)\n"
-                        if 'default' in opt_info:
-                            output += f"    Default: {opt_info['default']}\n"
-                
-                return output, 'success'
+                        module_info_data['options'][opt_name] = {
+                            'description': opt_info.get('description', 'No description'),
+                            'required': opt_info.get('required', False),
+                            'default': opt_info.get('default', None)
+                        }
+
+                return {"module_info": module_info_data}, 'success'
                     
             except Exception as e:
                 return f"Error getting module info: {str(e)}", 'error'
         
         elif action == 'check':
             if len(command_parts) < 3:
-                return "USAGE: modules check <module_path>"
+                return help.get_modules_check_usage()
                 
             module_path = command_parts[2]
             try:
@@ -604,7 +593,7 @@ class RemoteCLIServer:
         module_name = "pinject"
 
         if len(command_parts) < 2:
-            return "USAGE: pinject <shellcode_file> [agent_id=<agent_id>]", 'error'
+            return help.get_pinject_usage(), 'error'
 
         try:
             db = session.agent_manager.db if session.agent_manager else self.db
@@ -765,7 +754,7 @@ class RemoteCLIServer:
         module_name = "pwsh"
 
         if len(command_parts) < 2:
-            return "USAGE: pwsh <script_file> [agent_id=<agent_id>] [arguments=<script_arguments>]", 'error'
+            return help.get_pwsh_usage(), 'error'
 
         try:
             db = session.agent_manager.db if session.agent_manager else self.db
@@ -922,7 +911,7 @@ class RemoteCLIServer:
         module_name = "execute-bof"
 
         if len(command_parts) < 2:
-            return "USAGE: execute-bof <bof_file> [arguments] [agent_id=<agent_id>]", 'error'
+            return help.get_execute_bof_usage(), 'error'
 
         try:
             db = session.agent_manager.db if session.agent_manager else self.db
@@ -1086,7 +1075,7 @@ class RemoteCLIServer:
         module_name = "execute-assembly"
 
         if len(command_parts) < 2:
-            return "USAGE: execute-assembly <assembly_file> [agent_id=<agent_id>]", 'error'
+            return help.get_execute_assembly_usage(), 'error'
 
         try:
             db = session.agent_manager.db if session.agent_manager else self.db
@@ -1241,7 +1230,7 @@ class RemoteCLIServer:
         module_name = "persist"
 
         if len(command_parts) < 2:
-            return "USAGE: persist <method> <payload_path> [agent_id=<agent_id>] [name=<persistence_name>] [interval=<minutes>]", 'error'
+            return help.get_persist_usage(), 'error'
 
         try:
             db = session.agent_manager.db if session.agent_manager else self.db
@@ -1422,7 +1411,7 @@ class RemoteCLIServer:
         module_name = "peinject"
 
         if len(command_parts) < 2:
-            return "USAGE: peinject <pe_file> [agent_id=<agent_id>]", 'error'
+            return help.get_peinject_usage(), 'error'
 
         try:
             db = session.agent_manager.db if session.agent_manager else self.db
@@ -1605,37 +1594,34 @@ class RemoteCLIServer:
             try:
                 agent_manager = session.agent_manager
                 if not agent_manager:
-                    return "Agent manager not initialized", 'error'
+                    return {"error": "Agent manager not initialized"}, 'error'
 
                 agents = agent_manager.list_agents()
                 if not agents:
-                    return "No active agents found.", 'info'
+                    return {"agents": []}, 'success'
 
-                output = "Active Agents:\n"
-                output += "-" * 150 + "\n"
-                output += f"{'ID':<30} {'IP Address':<15} {'Hostname':<20} {'OS':<15} {'User':<15} {'Listener ID':<15} {'Status':<12} {'Last Seen':<19}\n"
-                output += "-" * 150 + "\n"
-
+                # Return raw agent data as JSON instead of formatted table
+                agent_data = []
                 for agent in agents:
-                    agent_id = agent['id']
-                    ip_address = agent['ip_address']
-                    hostname = agent['hostname']
-                    os_info = agent['os_info'][:14] if agent['os_info'] else 'N/A'  # Truncate if too long
-                    user = agent['user']
-                    listener_id = agent['listener_id']
-                    status = agent['status']
-                    last_seen = agent['last_seen'][:19] if agent['last_seen'] else 'N/A'  # Truncate timestamp
+                    agent_data.append({
+                        'id': agent['id'],
+                        'ip_address': agent['ip_address'],
+                        'hostname': agent['hostname'],
+                        'os_info': agent['os_info'],
+                        'user': agent['user'],
+                        'listener_id': agent['listener_id'],
+                        'status': agent['status'],
+                        'last_seen': agent['last_seen']
+                    })
 
-                    output += f"{agent_id:<30} {ip_address:<15} {hostname:<20} {os_info:<15} {user:<15} {listener_id:<15} {status:<12} {last_seen:<19}\n"
-
-                return output, 'success'
+                return {"agents": agent_data}, 'success'
 
             except Exception as e:
-                return f"Error listing agents: {str(e)}", 'error'
+                return {"error": f"Error listing agents: {str(e)}"}, 'error'
         
         elif action == 'interact':
             if len(command_parts) < 3:
-                return "Usage: agent interact <agent_id>", 'error'
+                return help.get_agent_interact_usage(), 'error'
         
             agent_id = command_parts[2]
         
@@ -1661,18 +1647,14 @@ class RemoteCLIServer:
                         sess_info['interactive_mode'] = True
                         break
             
-                output = f"\n{'=' * 80}\n"
-                output += f" INTERACTIVE MODE ACTIVATED (EXCLUSIVE ACCESS)\n"
-                output += f"Agent: {agent_id}\n"
-                output += f"Hostname: {agent.hostname} | User: {agent.user} | OS: {agent.os_info}\n"
-                output += f"{'=' * 80}\n"
-                output += " Commands are executed in REAL-TIME via interactive API\n"
-                output += " Type 'back' to leave interactive mode\n"
-                output += " All commands go directly to agent, bypassing task queue\n"
-                output += " Exclusive access - other operators locked out\n"
-                output += f"{'=' * 80}\n"
-            
-                return output, 'interactive'
+                return {
+                    "interactive": True,
+                    "agent_id": agent_id,
+                    "hostname": agent.hostname,
+                    "user": agent.user,
+                    "os_info": agent.os_info,
+                    "message": "INTERACTIVE MODE ACTIVATED (EXCLUSIVE ACCESS)"
+                }, 'interactive'
                 
             except Exception as e:
                 if session.agent_manager:
@@ -1684,7 +1666,7 @@ class RemoteCLIServer:
                 return "No agent selected. Use 'agent interact <agent_id>' first.", 'error'
             
             if len(command_parts) < 3:
-                return "Usage: agent execute <command>", 'error'
+                return help.get_agent_execute_usage(), 'error'
             
             command = ' '.join(command_parts[2:])
             
@@ -1704,7 +1686,7 @@ class RemoteCLIServer:
         
         elif action == 'info':
             if len(command_parts) < 3:
-                return "Usage: agent info <agent_id>", 'error'
+                return help.get_agent_info_usage(), 'error'
             
             agent_id = command_parts[2]
             
@@ -1716,39 +1698,39 @@ class RemoteCLIServer:
                     return f"Agent {agent_id} not found", 'error'
                 
                 agent_dict = agent.to_dict()
-                
-                output = f"\nAgent Information:\n"
-                output += "=" * 80 + "\n"
-                output += f"ID: {agent_dict['id']}\n"
-                output += f"IP Address: {agent_dict['ip_address']}\n"
-                output += f"Hostname: {agent_dict['hostname']}\n"
-                output += f"OS: {agent_dict['os_info']}\n"
-                output += f"User: {agent_dict['user']}\n"
-                output += f"Listener ID: {agent_dict['listener_id']}\n"
-                output += f"First Seen: {agent_dict['first_seen']}\n"
-                output += f"Last Seen: {agent_dict['last_seen']}\n"
-                output += f"Status: {agent_dict['status']}\n"
-                output += f"Pending Tasks: {agent_dict['pending_tasks']}\n"
-                output += f"Interactive Mode: {'Active' if agent_dict.get('interactive_mode') else 'Inactive'}\n"
-                
+
+                # Return raw agent data as JSON instead of formatted table
+                agent_info = {
+                    'id': agent_dict['id'],
+                    'ip_address': agent_dict['ip_address'],
+                    'hostname': agent_dict['hostname'],
+                    'os_info': agent_dict['os_info'],
+                    'user': agent_dict['user'],
+                    'listener_id': agent_dict['listener_id'],
+                    'first_seen': agent_dict['first_seen'],
+                    'last_seen': agent_dict['last_seen'],
+                    'status': agent_dict['status'],
+                    'pending_tasks': agent_dict['pending_tasks'],
+                    'interactive_mode': 'Active' if agent_dict.get('interactive_mode') else 'Inactive'
+                }
+
                 if session.agent_manager.is_agent_locked_interactively(agent_id):
                     lock_info = session.agent_manager.get_interactive_lock_info(agent_id)
                     if lock_info:
-                        output += f"Interactive Lock: EXCLUSIVE - Held by operator: {lock_info['operator']}\n"
+                        agent_info['interactive_lock'] = f"EXCLUSIVE - Held by operator: {lock_info['operator']}"
                     else:
-                        output += f"Interactive Lock: EXCLUSIVE - Locked\n"
+                        agent_info['interactive_lock'] = "EXCLUSIVE - Locked"
                 else:
-                    output += f"Interactive Lock: Available for access\n"
-                output += "=" * 80 + "\n"
-                
-                return output, 'success'
+                    agent_info['interactive_lock'] = "Available for access"
+
+                return {"agent_info": agent_info}, 'success'
                 
             except Exception as e:
                 return f"Error getting agent info: {str(e)}", 'error'
         
         elif action == 'kill':
             if len(command_parts) < 3:
-                return "Usage: agent kill <agent_id>", 'error'
+                return help.get_agent_kill_usage(), 'error'
             
             agent_id = command_parts[2]
             
@@ -1781,7 +1763,7 @@ class RemoteCLIServer:
         
         elif action == 'monitor':
             if len(command_parts) < 3:
-                return "Usage: agent monitor <agent_id>", 'error'
+                return help.get_agent_monitor_usage(), 'error'
             agent_id = command_parts[2]
             
             try:
@@ -1802,7 +1784,7 @@ class RemoteCLIServer:
         
         elif action == 'unmonitor':
             if len(command_parts) < 3:
-                return "Usage: agent unmonitor <agent_id>", 'error'
+                return help.get_agent_unmonitor_usage(), 'error'
             agent_id = command_parts[2]
             
             try:
@@ -1863,14 +1845,13 @@ class RemoteCLIServer:
                 return f"Error: {error}", 'error'
             
             if result is not None:
-                formatted_result = str(result).strip()
-                if len(formatted_result) > 10000:  # Truncate very long results
-                    formatted_result = formatted_result[:10000] + "\n... (truncated - use 'result' command to see full output)"
-                
-                output = f"\n[Agent Response]\n{'=' * 80}\n{formatted_result}\n{'=' * 80}\n"
-                return output, 'success'
+                result_str = str(result).strip()
+                if len(result_str) > 10000:  # Truncate very long results
+                    result_str = result_str[:10000] + "\n... (truncated - use 'result' command to see full output)"
+
+                return {"result": result_str}, 'success'
             else:
-                return "No response from agent", 'warning'
+                return {"result": "No response from agent"}, 'warning'
             
         except Exception as e:
             return f"Error executing interactive command: {str(e)}", 'error'
@@ -1914,27 +1895,7 @@ class RemoteCLIServer:
 
     def handle_encrypt(self, command_parts):
         if len(command_parts) < 3:
-            return """
-    USAGE:
-        encryption encrypt <algorithm> <data> [options]
-
-    ALGORITHMS:
-        fernet    - Symmetric encryption (default)
-        aes       - AES encryption (requires password=<pwd>)
-        rsa       - RSA encryption (requires public_key=<path>)
-        xor       - XOR encryption (requires key=<key>)
-
-    OPTIONS:
-        password=<pwd>      - Password for AES
-        public_key=<path>   - Path to RSA public key file
-        key=<key>           - Key for XOR (hex string)
-        output=<path>       - Save encrypted data to file
-
-    EXAMPLES:
-        encryption encrypt fernet "Hello World"
-        encryption encrypt aes "Secret Data" password=mypass123
-        encryption encrypt xor "Data" key=deadbeef output=out.enc
-            """, 'error'
+            return help.get_encryption_encrypt_usage(), 'error'
         
         algorithm = command_parts[1].lower()
         data = command_parts[2]
@@ -2015,28 +1976,7 @@ class RemoteCLIServer:
 
     def handle_decrypt(self, command_parts):
         if len(command_parts) < 3:
-            return """
-    USAGE:
-        encryption decrypt <algorithm> <encrypted_data> [options]
-
-    ALGORITHMS:
-        fernet    - Symmetric decryption
-        aes       - AES decryption (requires password=<pwd> salt=<salt>)
-        rsa       - RSA decryption (requires private_key=<path>)
-        xor       - XOR decryption (requires key=<key>)
-
-    OPTIONS:
-        password=<pwd>      - Password for AES
-        salt=<salt>         - Salt for AES (base64)
-        private_key=<path>  - Path to RSA private key file
-        key=<key>           - Key for XOR (hex string)
-        input=<path>        - Read encrypted data from file
-
-    EXAMPLES:
-        encryption decrypt fernet <base64_data>
-        encryption decrypt aes <data> password=mypass123 salt=<salt>
-        encryption decrypt xor <data> key=deadbeef
-            """, 'error'
+            return help.get_encryption_decrypt_usage(), 'error'
         
         algorithm = command_parts[1].lower()
         encrypted_data_b64 = command_parts[2] if len(command_parts) > 2 else None
@@ -2120,26 +2060,7 @@ class RemoteCLIServer:
 
     def handle_keygen(self, command_parts):
         if len(command_parts) < 2:
-            return """
-    USAGE:
-        encryption keygen <algorithm> [options]
-
-    ALGORITHMS:
-        fernet    - Generate Fernet key
-        aes       - Generate AES key (requires password=<pwd>)
-        rsa       - Generate RSA key pair
-        xor       - Generate XOR key (optional: length=<bytes>)
-
-    OPTIONS:
-        password=<pwd>      - Password for AES key derivation
-        length=<bytes>      - Length for XOR key (default: 32)
-        output=<prefix>     - Output prefix for key files
-
-    EXAMPLES:
-        encryption keygen rsa output=my_rsa
-        encryption keygen xor length=64
-        encryption keygen aes password=mypass123
-            """, 'error'
+            return help.get_encryption_keygen_usage(), 'error'
         
         algorithm = command_parts[1].lower()
         
@@ -2223,18 +2144,7 @@ class RemoteCLIServer:
 
     def handle_steganography(self, command_parts):
         if len(command_parts) < 2:
-            return """
-    USAGE:
-        encryption stego hide <image_path> <data> <output_path> [key=<key>]
-        encryption stego extract <image_path> [key=<key>]
-
-    DESCRIPTION:
-        Hide or extract data from images using LSB steganography
-
-    EXAMPLES:
-        encryption stego hide image.png "Secret Message" stego_image.png
-        encryption stego extract stego_image.png
-            """, 'error'
+            return help.get_encryption_stego_usage(), 'error'
         
         operation = command_parts[1].lower()
         
@@ -2243,7 +2153,7 @@ class RemoteCLIServer:
             
             if operation == 'hide':
                 if len(command_parts) < 5:
-                    return "Usage: encryption stego hide <image_path> <data> <output_path> [key=<key>]", 'error'
+                    return help.get_encryption_stego_hide_usage(), 'error'
                 
                 image_path = command_parts[2]
                 data = command_parts[3]
@@ -2274,7 +2184,7 @@ class RemoteCLIServer:
                     
             elif operation == 'extract':
                 if len(command_parts) < 3:
-                    return "Usage: encryption stego extract <image_path> [key=<key>]", 'error'
+                    return help.get_encryption_stego_extract_usage(), 'error'
                 
                 image_path = command_parts[2]
                 
@@ -2305,18 +2215,7 @@ class RemoteCLIServer:
 
     def handle_hmac(self, command_parts):
         if len(command_parts) < 2:
-            return """
-    USAGE:
-        encryption hmac generate <data> [key=<key>]
-        encryption hmac verify <data> <hmac> [key=<key>]
-
-    DESCRIPTION:
-        Generate or verify HMAC signatures
-
-    EXAMPLES:
-        encryption hmac generate "Important Data" key=deadbeef
-        encryption hmac verify "Important Data" <hmac_hex> key=deadbeef
-            """, 'error'
+            return help.get_encryption_hmac_usage(), 'error'
         
         operation = command_parts[1].lower()
         
@@ -2325,7 +2224,7 @@ class RemoteCLIServer:
             
             if operation == 'generate':
                 if len(command_parts) < 3:
-                    return "Usage: encryption hmac generate <data> [key=<key>]", 'error'
+                    return help.get_encryption_hmac_generate_usage(), 'error'
                 
                 data = command_parts[2]
                 
@@ -2350,7 +2249,7 @@ class RemoteCLIServer:
                 
             elif operation == 'verify':
                 if len(command_parts) < 4:
-                    return "Usage: encryption hmac verify <data> <hmac> [key=<key>]", 'error'
+                    return help.get_encryption_hmac_verify_usage(), 'error'
                 
                 data = command_parts[2]
                 hmac_hex = command_parts[3]
@@ -2413,7 +2312,7 @@ class RemoteCLIServer:
 
     def handle_download_command(self, command_parts, session):
         if len(command_parts) < 2:
-            return "Usage: download <agent_id> <remote_file_path> (for agent downloads) OR download <server_file_path> (for server downloads)", "error"
+            return help.get_download_usage(), "error"
 
         if len(command_parts) == 2:
             file_path = command_parts[1]
@@ -2494,7 +2393,7 @@ class RemoteCLIServer:
                     else:
                         return "No response from agent", "warning"
                 else:
-                    return "Usage: download <agent_id> <remote_file_path> (for agent downloads) OR download <server_file_path> (for server downloads)", "error"
+                    return help.get_download_usage(), "error"
 
         elif len(command_parts) == 3:
             agent_id = command_parts[1]
@@ -2582,7 +2481,7 @@ class RemoteCLIServer:
                     error_msg = task_result.get('error', 'Unknown error') if task_result else 'Failed to create task'
                     return f" Failed to queue download task for agent {agent_id[:8]}: {error_msg}", "error"
         else:
-            return "Usage: download <agent_id> <remote_file_path> (for agent downloads) OR download <server_file_path> (for server downloads)", "error"
+            return help.get_download_usage(), "error"
 
     def _handle_server_file_download(self, file_path):
         import os
@@ -2646,7 +2545,7 @@ class RemoteCLIServer:
             local_path = command_parts[2]
             remote_path = command_parts[3]
         else:
-            return "Usage: upload <agent_id> <local_file_path> <remote_file_path> OR upload <local_file_path> <remote_file_path> (in interactive mode)", "error"
+            return help.get_upload_usage(), "error"
 
         if session.agent_manager.is_agent_locked_interactively(agent_id):
             lock_info = session.agent_manager.get_interactive_lock_info(agent_id)
@@ -2699,27 +2598,13 @@ class RemoteCLIServer:
 
     def handle_profile_command(self, command_parts, session):
         if len(command_parts) < 2:
-            return """
-PROFILE MANAGEMENT COMMANDS
-═══════════════════════════════════════════════════════════════════
-
-COMMANDS:
-  • profile add <path>                - Add a new communication profile from a JSON file
-  • profile add base64:<encoded_json> - Add a new communication profile from base64 encoded JSON
-  • profile list                      - List all communication profiles in the database
-  • profile reload <path> <name>      - Reload an existing profile with changes from a JSON file
-
-EXAMPLES:
-  • profile add /path/to/profile.json
-  • profile add base64:eyJuYW1lIjoiTXlQcm9maWxlIiwiY29uZmlnIjp7fX0=
-  • profile reload /path/to/updated.json MyProfile
-""", "info"
+            return help.get_profile_help_display(), "info"
 
         action = command_parts[1].lower()
 
         if action == 'add':
             if len(command_parts) < 3:
-                return "Usage: profile add <path_to_json> OR profile add base64:<base64_encoded_json>", "error"
+                return help.get_profile_add_usage(), "error"
 
             profile_source = command_parts[2]
 
@@ -2770,32 +2655,25 @@ EXAMPLES:
                 profiles = self.db.get_all_profiles()
 
                 if not profiles:
-                    return "No profiles found in the database.", "info"
+                    return {"profiles": []}, "success"
 
-                output = "Communication Profiles:\n"
-                output += "-" * 100 + "\n"
-                output += f"{'ID':<38} {'Name':<20} {'Description':<30}\n"
-                output += "-" * 100 + "\n"
-
+                # Return raw profile data as JSON instead of formatted table
+                profile_data = []
                 for profile in profiles:
-                    profile_id = profile.get('id', 'N/A')
-                    name = profile.get('name', 'N/A')
-                    description = profile.get('description', 'N/A')
+                    profile_data.append({
+                        'id': profile.get('id', 'N/A'),
+                        'name': profile.get('name', 'N/A'),
+                        'description': profile.get('description', 'N/A')
+                    })
 
-                    # Truncate description if too long
-                    if len(description) > 28:
-                        description = description[:25] + "..."
-
-                    output += f"{profile_id:<38} {name:<20} {description:<30}\n"
-
-                return output, "success"
+                return {"profiles": profile_data}, "success"
 
             except Exception as e:
-                return f"Error listing profiles: {str(e)}", "error"
+                return {"error": f"Error listing profiles: {str(e)}"}, "error"
 
         elif action == 'reload':
             if len(command_parts) < 4:
-                return "USAGE: profile reload <profile_path> <profile_name>", "error"
+                return help.get_profile_reload_usage(), "error"
 
             profile_path = command_parts[2]
             profile_name = command_parts[3]
@@ -2838,36 +2716,7 @@ EXAMPLES:
     def handle_payload_command(self, command_parts, session):
 
         if len(command_parts) < 3:
-            return """
-PAYLOAD GENERATION COMMANDS
-═══════════════════════════════════════════════════════════════════
-
-SYNTAX:
-  • payload <type> <listener_name> [options]
-
-AVAILABLE PAYLOAD TYPES:
-  • phantom_hawk_agent   - Python agent
-  • go_agent             - Go agent compiled to Windows executable
-
-OPTIONS:
-  • --obfuscate          - Enable string obfuscation
-  • --disable-sandbox    - Disable sandbox/antidebugging checks
-  • --output <filename>  - Save payload to file (optional)
-  • --linux              - Compile payload to Linux binary
-  • --windows            - Compile payload to Windows binary
-  • --redirector         - Use redirector host and port from profile instead of C2 URL
-  • --use-failover       - Embed failover C2 URLs from profile into agent
-  • --no-bof             - Exclude Beacon Object File (BOF) execution capability
-  • --no-assembly        - Exclude .NET assembly execution capability
-  • --no-pe              - Exclude PE injection capability
-  • --no-shellcode       - Exclude shellcode injection capability
-  • --no-reverse-proxy   - Exclude reverse proxy (SOCKS5) capability
-  • --no-sandbox         - Exclude sandbox detection capability
-
-EXAMPLES:
-  • payload phantom_hawk_agent <listener_name> [--obfuscate] [--disable-sandbox] [--linux] [--redirector] [--use-failover]
-  • payload go_agent <listener_name> [--obfuscate] [--disable-sandbox] [--windows] [--redirector] [--use-failover] [--no-bof] [--no-assembly] [--no-pe] [--no-shellcode] [--no-reverse-proxy] [--no-sandbox]
-            """, 'info'
+            return help.get_payload_help_display(), 'info'
 
         payload_type = command_parts[1].lower()
         listener_name = command_parts[2]
@@ -3188,30 +3037,13 @@ Use 'download' command or access the file directly from the server.
 
     def handle_payload_upload_command(self, command_parts, session):
         if len(command_parts) < 2:
-            return """
-PAYLOAD UPLOAD COMMANDS
-═══════════════════════════════════════════════════════════════════
-
-COMMANDS:
-  • payload_upload upload <file>    - Upload a payload file for stagers
-  • payload_upload status           - Check status of uploaded payload
-  • payload_upload clear            - Clear the currently uploaded payload
-
-DESCRIPTION:
-  Upload custom payloads (executables, scripts, etc.) to be used with stagers.
-  Supported extensions: .exe, .dll, .py, .js, .vbs, .bat, .ps1, .bin, .dat, .raw
-
-EXAMPLES:
-  • payload_upload upload /tmp/myscript.exe
-  • payload_upload status
-  • payload_upload clear
-            """, 'info'
+            return help.get_payload_upload_help_display(), 'info'
 
         action = command_parts[1].lower()
 
         if action == 'upload':
             if len(command_parts) < 3:
-                return "Usage: payload_upload upload <local_file_path>", 'error'
+                return help.get_payload_upload_help_display(), 'error'
 
             local_file_path = command_parts[2]
 
@@ -3501,33 +3333,7 @@ UPLOADED PAYLOAD STATUS:
 
     def handle_taskchain_command(self, command_parts, session):
         if len(command_parts) < 2:
-            return """
-TASK CHAIN COMMANDS
-═══════════════════════════════════════════════════════════════════
-
-COMMANDS:
-  • taskchain create <agent_id> <module1=arg1,arg2,module2=arg3,module3> [name=chain_name] [execute=true]
-  • taskchain create <module1=arg1,arg2,module2=arg3,module3> [name=chain_name] [execute=true] (in interactive mode)
-  • taskchain list [agent_id=<agent_id>] [status=<status>] [limit=<limit>]
-  • taskchain status <chain_id>
-  • taskchain execute <chain_id>
-  • taskchain help
-
-OPTIONS:
-  • name=chain_name    - Name for the task chain
-  • execute=true       - Execute the chain immediately after creation (default: false)
-  • agent_id=agent_id  - Filter chains by agent ID (for list command)
-  • status=status      - Filter chains by status (for list command)
-  • limit=limit        - Limit number of results (for list command)
-
-EXAMPLES:
-  • taskchain create AGENT001 execute-bof=whoami.x64.o,tasklist.x64.o,pwsh=Get-ComputerName.ps1,execute-assembly=rubeus.exe name=test
-  • taskchain create execute-bof=whoami.x64.o,tasklist.x64.o name=test (in interactive mode)
-  • taskchain list
-  • taskchain list agent_id=AGENT001 status=pending
-  • taskchain status CHAIN123
-  • taskchain execute CHAIN123
-            """, 'info'
+            return help.get_taskchain_help_display(), 'info'
 
         action = command_parts[1].lower()
 
@@ -3544,7 +3350,7 @@ EXAMPLES:
 
             if action == 'create':
                 if len(command_parts) < 3:
-                    return "Usage: taskchain create <agent_id> <module1=arg1,arg2,module2=arg3,module3> [name=chain_name] [execute=true] OR taskchain create <module1=arg1,arg2,module2=arg3,module3> (in interactive mode)", 'error'
+                    return help.get_taskchain_create_usage(), 'error'
 
                 if len(command_parts) == 3 and session.interactive_mode and session.current_agent:
                     # Handle: taskchain create <module1=arg1,arg2,module2=arg3,module3> (in interactive mode)
@@ -3557,7 +3363,7 @@ EXAMPLES:
                     modules_str = command_parts[3]
                     command_parts_mod = command_parts  # Use original
                 else:
-                    return "Usage: taskchain create <agent_id> <module1=arg1,arg2,module2=arg3,module3> [name=chain_name] [execute=true] OR taskchain create <module1=arg1,arg2,module2=arg3,module3> (in interactive mode)", 'error'
+                    return help.get_taskchain_create_usage(), 'error'
 
                 options = {}
                 for part in command_parts_mod[4 if len(command_parts_mod) > 3 else 3:]:
@@ -3632,18 +3438,21 @@ EXAMPLES:
                 chain_id = result['chain_id']
 
                 output = f"Task chain '{result['chain_name']}' created successfully\n"
-                output += f"Chain ID: {chain_id}\n"
-                output += f"Modules: {', '.join(module_names)}\n"
+                chain_data = {
+                    'chain_name': result['chain_name'],
+                    'chain_id': chain_id,
+                    'modules': module_names
+                }
 
                 if execute_now:
                     exec_result = orchestrator.execute_chain(chain_id, execute_async=True)
 
                     if exec_result['success']:
-                        output += f"Chain execution started successfully\n"
+                        chain_data['execution_status'] = 'Chain execution started successfully'
                     else:
-                        output += f"Chain created but execution failed: {exec_result.get('error', 'Unknown error')}\n"
+                        chain_data['execution_status'] = f"Chain created but execution failed: {exec_result.get('error', 'Unknown error')}"
 
-                return output.strip(), 'success'
+                return {"chain_data": chain_data}, 'success'
 
             elif action == 'list':
                 options = {}
@@ -3654,7 +3463,7 @@ EXAMPLES:
 
                 agent_id = options.get('agent_id')
                 status = options.get('status')
-                
+
                 try:
                     limit = int(options.get('limit', 50))
                     if limit > 100:
@@ -3665,13 +3474,10 @@ EXAMPLES:
                 chains = orchestrator.list_chains(agent_id=agent_id, status=status, limit=limit)
 
                 if not chains:
-                    return "No task chains found", 'info'
+                    return {"chains": []}, 'success'
 
-                output = f"Task Chains (limit: {limit}):\n"
-                output += "-" * 150 + "\n"
-                output += f"{'Chain ID':<38} {'Name':<20} {'Agent ID':<15} {'Status':<12} {'Modules':<25} {'Created':<20}\n"
-                output += "-" * 150 + "\n"
-
+                # Return raw chain data as JSON instead of formatted table
+                chain_data = []
                 for chain in chains:
                     modules_list = ', '.join(chain['module_names'][:3])  # Show first 3 modules
                     if len(chain['module_names']) > 3:
@@ -3681,19 +3487,20 @@ EXAMPLES:
                     if created_at and len(created_at) > 19:
                         created_at = created_at[:19]  # Truncate to show only datetime part
 
-                    output += f"{chain['chain_id']:<38} "
-                    output += f"{chain['name'][:19]:<20} "
-                    output += f"{chain['agent_id'][:14]:<15} "
-                    output += f"{chain['status']:<12} "
-                    output += f"{modules_list[:24]:<25} "
-                    output += f"{created_at:<20}\n"
+                    chain_data.append({
+                        'chain_id': chain['chain_id'],
+                        'name': chain['name'][:19] if chain['name'] else '',
+                        'agent_id': chain['agent_id'][:14] if chain['agent_id'] else '',
+                        'status': chain['status'],
+                        'modules': modules_list[:24] if modules_list else '',
+                        'created_at': created_at
+                    })
 
-                output += "-" * 120 + "\n"
-                return output, 'success'
+                return {"chains": chain_data, "limit": limit}, 'success'
 
             elif action == 'status':
                 if len(command_parts) < 3:
-                    return "Usage: taskchain status <chain_id>", 'error'
+                    return help.get_taskchain_status_usage(), 'error'
 
                 chain_id = command_parts[2]
 
@@ -3702,32 +3509,36 @@ EXAMPLES:
                 if not chain_status:
                     return f"Task chain {chain_id} not found", 'error'
 
-                output = f"Chain Details:\n"
-                output += "-" * 80 + "\n"
-                output += f"Chain ID:   {chain_status['chain_id']}\n"
-                output += f"Name:       {chain_status['name']}\n"
-                output += f"Agent ID:   {chain_status['agent_id']}\n"
-                output += f"Status:     {chain_status['status']}\n"
-                output += f"Created:    {chain_status['created_at']}\n"
-                output += f"Started:    {chain_status['started_at'] if chain_status['started_at'] else 'N/A'}\n"
-                output += f"Completed:  {chain_status['completed_at'] if chain_status['completed_at'] else 'N/A'}\n"
-                output += "-" * 80 + "\n"
-                output += "Tasks:\n"
-                output += "-" * 80 + "\n"
+                # Return raw chain status as JSON instead of formatted output
+                chain_status_data = {
+                    'chain_id': chain_status['chain_id'],
+                    'name': chain_status['name'],
+                    'agent_id': chain_status['agent_id'],
+                    'status': chain_status['status'],
+                    'created_at': chain_status['created_at'],
+                    'started_at': chain_status['started_at'] if chain_status['started_at'] else 'N/A',
+                    'completed_at': chain_status['completed_at'] if chain_status['completed_at'] else 'N/A',
+                    'tasks': []
+                }
 
                 for task in chain_status['tasks']:
-                    output += f"  [{task['sequence_order']}] {task['module_name']} - {task['status']}\n"
-                    if task['error']:
-                        output += f"      Error: {task['error']}\n"
-                    if task['result'] and task['result'].get('output'):
-                        output += f"      Result: {task['result']['output'][:100]}{'...' if len(task['result']['output']) > 100 else ''}\n"
-                    output += "-" * 80 + "\n"
+                    task_data = {
+                        'sequence_order': task['sequence_order'],
+                        'module_name': task['module_name'],
+                        'status': task['status'],
+                        'error': task['error'],
+                        'result': task['result'] if task['result'] and task['result'].get('output') else None
+                    }
+                    if task_data['result'] and task_data['result'].get('output'):
+                        task_data['result_output'] = task['result']['output'][:100] + ('...' if len(task['result']['output']) > 100 else '')
 
-                return output, 'success'
+                    chain_status_data['tasks'].append(task_data)
+
+                return {"chain_status": chain_status_data}, 'success'
 
             elif action == 'execute':
                 if len(command_parts) < 3:
-                    return "Usage: taskchain execute <chain_id>", 'error'
+                    return help.get_taskchain_execute_usage(), 'error'
 
                 chain_id = command_parts[2]
 
@@ -3740,31 +3551,7 @@ EXAMPLES:
                     return f"Failed to execute chain {chain_id}: {result.get('error', 'Unknown error')}", 'error'
 
             elif action == 'help':
-                return """
-TASK CHAIN COMMANDS
-═══════════════════════════════════════════════════════════════════
-
-COMMANDS:
-  • taskchain create <agent_id> <module1=args1,module2=args2,module3=args3> [name=chain_name] [execute=true]
-  • taskchain list [agent_id=<agent_id>] [status=<status>] [limit=<limit>]
-  • taskchain status <chain_id>
-  • taskchain execute <chain_id>
-  • taskchain help
-
-OPTIONS:
-  • name=chain_name    - Name for the task chain
-  • execute=true       - Execute the chain immediately after creation (default: false)
-  • agent_id=agent_id  - Filter chains by agent ID (for list command)
-  • status=status      - Filter chains by status (for list command)
-  • limit=limit        - Limit number of results (for list command)
-
-EXAMPLES:
-  • taskchain create AGENT001 get_system,whoami,pslist name=priv_escalation
-  • taskchain list
-  • taskchain list agent_id=AGENT001 status=pending
-  • taskchain status CHAIN123
-  • taskchain execute CHAIN123
-                """, 'info'
+                return help.get_taskchain_help_display(), 'info'
 
             else:
                 return f"Unknown taskchain action: {action}. Use 'taskchain help' for available commands.", 'error'
@@ -3776,84 +3563,13 @@ EXAMPLES:
             return f"Error handling taskchain_command: {str(e)}", 'error'
 
     def handle_reporting_command(self, command_parts, session):
-        """
-        Handle reporting commands for generating various reports
-        
-        Usage:
-          reporting list                    - List available reports
-          reporting <report_type>           - Generate a specific report
-          reporting <report_type> [start_date=YYYY-MM-DD] [end_date=YYYY-MM-DD] [agent_id=AGENT_ID] [user_id=USER_ID]
-          reporting export <report_type> <format> [start_date=YYYY-MM-DD] [end_date=YYYY-MM-DD] [agent_id=AGENT_ID] [user_id=USER_ID]
-          reporting help                    - Show this help
-          
-        Report Types:
-          agent_activity    - Agent activity and communication report
-          task_execution    - Task execution and results report  
-          audit_log         - Security audit log with user actions
-          module_usage      - Module usage and execution patterns
-          system_overview   - System health and configuration report
-          
-        Export Formats:
-          csv, json
-        """
         if len(command_parts) < 2:
-            return """
-REPORTING COMMANDS
-═══════════════════════════════════════════════════════════════════
-
-COMMANDS:
-  • reporting list
-  • reporting <report_type> [start_date=YYYY-MM-DD] [end_date=YYYY-MM-DD] [agent_id=AGENT_ID] [user_id=USER_ID]
-  • reporting export <report_type> <format> [start_date=YYYY-MM-DD] [end_date=YYYY-MM-DD] [agent_id=AGENT_ID] [user_id=USER_ID]
-  • reporting help
-
-REPORT TYPES:
-  • agent_activity    - Agent activity and communication report
-  • task_execution    - Task execution and results report
-  • audit_log         - Security audit log with user actions
-  • module_usage      - Module usage and execution patterns
-  • system_overview   - System health and configuration report
-
-EXPORT FORMATS:
-  • csv, json
-
-EXAMPLES:
-  • reporting list
-  • reporting agent_activity
-  • reporting task_execution start_date=2024-01-01 end_date=2024-12-31
-  • reporting audit_log agent_id=AGENT001
-  • reporting export module_usage csv
-  • reporting export task_execution json start_date=2024-01-01
-            """, 'info'
+            return help.get_reporting_help_display(), 'info'
 
         action = command_parts[1].lower()
 
         if action == 'help':
-            return """
-REPORTING COMMANDS:
-  reporting list
-  reporting <report_type> [start_date=YYYY-MM-DD] [end_date=YYYY-MM-DD] [agent_id=AGENT_ID] [user_id=USER_ID]
-  reporting export <report_type> <format> [start_date=YYYY-MM-DD] [end_date=YYYY-MM-DD] [agent_id=AGENT_ID] [user_id=USER_ID]
-  reporting help
-
-REPORT TYPES:
-  agent_activity    - Agent activity and communication report
-  task_execution    - Task execution and results report
-  audit_log         - Security audit log with user actions  
-  module_usage      - Module usage and execution patterns
-  system_overview   - System health and configuration report
-
-EXPORT FORMATS:
-  csv, json
-
-EXAMPLES:
-  reporting list
-  reporting agent_activity
-  reporting task_execution start_date=2024-01-01 end_date=2024-12-31
-  reporting audit_log agent_id=AGENT001
-  reporting export module_usage csv
-  reporting export task_execution json start_date=2024-01-01
-            """, 'info'
+            return help.get_reporting_help_display(), 'info'
 
         if action == 'list':
             reports = [
@@ -3889,21 +3605,22 @@ EXAMPLES:
                 }
             ]
 
-            output = "Available Reports:\n"
-            output += "-" * 80 + "\n"
-            output += f"{'ID':<20} {'Title':<30} {'Description'}\n"
-            output += "-" * 80 + "\n"
-
+            # Return raw report data as JSON instead of formatted table
+            report_data = []
             for report in reports:
-                output += f"{report['id']:<20} {report['title']:<30} {report['description']}\n"
+                report_data.append({
+                    'id': report['id'],
+                    'title': report['title'],
+                    'description': report['description'],
+                    'categories': report['categories']
+                })
 
-            output += "-" * 80 + "\n"
-            return output, 'success'
+            return {"reports": report_data}, 'success'
 
         # Handle export command
         if action == 'export':
             if len(command_parts) < 4:
-                return "Usage: reporting export <report_type> <format> [options]", 'error'
+                return help.get_reporting_export_usage(), 'error'
 
             report_type = command_parts[2].lower()
             format_type = command_parts[3].lower()
@@ -4731,20 +4448,10 @@ EXAMPLES:
                     return result, 'success'
                 elif base_command == 'status':
                     stats = self.agent_manager.get_agent_stats()
-                    output = f"""
-Framework Status:
-Total Agents:      {stats['total_agents']}
-Active Agents:     {stats['active_agents']}
-Total Tasks:       {stats['total_tasks']}
-Pending Tasks:     {stats['pending_tasks']}
-DB Total Agents:   {stats['db_total_agents']}
-DB Active Agents:  {stats['db_active_agents']}
-DB Inactive:       {stats['db_inactive_agents']}
-                    """
-                    return output.strip(), 'success'
+                    return {"status": stats}, 'success'
                 elif base_command == 'task':
                     if len(command_parts) < 2:
-                        return "Usage: task <agent_id> pending tasks would be shown here", 'info'
+                        return help.get_task_pending_usage(), 'info'
                     else:
                         agent_id = command_parts[1]
                         tasks = self.db.execute('''
@@ -4755,38 +4462,45 @@ DB Inactive:       {stats['db_inactive_agents']}
                         ''', (agent_id,)).fetchall()
 
                         if not tasks:
-                            return f"No pending tasks for agent {agent_id}", 'info'
+                            return {"tasks": [], "agent_id": agent_id}, 'info'
                         else:
-                            output = f"Pending Tasks for Agent {agent_id}:\n"
-                            output += "-" * 80 + "\n"
+                            # Return raw task data as JSON instead of formatted output
+                            task_data = []
                             for task in tasks:
-                                output += f"Task ID: {task['id']}\n"
-                                output += f"Command: {task['command'][:20]}{'...' if len(task['command']) > 20 else ''}\n"
-                                output += f"Status: {task['status']} ({task['task_type']})\n"
-                                output += f"Created: {task['created_at']}\n"
-                                output += "-" * 80 + "\n"
-                            return output, 'success'
+                                task_data.append({
+                                    'id': task['id'],
+                                    'command': task['command'],
+                                    'status': task['status'],
+                                    'task_type': task['task_type'],
+                                    'created_at': task['created_at']
+                                })
+
+                            return {"tasks": task_data, "agent_id": agent_id}, 'success'
                 elif base_command == 'result':
                     if len(command_parts) < 2:
-                        return "Usage: result <agent_id> OR result list OR result <task_id>", 'error'
+                        return help.get_result_list_usage(), 'error'
                     elif command_parts[1] == 'list':
                         limit = int(command_parts[2]) if len(command_parts) > 2 else 50
                         results = self.agent_manager.get_all_results(limit)
 
                         if not results:
-                            return "No results found", 'info'
+                            return {"results": [], "limit": limit}, 'info'
                         else:
-                            output = f"Recent Task Results (Last {limit}):\n"
-                            output += "-" * 80 + "\n"
+                            # Return raw result data as JSON instead of formatted output
+                            result_data = []
                             for res in results:
-                                output += f"Task ID:      {res['task_id']}\n"
-                                output += f"Agent:        {res['agent_id']} ({res['hostname']}@{res['user']})\n"
-                                output += f"Command:      {res['command'][:20]}{'...' if len(res['command']) > 20 else ''}\n"
-                                output += f"Type:         {res['task_type']}\n"
-                                output += f"Completed:    {res['completed_at']}\n"
-                                output += f"Result:       {res['result'][:100]}{'...' if len(res['result']) > 100 else ''}\n"
-                                output += "-" * 80 + "\n"
-                            return output, 'success'
+                                result_data.append({
+                                    'task_id': res['task_id'],
+                                    'agent_id': res['agent_id'],
+                                    'hostname': res['hostname'],
+                                    'user': res['user'],
+                                    'command': res['command'],
+                                    'task_type': res['task_type'],
+                                    'completed_at': res['completed_at'],
+                                    'result': res['result']
+                                })
+
+                            return {"results": result_data, "limit": limit}, 'success'
                     elif len(command_parts) == 2:
                         task_id = command_parts[1]
 
@@ -4812,23 +4526,22 @@ DB Inactive:       {stats['db_inactive_agents']}
                                     task_dict = dict(task)
                                     task_result = task_dict.get('result', 'No result available')
 
-                                    # Return the complete result without truncation
-                                    output = f"Task Details:\n"
-                                    output += "-" * 80 + "\n"
-                                    output += f"Task ID:      {task_dict['id']}\n"
-                                    output += f"Agent ID:     {task_dict['agent_id']}\n"
-                                    output += f"Hostname:     {task_dict.get('hostname', 'N/A')} ({task_dict.get('user', 'N/A')})\n"
-                                    output += f"IP Address:   {task_dict.get('ip_address', 'N/A')}\n"
-                                    output += f"Command:      {task_dict['command'][:20]}{'...' if len(task_dict['command']) > 20 else ''}\n"
-                                    output += f"Status:       {task_dict['status']}\n"
-                                    output += f"Task Type:    {task_dict.get('task_type', 'queued')}\n"
-                                    output += f"Created:      {task_dict['created_at']}\n"
-                                    output += f"Completed:    {task_dict['completed_at'] if task_dict['completed_at'] else 'N/A'}\n"
-                                    output += "-" * 80 + "\n"
-                                    output += f"Complete Result:\n{task_result}\n"
-                                    output += "-" * 80 + "\n"
+                                    # Return raw task details as JSON instead of formatted output
+                                    task_details = {
+                                        'id': task_dict['id'],
+                                        'agent_id': task_dict['agent_id'],
+                                        'hostname': task_dict.get('hostname', 'N/A'),
+                                        'user': task_dict.get('user', 'N/A'),
+                                        'ip_address': task_dict.get('ip_address', 'N/A'),
+                                        'command': task_dict['command'],
+                                        'status': task_dict['status'],
+                                        'task_type': task_dict.get('task_type', 'queued'),
+                                        'created_at': task_dict['created_at'],
+                                        'completed_at': task_dict['completed_at'] if task_dict['completed_at'] else 'N/A',
+                                        'result': task_result
+                                    }
 
-                                    return output, 'success'
+                                    return {"task_details": task_details}, 'success'
                             except Exception as e:
                                 return f"Error retrieving task result: {str(e)}", 'error'
                     else:
@@ -4837,22 +4550,24 @@ DB Inactive:       {stats['db_inactive_agents']}
                         results = self.agent_manager.get_agent_results(agent_id, limit)
 
                         if not results:
-                            return f"No results found for agent {agent_id}", 'info'
+                            return {"results": [], "agent_id": agent_id}, 'info'
                         else:
-                            output = f"Results for Agent {agent_id}:\n"
-                            output += "-" * 80 + "\n"
+                            # Return raw result data as JSON instead of formatted output
+                            result_data = []
                             for res in results:
-                                output += f"Task ID:      {res['task_id']}\n"
-                                output += f"Command:      {res['command']}\n"
-                                output += f"Created:      {res['created_at']}\n"
-                                output += f"Completed:    {res['completed_at']}\n"
-                                output += f"Result:       {res['result'][:100]}{'...' if len(res['result']) > 100 else ''}\n"
-                                output += "-" * 80 + "\n"
-                            return output, 'success'
+                                result_data.append({
+                                    'task_id': res['task_id'],
+                                    'command': res['command'],
+                                    'created_at': res['created_at'],
+                                    'completed_at': res['completed_at'],
+                                    'result': res['result']
+                                })
+
+                            return {"results": result_data, "agent_id": agent_id}, 'success'
                 elif base_command == 'addcmd':
                     # Handle addcmd command
                     if len(command_parts) < 3:
-                        return "Usage: addcmd <agent_id> <command>", 'error'
+                        return help.get_addcmd_agent_usage(), 'error'
                     else:
                         agent_id = command_parts[1]
 
@@ -4874,7 +4589,7 @@ DB Inactive:       {stats['db_inactive_agents']}
                             return result, 'error'
                 elif base_command == 'save':
                     if len(command_parts) < 2:
-                        return "Usage: save <task_id>", 'error'
+                        return help.get_save_task_id_usage(), 'error'
 
                     task_id = command_parts[1]
 
@@ -4968,7 +4683,7 @@ DB Inactive:       {stats['db_inactive_agents']}
                 elif base_command == 'interact':
                     # Handle the interact command (alias for agent interact)
                     if len(command_parts) < 2:
-                        return "Usage: interact <agent_id>", 'error'
+                        return help.get_interact_agent_id_usage(), 'error'
                     else:
                         agent_command_parts = ['agent', 'interact'] + command_parts[1:]
                         return self.handle_agent_command(agent_command_parts, session)
@@ -5004,10 +4719,8 @@ DB Inactive:       {stats['db_inactive_agents']}
                             if action == 'list':
                                 logs = self.audit_logger.get_logs(limit=limit, offset=offset)
                                 if logs:
-                                    output = f"Audit Events (limit: {limit}):\n"
-                                    output += "-" * 150 + "\n"
-                                    output += f"{'Timestamp':<25} {'Username':<20} {'Action':<20} {'Resource':<30} {'Details':<40}\n"
-                                    output += "-" * 150 + "\n"
+                                    # Return raw event data as JSON instead of formatted table
+                                    event_data = []
                                     for log in logs:
                                         timestamp = log['timestamp'][:19] if log['timestamp'] else 'N/A'
                                         username = log['username']
@@ -5023,35 +4736,47 @@ DB Inactive:       {stats['db_inactive_agents']}
                                         if len(resource) > 29:
                                             resource = resource[:27] + ".."
 
-                                        output += f"{timestamp:<25} {username:<20} {action:<20} {resource:<30} {details:<40}\n"
-                                    return output, 'success'
+                                        event_data.append({
+                                            'timestamp': timestamp,
+                                            'username': username,
+                                            'action': action,
+                                            'resource': resource,
+                                            'details': details
+                                        })
+
+                                    return {"events": event_data, "limit": limit}, 'success'
                                 else:
-                                    return "No audit events found", 'info'
+                                    return {"events": [], "limit": limit}, 'info'
                             elif action == 'search':
                                 if not search_query:
-                                    return "Usage: event search <query>", 'error'
+                                    return {"error": help.get_event_search_usage()}, 'error'
                                 else:
                                     logs = self.audit_logger.search_logs(query=search_query, limit=limit, offset=offset)
                                     if logs:
-                                        output = f"Search Results for '{search_query}' (limit: {limit}):\n"
-                                        output += "-" * 100 + "\n"
+                                        # Return raw search results as JSON instead of formatted output
+                                        search_results = []
                                         for log in logs:
-                                            output += f"[{log['timestamp']}] {log['username']} | {log['action']} | {log['resource_type']}/{log['resource_id']}\n"
-                                            output += f"  Details: {log['details']}\n"
-                                            output += "-" * 100 + "\n"
-                                        return output, 'success'
+                                            search_results.append({
+                                                'timestamp': log['timestamp'],
+                                                'username': log['username'],
+                                                'action': log['action'],
+                                                'resource_type': log['resource_type'],
+                                                'resource_id': log['resource_id'],
+                                                'details': log['details']
+                                            })
+                                        return {"search_results": search_results, "query": search_query, "limit": limit}, 'success'
                                     else:
-                                        return f"No events found for search query: {search_query}", 'info'
+                                        return {"search_results": [], "query": search_query, "limit": limit}, 'info'
                             elif action == 'stats':
                                 stats = self.audit_logger.get_log_stats()
-                                output = f"Audit Log Statistics:\n"
-                                output += "-" * 50 + "\n"
-                                output += f"Total Logs: {stats.get('total_logs', 0)}\n"
-                                output += f"Recent (24h): {stats.get('recent_24h', 0)}\n"
-                                output += f"Actions:\n"
-                                for action_name, count in list(stats.get('by_action', {}).items())[:10]:  # Show top 10
-                                    output += f"  {action_name}: {count}\n"
-                                return output, 'success'
+                                # Return raw stats as JSON instead of formatted output
+                                return {
+                                    "stats": {
+                                        "total_logs": stats.get('total_logs', 0),
+                                        "recent_24h": stats.get('recent_24h', 0),
+                                        "by_action": dict(list(stats.get('by_action', {}).items())[:10])  # Show top 10
+                                    }
+                                }, 'success'
                             elif action in ['monitor', 'stop_monitor']:
                                 if action == 'monitor':
                                     return "Real-time event monitoring: Use 'event' message type for live events. For command line, you can use 'event list' to get current events.", 'info'
@@ -5098,7 +4823,7 @@ DB Inactive:       {stats['db_inactive_agents']}
             return self.handle_inline_execute_assembly_command(command_parts, session)
         elif base_command == 'interact':
             if len(command_parts) < 2:
-                return "Usage: interact <agent_id>", 'error'
+                return help.get_interact_agent_id_usage(), 'error'
             agent_command_parts = ['agent', 'interact'] + command_parts[1:]
             return self.handle_agent_command(agent_command_parts, session)
         elif base_command == 'help':
@@ -5560,7 +5285,7 @@ DB Inactive:       {stats['db_inactive_agents']}
                             # Handle: task <agent_id> [other_args]
                             agent_id = command_parts[1]
                         else:
-                            result = "Usage: task <agent_id> OR task (in interactive mode)"
+                            result = help.get_task_usage()
                             status = 'info'
                             return {'output': result, 'status': status}
 
@@ -5575,19 +5300,22 @@ DB Inactive:       {stats['db_inactive_agents']}
                             result = f"No pending tasks for agent {agent_id}"
                             status = 'info'
                         else:
-                            output = f"Pending Tasks for Agent {agent_id}:\n"
-                            output += "-" * 80 + "\n"
+                            # Return raw task data as JSON instead of formatted output
+                            task_data = []
                             for task in tasks:
-                                output += f"Task ID: {task['id']}\n"
-                                output += f"Command: {task['command'][:20]}{'...' if len(task['command']) > 20 else ''}\n"
-                                output += f"Status: {task['status']} ({task['task_type']})\n"
-                                output += f"Created: {task['created_at']}\n"
-                                output += "-" * 80 + "\n"
-                            result = output
+                                task_data.append({
+                                    'id': task['id'],
+                                    'command': task['command'],
+                                    'status': task['status'],
+                                    'task_type': task['task_type'],
+                                    'created_at': task['created_at']
+                                })
+
+                            result = {"tasks": task_data, "agent_id": agent_id}
                             status = 'success'
                     elif base_cmd == 'result':
                         if len(command_parts) < 2:
-                            result = "Usage: result <agent_id> OR result list OR result <task_id>"
+                            result = help.get_result_usage()
                             status = 'error'
                         elif command_parts[1] == 'list':
                             limit = int(command_parts[2]) if len(command_parts) > 2 else 50
@@ -5597,17 +5325,21 @@ DB Inactive:       {stats['db_inactive_agents']}
                                 result = "No results found"
                                 status = 'info'
                             else:
-                                output = f"Recent Task Results (Last {limit}):\n"
-                                output += "-" * 80 + "\n"
+                                # Return raw result data as JSON instead of formatted output
+                                result_data = []
                                 for res in results:
-                                    output += f"Task ID:      {res['task_id']}\n"
-                                    output += f"Agent:        {res['agent_id']} ({res['hostname']}@{res['user']})\n"
-                                    output += f"Command:      {res['command']}\n"
-                                    output += f"Type:         {res['task_type']}\n"
-                                    output += f"Completed:    {res['completed_at']}\n"
-                                    output += f"Result:       {res['result'][:100]}{'...' if len(res['result']) > 100 else ''}\n"
-                                    output += "-" * 80 + "\n"
-                                result = output
+                                    result_data.append({
+                                        'task_id': res['task_id'],
+                                        'agent_id': res['agent_id'],
+                                        'hostname': res['hostname'],
+                                        'user': res['user'],
+                                        'command': res['command'],
+                                        'task_type': res['task_type'],
+                                        'completed_at': res['completed_at'],
+                                        'result': res['result']
+                                    })
+
+                                result = {"results": result_data, "limit": limit}
                                 status = 'success'
                         elif len(command_parts) == 2 and command_parts[1].replace('-', '').replace('_', '').isalnum():
                             task_id = command_parts[1]
@@ -5636,22 +5368,22 @@ DB Inactive:       {stats['db_inactive_agents']}
                                         task_dict = dict(task)
                                         task_result = task_dict.get('result', 'No result available')
 
-                                        output = f"Task Details:\n"
-                                        output += "-" * 80 + "\n"
-                                        output += f"Task ID:      {task_dict['id']}\n"
-                                        output += f"Agent ID:     {task_dict['agent_id']}\n"
-                                        output += f"Hostname:     {task_dict.get('hostname', 'N/A')} ({task_dict.get('user', 'N/A')})\n"
-                                        output += f"IP Address:   {task_dict.get('ip_address', 'N/A')}\n"
-                                        output += f"Command:      {task_dict['command'][:20]}{'...' if len(task_dict['command']) > 20 else ''}\n"
-                                        output += f"Status:       {task_dict['status']}\n"
-                                        output += f"Task Type:    {task_dict.get('task_type', 'queued')}\n"
-                                        output += f"Created:      {task_dict['created_at']}\n"
-                                        output += f"Completed:    {task_dict['completed_at'] if task_dict['completed_at'] else 'N/A'}\n"
-                                        output += "-" * 80 + "\n"
-                                        output += f"Complete Result:\n{task_result}\n"
-                                        output += "-" * 80 + "\n"
+                                        # Return raw task details as JSON instead of formatted output
+                                        task_details = {
+                                            'id': task_dict['id'],
+                                            'agent_id': task_dict['agent_id'],
+                                            'hostname': task_dict.get('hostname', 'N/A'),
+                                            'user': task_dict.get('user', 'N/A'),
+                                            'ip_address': task_dict.get('ip_address', 'N/A'),
+                                            'command': task_dict['command'],
+                                            'status': task_dict['status'],
+                                            'task_type': task_dict.get('task_type', 'queued'),
+                                            'created_at': task_dict['created_at'],
+                                            'completed_at': task_dict['completed_at'] if task_dict['completed_at'] else 'N/A',
+                                            'result': task_result
+                                        }
 
-                                        result = output
+                                        result = {"task_details": task_details}
                                         status = 'success'
                                 except Exception as e:
                                     result = f"Error retrieving task result: {str(e)}"
@@ -5666,16 +5398,18 @@ DB Inactive:       {stats['db_inactive_agents']}
                                 result = f"No results found for current agent"
                                 status = 'info'
                             else:
-                                output = f"Results for Current Agent ({agent_id}):\n"
-                                output += "-" * 80 + "\n"
+                                # Return raw result data as JSON instead of formatted output
+                                result_data = []
                                 for res in results:
-                                    output += f"Task ID:      {res['task_id']}\n"
-                                    output += f"Command:      {res['command']}\n"
-                                    output += f"Created:      {res['created_at']}\n"
-                                    output += f"Completed:    {res['completed_at']}\n"
-                                    output += f"Result:       {res['result'][:100]}{'...' if len(res['result']) > 100 else ''}\n"
-                                    output += "-" * 80 + "\n"
-                                result = output
+                                    result_data.append({
+                                        'task_id': res['task_id'],
+                                        'command': res['command'],
+                                        'created_at': res['created_at'],
+                                        'completed_at': res['completed_at'],
+                                        'result': res['result']
+                                    })
+
+                                result = {"results": result_data, "agent_id": agent_id}
                                 status = 'success'
                         else:
                             agent_id = command_parts[1]
@@ -5686,20 +5420,22 @@ DB Inactive:       {stats['db_inactive_agents']}
                                 result = f"No results found for agent {agent_id}"
                                 status = 'info'
                             else:
-                                output = f"Results for Agent {agent_id}:\n"
-                                output += "-" * 80 + "\n"
+                                # Return raw result data as JSON instead of formatted output
+                                result_data = []
                                 for res in results:
-                                    output += f"Task ID:      {res['task_id']}\n"
-                                    output += f"Command:      {res['command'][:20]}{'...' if len(res['command']) > 20 else ''}\n"
-                                    output += f"Created:      {res['created_at']}\n"
-                                    output += f"Completed:    {res['completed_at']}\n"
-                                    output += f"Result:       {res['result'][:100]}{'...' if len(res['result']) > 100 else ''}\n"
-                                    output += "-" * 80 + "\n"
-                                result = output
+                                    result_data.append({
+                                        'task_id': res['task_id'],
+                                        'command': res['command'],
+                                        'created_at': res['created_at'],
+                                        'completed_at': res['completed_at'],
+                                        'result': res['result']
+                                    })
+
+                                result = {"results": result_data, "agent_id": agent_id}
                                 status = 'success'
                     elif base_cmd == 'addcmd':
                         if len(command_parts) < 2:
-                            result = "USAGE: addcmd <agent_id> <command> OR addcmd <command> (in interactive mode)\n\nNote: Uses the standard queued API for command execution."
+                            result = help.get_addcmd_usage()
                             status = 'error'
                             return {'output': result, 'status': status}
                         elif len(command_parts) == 2 and remote_session.interactive_mode and remote_session.current_agent:
@@ -5733,7 +5469,7 @@ DB Inactive:       {stats['db_inactive_agents']}
                             status = 'error'
                     elif base_cmd == 'save':
                         if len(command_parts) < 2:
-                            result = "Usage: save <task_id>"
+                            result = help.get_save_usage()
                             status = 'error'
                         else:
                             task_id = command_parts[1]
@@ -5837,7 +5573,7 @@ DB Inactive:       {stats['db_inactive_agents']}
                         result, status = self.handle_inline_execute_assembly_command(command_parts, remote_session)
                     elif base_cmd == 'interact':
                         if len(command_parts) < 2:
-                            result = "Usage: interact <agent_id>"
+                            result = help.get_interact_usage()
                             status = 'error'
                         else:
                             agent_command_parts = ['agent', 'interact'] + command_parts[1:]
@@ -5846,7 +5582,7 @@ DB Inactive:       {stats['db_inactive_agents']}
                         result, status = self.handle_taskchain_command(command_parts, remote_session)
                     elif base_cmd == 'cmd':
                         if len(command_parts) < 2:
-                            result = "Usage: cmd <command> (in interactive mode)"
+                            result = help.get_cmd_usage()
                             status = 'error'
                         elif not remote_session.interactive_mode or not remote_session.current_agent:
                             result = "Must be in interactive mode to use cmd command", 'error'
@@ -5939,7 +5675,7 @@ DB Inactive:       {stats['db_inactive_agents']}
                     # Handle: task <agent_id> [other_args]
                     agent_id = command_parts[1]
                 else:
-                    result = "Usage: task <agent_id> OR task (in interactive mode)"
+                    result = help.get_task_usage()
                     status = 'info'
                     return {'output': result, 'status': status}
 
@@ -5966,28 +5702,30 @@ DB Inactive:       {stats['db_inactive_agents']}
                     status = 'success'
             elif base_cmd == 'result':
                 if len(command_parts) < 2:
-                    result = "Usage: result <agent_id> OR result list OR result <task_id>"
+                    result = help.get_result_usage()
                     status = 'error'
                 elif command_parts[1] == 'list':
                     limit = int(command_parts[2]) if len(command_parts) > 2 else 50
                     results = self.agent_manager.get_all_results(limit)
                     
                     if not results:
-                        result = "No results found"
-                        status = 'info'
+                        result = {"results": [], "limit": limit}, 'info'
                     else:
-                        output = f"Recent Task Results (Last {limit}):\n"
-                        output += "-" * 80 + "\n"
+                        # Return raw result data as JSON instead of formatted output
+                        result_data = []
                         for res in results:
-                            output += f"Task ID:      {res['task_id']}\n"
-                            output += f"Agent:        {res['agent_id']} ({res['hostname']}@{res['user']})\n"
-                            output += f"Command:      {res['command'][:20]}{'...' if len(res['command']) > 20 else ''}\n"
-                            output += f"Type:         {res['task_type']}\n"
-                            output += f"Completed:    {res['completed_at']}\n"
-                            output += f"Result:       {res['result'][:100]}{'...' if len(res['result']) > 100 else ''}\n"
-                            output += "-" * 80 + "\n"
-                        result = output
-                        status = 'success'
+                            result_data.append({
+                                'task_id': res['task_id'],
+                                'agent_id': res['agent_id'],
+                                'hostname': res['hostname'],
+                                'user': res['user'],
+                                'command': res['command'],
+                                'task_type': res['task_type'],
+                                'completed_at': res['completed_at'],
+                                'result': res['result']
+                            })
+
+                        result = {"results": result_data, "limit": limit}, 'success'
                 elif len(command_parts) == 2 and command_parts[1].replace('-', '').replace('_', '').isalnum():
                     task_id = command_parts[1]
 
@@ -6015,22 +5753,22 @@ DB Inactive:       {stats['db_inactive_agents']}
                                 task_dict = dict(task)
                                 task_result = task_dict.get('result', 'No result available')
 
-                                output = f"Task Details:\n"
-                                output += "-" * 80 + "\n"
-                                output += f"Task ID:      {task_dict['id']}\n"
-                                output += f"Agent ID:     {task_dict['agent_id']}\n"
-                                output += f"Hostname:     {task_dict.get('hostname', 'N/A')} ({task_dict.get('user', 'N/A')})\n"
-                                output += f"IP Address:   {task_dict.get('ip_address', 'N/A')}\n"
-                                output += f"Command:      {task_dict['command'][:20]}{'...' if len(task_dict['command']) > 20 else ''}\n"
-                                output += f"Status:       {task_dict['status']}\n"
-                                output += f"Task Type:    {task_dict.get('task_type', 'queued')}\n"
-                                output += f"Created:      {task_dict['created_at']}\n"
-                                output += f"Completed:    {task_dict['completed_at'] if task_dict['completed_at'] else 'N/A'}\n"
-                                output += "-" * 80 + "\n"
-                                output += f"Complete Result:\n{task_result}\n"
-                                output += "-" * 80 + "\n"
+                                # Return raw task details as JSON instead of formatted output
+                                task_details = {
+                                    'id': task_dict['id'],
+                                    'agent_id': task_dict['agent_id'],
+                                    'hostname': task_dict.get('hostname', 'N/A'),
+                                    'user': task_dict.get('user', 'N/A'),
+                                    'ip_address': task_dict.get('ip_address', 'N/A'),
+                                    'command': task_dict['command'],
+                                    'status': task_dict['status'],
+                                    'task_type': task_dict.get('task_type', 'queued'),
+                                    'created_at': task_dict['created_at'],
+                                    'completed_at': task_dict['completed_at'] if task_dict['completed_at'] else 'N/A',
+                                    'result': task_result
+                                }
 
-                                result = output
+                                result = {"task_details": task_details}
                                 status = 'success'
                         except Exception as e:
                             result = f"Error retrieving task result: {str(e)}"
@@ -6045,16 +5783,18 @@ DB Inactive:       {stats['db_inactive_agents']}
                         result = f"No results found for current agent"
                         status = 'info'
                     else:
-                        output = f"Results for Current Agent ({agent_id}):\n"
-                        output += "-" * 80 + "\n"
+                        # Return raw result data as JSON instead of formatted output
+                        result_data = []
                         for res in results:
-                            output += f"Task ID:      {res['task_id']}\n"
-                            output += f"Command:      {res['command']}\n"
-                            output += f"Created:      {res['created_at']}\n"
-                            output += f"Completed:    {res['completed_at']}\n"
-                            output += f"Result:       {res['result'][:100]}{'...' if len(res['result']) > 100 else ''}\n"
-                            output += "-" * 80 + "\n"
-                        result = output
+                            result_data.append({
+                                'task_id': res['task_id'],
+                                'command': res['command'],
+                                'created_at': res['created_at'],
+                                'completed_at': res['completed_at'],
+                                'result': res['result']
+                            })
+
+                        result = {"results": result_data, "agent_id": agent_id}
                         status = 'success'
                 else:
                     agent_id = command_parts[1]
@@ -6065,20 +5805,22 @@ DB Inactive:       {stats['db_inactive_agents']}
                         result = f"No results found for agent {agent_id}"
                         status = 'info'
                     else:
-                        output = f"Results for Agent {agent_id}:\n"
-                        output += "-" * 80 + "\n"
+                        # Return raw result data as JSON instead of formatted output
+                        result_data = []
                         for res in results:
-                            output += f"Task ID:      {res['task_id']}\n"
-                            output += f"Command:      {res['command']}\n"
-                            output += f"Created:      {res['created_at']}\n"
-                            output += f"Completed:    {res['completed_at']}\n"
-                            output += f"Result:       {res['result'][:100]}{'...' if len(res['result']) > 100 else ''}\n"
-                            output += "-" * 80 + "\n"
-                        result = output
+                            result_data.append({
+                                'task_id': res['task_id'],
+                                'command': res['command'],
+                                'created_at': res['created_at'],
+                                'completed_at': res['completed_at'],
+                                'result': res['result']
+                            })
+
+                        result = {"results": result_data, "agent_id": agent_id}
                         status = 'success'
             elif base_cmd == 'addcmd':
                 if len(command_parts) < 2:
-                    result = "USAGE: addcmd <agent_id> <command> OR addcmd <command> (in interactive mode)\n\nNote: Uses the standard queued API for command execution."
+                    result = help.get_addcmd_usage()
                     status = 'error'
                     return {'output': result, 'status': status}
                 elif len(command_parts) == 2 and remote_session.interactive_mode and remote_session.current_agent:
@@ -6112,7 +5854,7 @@ DB Inactive:       {stats['db_inactive_agents']}
                     status = 'error'
             elif base_cmd == 'save':
                 if len(command_parts) < 2:
-                    result = "Usage: save <task_id>"
+                    result = help.get_save_usage()
                     status = 'error'
                 else:
                     task_id = command_parts[1]
@@ -6201,7 +5943,7 @@ DB Inactive:       {stats['db_inactive_agents']}
             elif base_cmd == 'interact':
                 # Handle the interact command (alias for agent interact)
                 if len(command_parts) < 2:
-                    result = "Usage: interact <agent_id>"
+                    result = help.get_interact_usage()
                     status = 'error'
                 else:
                     agent_command_parts = ['agent', 'interact'] + command_parts[1:]
@@ -6242,10 +5984,8 @@ DB Inactive:       {stats['db_inactive_agents']}
                         if action == 'list':
                             logs = self.audit_logger.get_logs(limit=limit, offset=offset)
                             if logs:
-                                output = f"Audit Events (limit: {limit}):\n"
-                                output += "-" * 150 + "\n"
-                                output += f"{'Timestamp':<25} {'Username':<20} {'Action':<20} {'Resource':<30} {'Details':<40}\n"
-                                output += "-" * 150 + "\n"
+                                # Return raw event data as JSON instead of formatted table
+                                event_data = []
                                 for log in logs:
                                     timestamp = log['timestamp'][:19] if log['timestamp'] else 'N/A'
                                     username = log['username']
@@ -6261,35 +6001,47 @@ DB Inactive:       {stats['db_inactive_agents']}
                                     if len(resource) > 29:
                                         resource = resource[:27] + ".."
 
-                                    output += f"{timestamp:<25} {username:<20} {action:<20} {resource:<30} {details:<40}\n"
-                                result, status = output, 'success'
+                                    event_data.append({
+                                        'timestamp': timestamp,
+                                        'username': username,
+                                        'action': action,
+                                        'resource': resource,
+                                        'details': details
+                                    })
+
+                                result, status = {"events": event_data, "limit": limit}, 'success'
                             else:
-                                result, status = "No audit events found", 'info'
+                                result, status = {"events": [], "limit": limit}, 'info'
                         elif action == 'search':
                             if not search_query:
-                                result, status = "Usage: event search <query>", 'error'
+                                result, status = {"error": help.get_event_search_usage()}, 'error'
                             else:
                                 logs = self.audit_logger.search_logs(query=search_query, limit=limit, offset=offset)
                                 if logs:
-                                    output = f"Search Results for '{search_query}' (limit: {limit}):\n"
-                                    output += "-" * 100 + "\n"
+                                    # Return raw search results as JSON instead of formatted output
+                                    search_results = []
                                     for log in logs:
-                                        output += f"[{log['timestamp']}] {log['username']} | {log['action']} | {log['resource_type']}/{log['resource_id']}\n"
-                                        output += f"  Details: {log['details']}\n"
-                                        output += "-" * 100 + "\n"
-                                    result, status = output, 'success'
+                                        search_results.append({
+                                            'timestamp': log['timestamp'],
+                                            'username': log['username'],
+                                            'action': log['action'],
+                                            'resource_type': log['resource_type'],
+                                            'resource_id': log['resource_id'],
+                                            'details': log['details']
+                                        })
+                                    result, status = {"search_results": search_results, "query": search_query, "limit": limit}, 'success'
                                 else:
-                                    result, status = f"No events found for search query: {search_query}", 'info'
+                                    result, status = {"search_results": [], "query": search_query, "limit": limit}, 'info'
                         elif action == 'stats':
                             stats = self.audit_logger.get_log_stats()
-                            output = f"Audit Log Statistics:\n"
-                            output += "-" * 50 + "\n"
-                            output += f"Total Logs: {stats.get('total_logs', 0)}\n"
-                            output += f"Recent (24h): {stats.get('recent_24h', 0)}\n"
-                            output += f"Actions:\n"
-                            for action_name, count in list(stats.get('by_action', {}).items())[:10]:  # Show top 10
-                                output += f"  {action_name}: {count}\n"
-                            result, status = output, 'success'
+                            # Return raw stats as JSON instead of formatted output
+                            result, status = {
+                                "stats": {
+                                    "total_logs": stats.get('total_logs', 0),
+                                    "recent_24h": stats.get('recent_24h', 0),
+                                    "by_action": dict(list(stats.get('by_action', {}).items())[:10])  # Show top 10
+                                }
+                            }, 'success'
                         elif action in ['monitor', 'stop_monitor']:
                             if action == 'monitor':
                                 result, status = "Real-time event monitoring: Use 'event' message type for live events. For command line, you can use 'event list' to get current events.", 'info'
@@ -6301,7 +6053,7 @@ DB Inactive:       {stats['db_inactive_agents']}
                         result, status = f"Error retrieving events: {str(e)}", 'error'
             elif base_cmd == 'reverse_proxy':
                 if len(command_parts) < 2:
-                    result = "Usage: reverse_proxy <start|stop> [agent_id] [port]"
+                    result = help.get_reverse_proxy_usage()
                     status = 'error'
                 else:
                     action = command_parts[1].lower()
@@ -6367,7 +6119,7 @@ DB Inactive:       {stats['db_inactive_agents']}
                         status = 'error'
             elif base_cmd == 'cli_socks_proxy':
                 if len(command_parts) < 2:
-                    result = "Usage: cli_socks_proxy <start|stop> [agent_id] [port]"
+                    result = help.get_cli_socks_proxy_usage()
                     status = 'error'
                 else:
                     action = command_parts[1].lower()
@@ -6433,23 +6185,7 @@ DB Inactive:       {stats['db_inactive_agents']}
                         status = 'error'
             elif base_cmd == 'failover':
                 if len(command_parts) < 2:
-                    result = """
-FAILOVER COMMANDS
-═══════════════════════════════════════════════════════════════════
-
-COMMANDS:
-  • failover import-keys <file_path>          - Import agent keys from distribution file
-  • failover export-keys <file_path> [agent_id] - Export agent keys to distribution file
-
-DESCRIPTION:
-  Import and export agent secret keys for failover C2 server setup.
-  This allows agents to communicate with backup/secondary C2 servers.
-
-EXAMPLES:
-  • failover export-keys /tmp/agent_keys.json
-  • failover export-keys /tmp/single_agent.json AGENT123
-  • failover import-keys /tmp/agent_keys.json
-                    """
+                    result = help.get_failover_help()
                     status = 'info'
                     return {'output': result, 'status': status}
 
@@ -6457,7 +6193,7 @@ EXAMPLES:
 
                 if action == 'import-keys':
                     if len(command_parts) < 3:
-                        result = "Usage: failover import-keys <file_path>"
+                        result = help.get_failover_import_keys_usage()
                         status = 'error'
                     else:
                         file_path = command_parts[2]
@@ -6475,7 +6211,7 @@ EXAMPLES:
 
                 elif action == 'export-keys':
                     if len(command_parts) < 3:
-                        result = "Usage: failover export-keys <file_path> [agent_id]"
+                        result = help.get_failover_export_keys_usage()
                         status = 'error'
                     else:
                         file_path = command_parts[2]
@@ -6494,7 +6230,7 @@ EXAMPLES:
                             status = 'error'
 
                 else:
-                    result = f"Unknown failover action: {action}. Use: import-keys, export-keys"
+                    result = help.get_failover_unknown_action_usage()
                     status = 'error'
             else:
                 result, status = self.handle_neoc2_command(command, remote_session)
@@ -6745,7 +6481,6 @@ EXAMPLES:
         return False
 
     def broadcast_agent_update(self, agent_data):
-        """Broadcast agent update to all connected clients"""
         # This is for new agent registrations only
         try:
             for session_id, session_info in self.active_sessions.items():
@@ -6773,7 +6508,6 @@ EXAMPLES:
             self.logger.error(f"[-] Error broadcasting agent update: {str(e)}")
 
     def broadcast_all_agents_to_all_clients(self):
-        """Broadcast all current agents to all connected clients periodically"""
         try:
             # Get all current agents
             if self.agent_manager:
