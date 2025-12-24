@@ -2778,8 +2778,8 @@ class RemoteCLIServer:
 
             payload_generator = PayloadGenerator(self.config, self.db)
 
-            # Determine platform for go_agent
-            if payload_type == 'go_agent':
+            # Determine platform for trinity
+            if payload_type == 'trinity':
                 if options['linux']:
                     platform = 'linux'
                 elif options['windows']:
@@ -2806,10 +2806,10 @@ class RemoteCLIServer:
                 include_sandbox=options['include_sandbox']
             )
 
-            if payload_type == 'go_agent':
+            if payload_type == 'trinity':
                 output_path = generated_result
                 payload_code = ""
-            elif payload_type == 'phantom_hawk_agent':
+            elif payload_type == 'seraph':
                 payload_code = generated_result
                 import os
                 import subprocess
@@ -2979,9 +2979,9 @@ class RemoteCLIServer:
                 else:
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     safe_listener_name = listener_name.replace(" ", "_").replace("/", "_").replace("\\", "_").replace("|", "_")
-                    if payload_type in ['phantom_hawk_agent']:
+                    if payload_type in ['seraph']:
                         ext = '.py'
-                    elif payload_type == 'go_agent':
+                    elif payload_type == 'trinity':
                         if options['linux']:
                             ext = ''
                         else:
@@ -2994,19 +2994,19 @@ class RemoteCLIServer:
                     
 
             try:
-                if payload_type == 'phantom_hawk_agent' and not options['linux']:
+                if payload_type == 'seraph' and not options['linux']:
                     pass
-                elif payload_type != 'go_agent':
+                elif payload_type != 'trinity':
                     with open(output_path, 'w', encoding='utf-8') as f:
                         f.write(payload_code)
 
                 import os
                 size = os.path.getsize(output_path)
-                if payload_type == 'go_agent':
+                if payload_type == 'trinity':
                     size_str = f"{size} bytes (compiled executable)"
-                elif payload_type == 'phantom_hawk_agent' and options['linux']:
+                elif payload_type == 'seraph' and options['linux']:
                     size_str = f"{size} bytes (compiled executable)"
-                elif payload_type == 'phantom_hawk_agent':
+                elif payload_type == 'seraph':
                     size_str = f"{size} bytes"
                 else:
                     size_str = f"{size} bytes"
