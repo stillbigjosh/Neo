@@ -34,7 +34,6 @@ import socket
 from cryptography.fernet import Fernet
 from core.config import NeoC2Config
 from core.models import NeoC2DB
-from communication.opsec import OPSECManager
 from agents.payload_generator import PayloadGenerator
 from dnslib import DNSRecord, DNSHeader, RR, QTYPE, RCODE
 from teamserver.agent_manager import AgentManager
@@ -81,8 +80,6 @@ class BaseListener:
         self.profile_name = profile_name
         
         self.use_https = use_https
-        self.opsec = OPSECManager(config)
-        self.profile = self.opsec.malleable_profiles.get(profile_name, self.opsec.malleable_profiles['default'])
         self.running = False
         self.thread = None
         self.server_socket = None  # Add this for cleanup
