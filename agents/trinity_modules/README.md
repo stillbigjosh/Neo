@@ -1,6 +1,6 @@
-# Modular Go Agent Features
+# Modular Trinity Agent Features
 
-This directory contains the modular structure for the Go agent, allowing operators to include or exclude specific features to reduce payload size while maintaining core functionality.
+This directory contains the modular structure for the Trinity agent, allowing operators to include or exclude specific features to reduce payload size while maintaining core functionality.
 
 ## Feature Modules
 
@@ -52,13 +52,13 @@ When generating payloads, operators can specify which features to include:
 
 ```python
 # Include all features (default)
-generate_payload(listener_id, "go_agent", include_bof=True, include_assembly=True, include_pe=True, include_shellcode=True, include_reverse_proxy=True, include_sandbox=True)
+generate_payload(listener_id, "trinity", include_bof=True, include_assembly=True, include_pe=True, include_shellcode=True, include_reverse_proxy=True, include_sandbox=True)
 
 # Exclude specific features to reduce size
-generate_payload(listener_id, "go_agent", include_bof=False, include_assembly=False)
+generate_payload(listener_id, "trinity", include_bof=False, include_assembly=False)
 
 # Minimal payload with only core functionality
-generate_payload(listener_id, "go_agent", include_bof=False, include_assembly=False, include_pe=False, include_shellcode=False, include_reverse_proxy=False, include_sandbox=False)
+generate_payload(listener_id, "trinity", include_bof=False, include_assembly=False, include_pe=False, include_shellcode=False, include_reverse_proxy=False, include_sandbox=False)
 ```
 
 ## Benefits

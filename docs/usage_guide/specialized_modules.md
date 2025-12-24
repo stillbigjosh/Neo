@@ -83,8 +83,8 @@ Each operator maintains their own local extension modules:
 This `pwsh` module helps operators run their own extendible powershell scripts on a target's Windows machine via an active agent session
 
 ### Compatibility:
-- Go_agent
-- Phantom Hawk agent
+- Trinity
+- Seraph agent
 - Windows x64
 
 ### Basic Usage:
@@ -103,7 +103,7 @@ pwsh my_script.ps1 arguments="-param1 value1 -param2 value2"
 This module interfaces with an agent and enables pure in-memory execution of Beacon Object Files (BOFs) without any disk writes. The solution leverages the goffloader library to execute BOFs directly in the agent's memory space.
 
 #### Compatibility
-- Go_agent
+- Trinity
 - Windows x64
 
 #### Usage
@@ -130,7 +130,7 @@ execute-bof whoami.x64.o -h
 This module interfaces with an agent and enables in-memory execution of .NET assemblies without any disk writes. The solution leverages the go-clr library to execute .NET assemblies directly in the agent's memory space, supporting both .NET executables (.exe) and libraries (.dll).
 
 #### Compatibility
-- Go_agent
+- Trinity
 - Windows x64
 
 #### Usage
@@ -165,7 +165,7 @@ execute-assembly SharpHound.exe agent_id=abc123-4567-8901-2345-67890abcdef1
 This module interfaces with an active agent for In-memory shellcode injection into a sacrificial processes with NtQueueApcThread, NtCreateThreadEx, RtlCreateUserThread, CreateRemoteThread, by their order of stealthiness
 
 #### Compatibility
-- Go_agent
+- Trinity
 - Windows x64
 
 #### Usage
@@ -237,7 +237,7 @@ The shellcode injection techniques are ordered by stealthiness:
 This module interfaces with an agent and enables In-memory Injection of an unmanaged PE(Portable Executable) using Process Hollowing into a sacrificial process
 
 #### Compatibility
-- Go_agent
+- Trinity
 - Windows x64
 
 #### Usage
@@ -283,8 +283,8 @@ peinject pe_file=payload.exe agent_id=abc123-4567-8901-2345-67890abcdef1
 This module helps operators establishes persistence on systems using various techniques `modules info persistence`
 
 ### Compatibility:
-- Go_agent
-- Phantom Hawk agent
+- Trinity
+- Seraph agent
 - Windows x64
 - Linux debian
 - MacOS

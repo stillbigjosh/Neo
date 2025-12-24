@@ -2,7 +2,7 @@
 # Roadmap
 
 ## Completed
-- [x] Polymorphic go_agent generator
+- [x] Polymorphic trinity generator
 - [x] Configurable killdate/workingtime
 - [x] In-memory shellcode Injection
 - [x] C2 Redirector support

