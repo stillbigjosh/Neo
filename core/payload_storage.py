@@ -40,7 +40,6 @@ def validate_base64_payload(data):
         return False
 
 def validate_uri(uri):
-    """Validate that the URI is safe and doesn't contain dangerous characters"""
     if not uri:
         return True  # None/empty URI is valid (uses default)
 
