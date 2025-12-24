@@ -25,7 +25,7 @@
 ## To be implemented
 - [ ] Built-in modules for network reconnaissance and internal enumeration
 - [ ] Enhanced Agent Traffic-shaping 
-- [ ] Support for multiple communication protocols (DNS, ICMP, SSH)
+- [ ] Support for multiple communication protocols (DNS, ICMP)
 - [ ] File browser
 - [ ] Large powershell scripts broken down in chunks in-memory to bypass characater limit
 - [ ] Support for domain fronting
