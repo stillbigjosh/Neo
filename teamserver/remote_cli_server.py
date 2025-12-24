@@ -281,25 +281,29 @@ class RemoteCLIServer:
             try:
                 result = listener_manager.list_listeners()
                 if not result.get('success', False):
-                    return f"Failed to list listeners: {result.get('error', 'Unknown error')}", 'error'
-                
+                    return {"error": f"Failed to list listeners: {result.get('error', 'Unknown error')}"}, 'error'
+
                 listeners = result.get('listeners', [])
                 if not listeners:
-                    return "No listeners found.", 'info'
-                
-                output = "Active Listeners:\n" + ("-" * 125) + "\n"
-                output += f"{'Name':<15} {'Type':<8} {'Host':<15} {'Port':<6} {'Profile':<20} {'Status':<10} {'ID':<36}\n"
-                output += ("-" * 125) + "\n"
+                    return {"listeners": []}, 'success'
 
+                # Return raw listener data as JSON instead of formatted table
+                listener_data = []
                 for listener in listeners:
-                    port_str = str(listener['port']) if listener['port'] else 'N/A'
-                    profile = listener.get('profile_name', 'default')
-                    output += f"{listener['name']:<15} {listener['type']:<8} {listener['host']:<15} {port_str:<6} {profile:<20} {listener['status']:<10} {listener['id']:<36}\n"
-                
-                return output, 'success'
-                    
+                    listener_data.append({
+                        'name': listener['name'],
+                        'type': listener['type'],
+                        'host': listener['host'],
+                        'port': listener['port'],
+                        'profile_name': listener.get('profile_name', 'default'),
+                        'status': listener['status'],
+                        'id': listener['id']
+                    })
+
+                return {"listeners": listener_data}, 'success'
+
             except Exception as e:
-                return f"Error listing listeners: {str(e)}", 'error'
+                return {"error": f"Error listing listeners: {str(e)}"}, 'error'
                 
         else:
             return f"Unknown action: {action}. Available: create, list, start, stop, restart, delete", 'error'
@@ -318,38 +322,23 @@ class RemoteCLIServer:
                 modules_list = module_manager.list_modules()  # Call the method
 
                 if not modules_list:
-                    return "No modules found. Place modules in the modules/ directory.", 'info'
+                    return {"modules": []}, 'success'
 
-                output = "Available Modules:\n"
-                output += "-" * 120 + "\n"
-                output += f"{'Name':<25} {'Type':<15} {'Technique ID':<15} {'MITRE Tactics':<25} {'Description':<35}\n"
-                output += "-" * 120 + "\n"
-
+                # Return raw module data as JSON instead of formatted table
+                module_data = []
                 for module_info in modules_list:
-                    name = module_info.get('name', 'Unknown')
-                    module_type = module_info.get('type', 'unknown')
-                    technique_id = module_info.get('technique_id', 'unknown')
-                    mitre_tactics = ', '.join(module_info.get('mitre_tactics', []))
-                    description = module_info.get('description', 'No description')
+                    module_data.append({
+                        'name': module_info.get('name', 'Unknown'),
+                        'type': module_info.get('type', 'unknown'),
+                        'technique_id': module_info.get('technique_id', 'unknown'),
+                        'mitre_tactics': module_info.get('mitre_tactics', []),
+                        'description': module_info.get('description', 'No description')
+                    })
 
-                    # Truncate fields if too long
-                    if len(name) > 24:
-                        name = name[:22] + ".."
-                    if len(module_type) > 14:
-                        module_type = module_type[:12] + ".."
-                    if len(technique_id) > 14:
-                        technique_id = technique_id[:12] + ".."
-                    if len(mitre_tactics) > 24:
-                        mitre_tactics = mitre_tactics[:22] + ".."
-                    if len(description) > 34:
-                        description = description[:32] + ".."
-
-                    output += f"{name:<25} {module_type:<15} {technique_id:<15} {mitre_tactics:<25} {description:<35}\n"
-
-                return output, 'success'
+                return {"modules": module_data}, 'success'
 
             except Exception as e:
-                return f"Error listing modules: {str(e)}", 'error'
+                return {"error": f"Error listing modules: {str(e)}"}, 'error'
         
         elif action == 'load':
             if len(command_parts) < 3:
@@ -1605,33 +1594,30 @@ class RemoteCLIServer:
             try:
                 agent_manager = session.agent_manager
                 if not agent_manager:
-                    return "Agent manager not initialized", 'error'
+                    return {"error": "Agent manager not initialized"}, 'error'
 
                 agents = agent_manager.list_agents()
                 if not agents:
-                    return "No active agents found.", 'info'
+                    return {"agents": []}, 'success'
 
-                output = "Active Agents:\n"
-                output += "-" * 150 + "\n"
-                output += f"{'ID':<30} {'IP Address':<15} {'Hostname':<20} {'OS':<15} {'User':<15} {'Listener ID':<15} {'Status':<12} {'Last Seen':<19}\n"
-                output += "-" * 150 + "\n"
-
+                # Return raw agent data as JSON instead of formatted table
+                agent_data = []
                 for agent in agents:
-                    agent_id = agent['id']
-                    ip_address = agent['ip_address']
-                    hostname = agent['hostname']
-                    os_info = agent['os_info'][:14] if agent['os_info'] else 'N/A'  # Truncate if too long
-                    user = agent['user']
-                    listener_id = agent['listener_id']
-                    status = agent['status']
-                    last_seen = agent['last_seen'][:19] if agent['last_seen'] else 'N/A'  # Truncate timestamp
+                    agent_data.append({
+                        'id': agent['id'],
+                        'ip_address': agent['ip_address'],
+                        'hostname': agent['hostname'],
+                        'os_info': agent['os_info'],
+                        'user': agent['user'],
+                        'listener_id': agent['listener_id'],
+                        'status': agent['status'],
+                        'last_seen': agent['last_seen']
+                    })
 
-                    output += f"{agent_id:<30} {ip_address:<15} {hostname:<20} {os_info:<15} {user:<15} {listener_id:<15} {status:<12} {last_seen:<19}\n"
-
-                return output, 'success'
+                return {"agents": agent_data}, 'success'
 
             except Exception as e:
-                return f"Error listing agents: {str(e)}", 'error'
+                return {"error": f"Error listing agents: {str(e)}"}, 'error'
         
         elif action == 'interact':
             if len(command_parts) < 3:
@@ -1661,18 +1647,14 @@ class RemoteCLIServer:
                         sess_info['interactive_mode'] = True
                         break
             
-                output = f"\n{'=' * 80}\n"
-                output += f" INTERACTIVE MODE ACTIVATED (EXCLUSIVE ACCESS)\n"
-                output += f"Agent: {agent_id}\n"
-                output += f"Hostname: {agent.hostname} | User: {agent.user} | OS: {agent.os_info}\n"
-                output += f"{'=' * 80}\n"
-                output += " Commands are executed in REAL-TIME via interactive API\n"
-                output += " Type 'back' to leave interactive mode\n"
-                output += " All commands go directly to agent, bypassing task queue\n"
-                output += " Exclusive access - other operators locked out\n"
-                output += f"{'=' * 80}\n"
-            
-                return output, 'interactive'
+                return {
+                    "interactive": True,
+                    "agent_id": agent_id,
+                    "hostname": agent.hostname,
+                    "user": agent.user,
+                    "os_info": agent.os_info,
+                    "message": "INTERACTIVE MODE ACTIVATED (EXCLUSIVE ACCESS)"
+                }, 'interactive'
                 
             except Exception as e:
                 if session.agent_manager:
@@ -1716,32 +1698,32 @@ class RemoteCLIServer:
                     return f"Agent {agent_id} not found", 'error'
                 
                 agent_dict = agent.to_dict()
-                
-                output = f"\nAgent Information:\n"
-                output += "=" * 80 + "\n"
-                output += f"ID: {agent_dict['id']}\n"
-                output += f"IP Address: {agent_dict['ip_address']}\n"
-                output += f"Hostname: {agent_dict['hostname']}\n"
-                output += f"OS: {agent_dict['os_info']}\n"
-                output += f"User: {agent_dict['user']}\n"
-                output += f"Listener ID: {agent_dict['listener_id']}\n"
-                output += f"First Seen: {agent_dict['first_seen']}\n"
-                output += f"Last Seen: {agent_dict['last_seen']}\n"
-                output += f"Status: {agent_dict['status']}\n"
-                output += f"Pending Tasks: {agent_dict['pending_tasks']}\n"
-                output += f"Interactive Mode: {'Active' if agent_dict.get('interactive_mode') else 'Inactive'}\n"
-                
+
+                # Return raw agent data as JSON instead of formatted table
+                agent_info = {
+                    'id': agent_dict['id'],
+                    'ip_address': agent_dict['ip_address'],
+                    'hostname': agent_dict['hostname'],
+                    'os_info': agent_dict['os_info'],
+                    'user': agent_dict['user'],
+                    'listener_id': agent_dict['listener_id'],
+                    'first_seen': agent_dict['first_seen'],
+                    'last_seen': agent_dict['last_seen'],
+                    'status': agent_dict['status'],
+                    'pending_tasks': agent_dict['pending_tasks'],
+                    'interactive_mode': 'Active' if agent_dict.get('interactive_mode') else 'Inactive'
+                }
+
                 if session.agent_manager.is_agent_locked_interactively(agent_id):
                     lock_info = session.agent_manager.get_interactive_lock_info(agent_id)
                     if lock_info:
-                        output += f"Interactive Lock: EXCLUSIVE - Held by operator: {lock_info['operator']}\n"
+                        agent_info['interactive_lock'] = f"EXCLUSIVE - Held by operator: {lock_info['operator']}"
                     else:
-                        output += f"Interactive Lock: EXCLUSIVE - Locked\n"
+                        agent_info['interactive_lock'] = "EXCLUSIVE - Locked"
                 else:
-                    output += f"Interactive Lock: Available for access\n"
-                output += "=" * 80 + "\n"
-                
-                return output, 'success'
+                    agent_info['interactive_lock'] = "Available for access"
+
+                return {"agent_info": agent_info}, 'success'
                 
             except Exception as e:
                 return f"Error getting agent info: {str(e)}", 'error'
@@ -1863,14 +1845,13 @@ class RemoteCLIServer:
                 return f"Error: {error}", 'error'
             
             if result is not None:
-                formatted_result = str(result).strip()
-                if len(formatted_result) > 10000:  # Truncate very long results
-                    formatted_result = formatted_result[:10000] + "\n... (truncated - use 'result' command to see full output)"
-                
-                output = f"\n[Agent Response]\n{'=' * 80}\n{formatted_result}\n{'=' * 80}\n"
-                return output, 'success'
+                result_str = str(result).strip()
+                if len(result_str) > 10000:  # Truncate very long results
+                    result_str = result_str[:10000] + "\n... (truncated - use 'result' command to see full output)"
+
+                return {"result": result_str}, 'success'
             else:
-                return "No response from agent", 'warning'
+                return {"result": "No response from agent"}, 'warning'
             
         except Exception as e:
             return f"Error executing interactive command: {str(e)}", 'error'
@@ -2770,28 +2751,21 @@ EXAMPLES:
                 profiles = self.db.get_all_profiles()
 
                 if not profiles:
-                    return "No profiles found in the database.", "info"
+                    return {"profiles": []}, "success"
 
-                output = "Communication Profiles:\n"
-                output += "-" * 100 + "\n"
-                output += f"{'ID':<38} {'Name':<20} {'Description':<30}\n"
-                output += "-" * 100 + "\n"
-
+                # Return raw profile data as JSON instead of formatted table
+                profile_data = []
                 for profile in profiles:
-                    profile_id = profile.get('id', 'N/A')
-                    name = profile.get('name', 'N/A')
-                    description = profile.get('description', 'N/A')
+                    profile_data.append({
+                        'id': profile.get('id', 'N/A'),
+                        'name': profile.get('name', 'N/A'),
+                        'description': profile.get('description', 'N/A')
+                    })
 
-                    # Truncate description if too long
-                    if len(description) > 28:
-                        description = description[:25] + "..."
-
-                    output += f"{profile_id:<38} {name:<20} {description:<30}\n"
-
-                return output, "success"
+                return {"profiles": profile_data}, "success"
 
             except Exception as e:
-                return f"Error listing profiles: {str(e)}", "error"
+                return {"error": f"Error listing profiles: {str(e)}"}, "error"
 
         elif action == 'reload':
             if len(command_parts) < 4:
@@ -3654,7 +3628,7 @@ EXAMPLES:
 
                 agent_id = options.get('agent_id')
                 status = options.get('status')
-                
+
                 try:
                     limit = int(options.get('limit', 50))
                     if limit > 100:
@@ -3665,13 +3639,10 @@ EXAMPLES:
                 chains = orchestrator.list_chains(agent_id=agent_id, status=status, limit=limit)
 
                 if not chains:
-                    return "No task chains found", 'info'
+                    return {"chains": []}, 'success'
 
-                output = f"Task Chains (limit: {limit}):\n"
-                output += "-" * 150 + "\n"
-                output += f"{'Chain ID':<38} {'Name':<20} {'Agent ID':<15} {'Status':<12} {'Modules':<25} {'Created':<20}\n"
-                output += "-" * 150 + "\n"
-
+                # Return raw chain data as JSON instead of formatted table
+                chain_data = []
                 for chain in chains:
                     modules_list = ', '.join(chain['module_names'][:3])  # Show first 3 modules
                     if len(chain['module_names']) > 3:
@@ -3681,15 +3652,16 @@ EXAMPLES:
                     if created_at and len(created_at) > 19:
                         created_at = created_at[:19]  # Truncate to show only datetime part
 
-                    output += f"{chain['chain_id']:<38} "
-                    output += f"{chain['name'][:19]:<20} "
-                    output += f"{chain['agent_id'][:14]:<15} "
-                    output += f"{chain['status']:<12} "
-                    output += f"{modules_list[:24]:<25} "
-                    output += f"{created_at:<20}\n"
+                    chain_data.append({
+                        'chain_id': chain['chain_id'],
+                        'name': chain['name'][:19] if chain['name'] else '',
+                        'agent_id': chain['agent_id'][:14] if chain['agent_id'] else '',
+                        'status': chain['status'],
+                        'modules': modules_list[:24] if modules_list else '',
+                        'created_at': created_at
+                    })
 
-                output += "-" * 120 + "\n"
-                return output, 'success'
+                return {"chains": chain_data, "limit": limit}, 'success'
 
             elif action == 'status':
                 if len(command_parts) < 3:
@@ -3889,16 +3861,17 @@ EXAMPLES:
                 }
             ]
 
-            output = "Available Reports:\n"
-            output += "-" * 80 + "\n"
-            output += f"{'ID':<20} {'Title':<30} {'Description'}\n"
-            output += "-" * 80 + "\n"
-
+            # Return raw report data as JSON instead of formatted table
+            report_data = []
             for report in reports:
-                output += f"{report['id']:<20} {report['title']:<30} {report['description']}\n"
+                report_data.append({
+                    'id': report['id'],
+                    'title': report['title'],
+                    'description': report['description'],
+                    'categories': report['categories']
+                })
 
-            output += "-" * 80 + "\n"
-            return output, 'success'
+            return {"reports": report_data}, 'success'
 
         # Handle export command
         if action == 'export':
@@ -5004,10 +4977,8 @@ DB Inactive:       {stats['db_inactive_agents']}
                             if action == 'list':
                                 logs = self.audit_logger.get_logs(limit=limit, offset=offset)
                                 if logs:
-                                    output = f"Audit Events (limit: {limit}):\n"
-                                    output += "-" * 150 + "\n"
-                                    output += f"{'Timestamp':<25} {'Username':<20} {'Action':<20} {'Resource':<30} {'Details':<40}\n"
-                                    output += "-" * 150 + "\n"
+                                    # Return raw event data as JSON instead of formatted table
+                                    event_data = []
                                     for log in logs:
                                         timestamp = log['timestamp'][:19] if log['timestamp'] else 'N/A'
                                         username = log['username']
@@ -5023,35 +4994,47 @@ DB Inactive:       {stats['db_inactive_agents']}
                                         if len(resource) > 29:
                                             resource = resource[:27] + ".."
 
-                                        output += f"{timestamp:<25} {username:<20} {action:<20} {resource:<30} {details:<40}\n"
-                                    return output, 'success'
+                                        event_data.append({
+                                            'timestamp': timestamp,
+                                            'username': username,
+                                            'action': action,
+                                            'resource': resource,
+                                            'details': details
+                                        })
+
+                                    return {"events": event_data, "limit": limit}, 'success'
                                 else:
-                                    return "No audit events found", 'info'
+                                    return {"events": [], "limit": limit}, 'info'
                             elif action == 'search':
                                 if not search_query:
-                                    return "Usage: event search <query>", 'error'
+                                    return {"error": "Usage: event search <query>"}, 'error'
                                 else:
                                     logs = self.audit_logger.search_logs(query=search_query, limit=limit, offset=offset)
                                     if logs:
-                                        output = f"Search Results for '{search_query}' (limit: {limit}):\n"
-                                        output += "-" * 100 + "\n"
+                                        # Return raw search results as JSON instead of formatted output
+                                        search_results = []
                                         for log in logs:
-                                            output += f"[{log['timestamp']}] {log['username']} | {log['action']} | {log['resource_type']}/{log['resource_id']}\n"
-                                            output += f"  Details: {log['details']}\n"
-                                            output += "-" * 100 + "\n"
-                                        return output, 'success'
+                                            search_results.append({
+                                                'timestamp': log['timestamp'],
+                                                'username': log['username'],
+                                                'action': log['action'],
+                                                'resource_type': log['resource_type'],
+                                                'resource_id': log['resource_id'],
+                                                'details': log['details']
+                                            })
+                                        return {"search_results": search_results, "query": search_query, "limit": limit}, 'success'
                                     else:
-                                        return f"No events found for search query: {search_query}", 'info'
+                                        return {"search_results": [], "query": search_query, "limit": limit}, 'info'
                             elif action == 'stats':
                                 stats = self.audit_logger.get_log_stats()
-                                output = f"Audit Log Statistics:\n"
-                                output += "-" * 50 + "\n"
-                                output += f"Total Logs: {stats.get('total_logs', 0)}\n"
-                                output += f"Recent (24h): {stats.get('recent_24h', 0)}\n"
-                                output += f"Actions:\n"
-                                for action_name, count in list(stats.get('by_action', {}).items())[:10]:  # Show top 10
-                                    output += f"  {action_name}: {count}\n"
-                                return output, 'success'
+                                # Return raw stats as JSON instead of formatted output
+                                return {
+                                    "stats": {
+                                        "total_logs": stats.get('total_logs', 0),
+                                        "recent_24h": stats.get('recent_24h', 0),
+                                        "by_action": dict(list(stats.get('by_action', {}).items())[:10])  # Show top 10
+                                    }
+                                }, 'success'
                             elif action in ['monitor', 'stop_monitor']:
                                 if action == 'monitor':
                                     return "Real-time event monitoring: Use 'event' message type for live events. For command line, you can use 'event list' to get current events.", 'info'
@@ -6242,10 +6225,8 @@ DB Inactive:       {stats['db_inactive_agents']}
                         if action == 'list':
                             logs = self.audit_logger.get_logs(limit=limit, offset=offset)
                             if logs:
-                                output = f"Audit Events (limit: {limit}):\n"
-                                output += "-" * 150 + "\n"
-                                output += f"{'Timestamp':<25} {'Username':<20} {'Action':<20} {'Resource':<30} {'Details':<40}\n"
-                                output += "-" * 150 + "\n"
+                                # Return raw event data as JSON instead of formatted table
+                                event_data = []
                                 for log in logs:
                                     timestamp = log['timestamp'][:19] if log['timestamp'] else 'N/A'
                                     username = log['username']
@@ -6261,35 +6242,47 @@ DB Inactive:       {stats['db_inactive_agents']}
                                     if len(resource) > 29:
                                         resource = resource[:27] + ".."
 
-                                    output += f"{timestamp:<25} {username:<20} {action:<20} {resource:<30} {details:<40}\n"
-                                result, status = output, 'success'
+                                    event_data.append({
+                                        'timestamp': timestamp,
+                                        'username': username,
+                                        'action': action,
+                                        'resource': resource,
+                                        'details': details
+                                    })
+
+                                result, status = {"events": event_data, "limit": limit}, 'success'
                             else:
-                                result, status = "No audit events found", 'info'
+                                result, status = {"events": [], "limit": limit}, 'info'
                         elif action == 'search':
                             if not search_query:
-                                result, status = "Usage: event search <query>", 'error'
+                                result, status = {"error": "Usage: event search <query>"}, 'error'
                             else:
                                 logs = self.audit_logger.search_logs(query=search_query, limit=limit, offset=offset)
                                 if logs:
-                                    output = f"Search Results for '{search_query}' (limit: {limit}):\n"
-                                    output += "-" * 100 + "\n"
+                                    # Return raw search results as JSON instead of formatted output
+                                    search_results = []
                                     for log in logs:
-                                        output += f"[{log['timestamp']}] {log['username']} | {log['action']} | {log['resource_type']}/{log['resource_id']}\n"
-                                        output += f"  Details: {log['details']}\n"
-                                        output += "-" * 100 + "\n"
-                                    result, status = output, 'success'
+                                        search_results.append({
+                                            'timestamp': log['timestamp'],
+                                            'username': log['username'],
+                                            'action': log['action'],
+                                            'resource_type': log['resource_type'],
+                                            'resource_id': log['resource_id'],
+                                            'details': log['details']
+                                        })
+                                    result, status = {"search_results": search_results, "query": search_query, "limit": limit}, 'success'
                                 else:
-                                    result, status = f"No events found for search query: {search_query}", 'info'
+                                    result, status = {"search_results": [], "query": search_query, "limit": limit}, 'info'
                         elif action == 'stats':
                             stats = self.audit_logger.get_log_stats()
-                            output = f"Audit Log Statistics:\n"
-                            output += "-" * 50 + "\n"
-                            output += f"Total Logs: {stats.get('total_logs', 0)}\n"
-                            output += f"Recent (24h): {stats.get('recent_24h', 0)}\n"
-                            output += f"Actions:\n"
-                            for action_name, count in list(stats.get('by_action', {}).items())[:10]:  # Show top 10
-                                output += f"  {action_name}: {count}\n"
-                            result, status = output, 'success'
+                            # Return raw stats as JSON instead of formatted output
+                            result, status = {
+                                "stats": {
+                                    "total_logs": stats.get('total_logs', 0),
+                                    "recent_24h": stats.get('recent_24h', 0),
+                                    "by_action": dict(list(stats.get('by_action', {}).items())[:10])  # Show top 10
+                                }
+                            }, 'success'
                         elif action in ['monitor', 'stop_monitor']:
                             if action == 'monitor':
                                 result, status = "Real-time event monitoring: Use 'event' message type for live events. For command line, you can use 'event list' to get current events.", 'info'

@@ -841,13 +841,250 @@ class NeoC2RemoteCLI:
             except Exception as e:
                 print(f"{red('[-]')} Error processing file download: {str(e)}")
         elif status == 'success':
-            print(f"{green('[+]')} {message}" if message.startswith('[+]') else f"{message}")
+            # Handle JSON responses from server
+            if isinstance(message, dict):
+                # Check for different types of JSON responses
+                if 'agents' in message:
+                    # Format agents list as a table
+                    agents = message.get('agents', [])
+                    if not agents:
+                        print(f"{blue('[*]')} No active agents found.")
+                    else:
+                        print("Active Agents:")
+                        print("-" * 150)
+                        print(f"{'ID':<30} {'IP Address':<15} {'Hostname':<20} {'OS':<15} {'User':<15} {'Listener ID':<15} {'Status':<12} {'Last Seen':<19}")
+                        print("-" * 150)
+                        for agent in agents:
+                            agent_id = agent.get('id', '')
+                            ip_address = agent.get('ip_address', '')
+                            hostname = agent.get('hostname', '')
+                            os_info = agent.get('os_info', '')[:14] if agent.get('os_info') else 'N/A'  # Truncate if too long
+                            user = agent.get('user', '')
+                            listener_id = agent.get('listener_id', '')
+                            status = agent.get('status', '')
+                            last_seen = agent.get('last_seen', '')[:19] if agent.get('last_seen') else 'N/A'  # Truncate timestamp
+
+                            print(f"{agent_id:<30} {ip_address:<15} {hostname:<20} {os_info:<15} {user:<15} {listener_id:<15} {status:<12} {last_seen:<19}")
+                elif 'listeners' in message:
+                    # Format listeners list as a table
+                    listeners = message.get('listeners', [])
+                    if not listeners:
+                        print(f"{blue('[*]')} No listeners found.")
+                    else:
+                        print("Active Listeners:")
+                        print("-" * 125)
+                        print(f"{'Name':<15} {'Type':<8} {'Host':<15} {'Port':<6} {'Profile':<20} {'Status':<10} {'ID':<36}")
+                        print("-" * 125)
+                        for listener in listeners:
+                            port_str = str(listener.get('port', '')) if listener.get('port') else 'N/A'
+                            profile = listener.get('profile_name', 'default')
+                            print(f"{listener.get('name', ''):<15} {listener.get('type', ''):<8} {listener.get('host', ''):<15} {port_str:<6} {profile:<20} {listener.get('status', ''):<10} {listener.get('id', ''):<36}")
+                elif 'modules' in message:
+                    # Format modules list as a table
+                    modules = message.get('modules', [])
+                    if not modules:
+                        print(f"{blue('[*]')} No modules found. Place modules in the modules/ directory.")
+                    else:
+                        print("Available Modules:")
+                        print("-" * 120)
+                        print(f"{'Name':<25} {'Type':<15} {'Technique ID':<15} {'MITRE Tactics':<25} {'Description':<35}")
+                        print("-" * 120)
+                        for module_info in modules:
+                            name = module_info.get('name', 'Unknown')
+                            module_type = module_info.get('type', 'unknown')
+                            technique_id = module_info.get('technique_id', 'unknown')
+                            mitre_tactics = ', '.join(module_info.get('mitre_tactics', []))
+                            description = module_info.get('description', 'No description')
+
+                            # Truncate fields if too long
+                            if len(name) > 24:
+                                name = name[:22] + ".."
+                            if len(module_type) > 14:
+                                module_type = module_type[:12] + ".."
+                            if len(technique_id) > 14:
+                                technique_id = technique_id[:12] + ".."
+                            if len(mitre_tactics) > 24:
+                                mitre_tactics = mitre_tactics[:22] + ".."
+                            if len(description) > 34:
+                                description = description[:32] + ".."
+
+                            print(f"{name:<25} {module_type:<15} {technique_id:<15} {mitre_tactics:<25} {description:<35}")
+                elif 'profiles' in message:
+                    # Format profiles list as a table
+                    profiles = message.get('profiles', [])
+                    if not profiles:
+                        print(f"{blue('[*]')} No profiles found in the database.")
+                    else:
+                        print("Communication Profiles:")
+                        print("-" * 100)
+                        print(f"{'ID':<38} {'Name':<20} {'Description':<30}")
+                        print("-" * 100)
+                        for profile in profiles:
+                            profile_id = profile.get('id', 'N/A')
+                            name = profile.get('name', 'N/A')
+                            description = profile.get('description', 'N/A')
+
+                            # Truncate description if too long
+                            if len(description) > 28:
+                                description = description[:25] + "..."
+
+                            print(f"{profile_id:<38} {name:<20} {description:<30}")
+                elif 'chains' in message:
+                    # Format task chains list as a table
+                    chains = message.get('chains', [])
+                    limit = message.get('limit', 50)
+                    if not chains:
+                        print(f"{blue('[*]')} No task chains found")
+                    else:
+                        print(f"Task Chains (limit: {limit}):")
+                        print("-" * 150)
+                        print(f"{'Chain ID':<38} {'Name':<20} {'Agent ID':<15} {'Status':<12} {'Modules':<25} {'Created':<20}")
+                        print("-" * 150)
+                        for chain in chains:
+                            print(f"{chain.get('chain_id', ''):<38} "
+                                  f"{chain.get('name', ''):<20} "
+                                  f"{chain.get('agent_id', '')[:14]:<15} "
+                                  f"{chain.get('status', ''):<12} "
+                                  f"{chain.get('modules', '')[:24]:<25} "
+                                  f"{chain.get('created_at', ''):<20}")
+                elif 'reports' in message:
+                    # Format reports list as a table
+                    reports = message.get('reports', [])
+                    if not reports:
+                        print(f"{blue('[*]')} No reports available")
+                    else:
+                        print("Available Reports:")
+                        print("-" * 80)
+                        print(f"{'ID':<20} {'Title':<30} {'Description'}")
+                        print("-" * 80)
+                        for report in reports:
+                            print(f"{report.get('id', ''):<20} {report.get('title', ''):<30} {report.get('description', '')}")
+                elif 'events' in message:
+                    # Format events list as a table
+                    events = message.get('events', [])
+                    limit = message.get('limit', 50)
+                    if not events:
+                        print(f"{blue('[*]')} No audit events found")
+                    else:
+                        print(f"Audit Events (limit: {limit}):")
+                        print("-" * 150)
+                        print(f"{'Timestamp':<25} {'Username':<20} {'Action':<20} {'Resource':<30} {'Details':<40}")
+                        print("-" * 150)
+                        for event in events:
+                            print(f"{event.get('timestamp', ''):<25} {event.get('username', ''):<20} {event.get('action', ''):<20} {event.get('resource', ''):<30} {event.get('details', ''):<40}")
+                elif 'search_results' in message:
+                    # Format search results as a table
+                    search_results = message.get('search_results', [])
+                    query = message.get('query', '')
+                    limit = message.get('limit', 50)
+                    if not search_results:
+                        print(f"{blue('[*]')} No events found for search query: {query}")
+                    else:
+                        print(f"Search Results for '{query}' (limit: {limit}):")
+                        print("-" * 100)
+                        for result in search_results:
+                            print(f"[{result.get('timestamp', '')}] {result.get('username', '')} | {result.get('action', '')} | {result.get('resource_type', '')}/{result.get('resource_id', '')}")
+                            print(f"  Details: {result.get('details', '')}")
+                            print("-" * 100)
+                elif 'stats' in message:
+                    # Format stats as output
+                    stats = message.get('stats', {})
+                    print("Audit Log Statistics:")
+                    print("-" * 50)
+                    print(f"Total Logs: {stats.get('total_logs', 0)}")
+                    print(f"Recent (24h): {stats.get('recent_24h', 0)}")
+                    print("Actions:")
+                    for action_name, count in stats.get('by_action', {}).items():
+                        print(f"  {action_name}: {count}")
+                elif 'result' in message:
+                    # Handle interactive command results
+                    result_text = message.get('result', '')
+                    print(f"{green('[+]')} {result_text}")
+                elif 'interactive' in message and message.get('interactive'):
+                    # Handle interactive mode activation
+                    agent_id = message.get('agent_id', '')
+                    hostname = message.get('hostname', '')
+                    user = message.get('user', '')
+                    os_info = message.get('os_info', '')
+                    msg = message.get('message', '')
+
+                    print(f"\n{'=' * 80}")
+                    print(f" {msg}")
+                    print(f"Agent: {agent_id}")
+                    print(f"Hostname: {hostname} | User: {user} | OS: {os_info}")
+                    print(f"{'=' * 80}")
+                    print(" Commands are executed in REAL-TIME via interactive API")
+                    print(" Type 'back' to leave interactive mode")
+                    print(" All commands go directly to agent, bypassing task queue")
+                    print(" Exclusive access - other operators locked out")
+                    print(f"{'=' * 80}")
+                elif 'agent_info' in message:
+                    # Format agent info as before
+                    agent_info = message.get('agent_info', {})
+                    print(f"\nAgent Information:")
+                    print("=" * 80)
+                    print(f"ID: {agent_info.get('id', '')}")
+                    print(f"IP Address: {agent_info.get('ip_address', '')}")
+                    print(f"Hostname: {agent_info.get('hostname', '')}")
+                    print(f"OS: {agent_info.get('os_info', '')}")
+                    print(f"User: {agent_info.get('user', '')}")
+                    print(f"Listener ID: {agent_info.get('listener_id', '')}")
+                    print(f"First Seen: {agent_info.get('first_seen', '')}")
+                    print(f"Last Seen: {agent_info.get('last_seen', '')}")
+                    print(f"Status: {agent_info.get('status', '')}")
+                    print(f"Pending Tasks: {agent_info.get('pending_tasks', '')}")
+                    print(f"Interactive Mode: {agent_info.get('interactive_mode', '')}")
+                    print(f"Interactive Lock: {agent_info.get('interactive_lock', '')}")
+                    print("=" * 80)
+                else:
+                    # For other JSON responses, print the message part if available
+                    if 'message' in message:
+                        print(f"{green('[+]')} {message['message']}")
+                    elif 'error' in message:
+                        print(f"{red('[-]')} {message['error']}")
+                    else:
+                        print(f"{green('[+]')} {str(message)}")
+            else:
+                print(f"{green('[+]')} {message}" if isinstance(message, str) and message.startswith('[+]') else f"{message}")
         elif status == 'error':
-            print(f"{red('[-]')} {message}" if message.startswith('[-]') else f"{message}")
+            # Handle JSON error responses
+            if isinstance(message, dict) and 'error' in message:
+                print(f"{red('[-]')} {message['error']}")
+            else:
+                print(f"{red('[-]')} {message}" if isinstance(message, str) and message.startswith('[-]') else f"{message}")
         elif status == 'info':
-            print(f"{blue('[*]')} {message}" if message.startswith('[*]') else f"{message}")
+            # Handle JSON info responses
+            if isinstance(message, dict) and 'message' in message:
+                print(f"{blue('[*]')} {message['message']}")
+            else:
+                print(f"{blue('[*]')} {message}" if isinstance(message, str) and message.startswith('[*]') else f"{message}")
         elif status == 'warning':
-            print(f"{yellow('[!]')} {message}" if message.startswith('[!]') else f"{message}")
+            # Handle JSON warning responses
+            if isinstance(message, dict) and 'message' in message:
+                print(f"{yellow('[!]')} {message['message']}")
+            else:
+                print(f"{yellow('[!]')} {message}" if isinstance(message, str) and message.startswith('[!]') else f"{message}")
+        elif status == 'interactive':
+            # Handle interactive status
+            if isinstance(message, dict):
+                agent_id = message.get('agent_id', '')
+                hostname = message.get('hostname', '')
+                user = message.get('user', '')
+                os_info = message.get('os_info', '')
+                msg = message.get('message', '')
+
+                print(f"\n{'=' * 80}")
+                print(f" {msg}")
+                print(f"Agent: {agent_id}")
+                print(f"Hostname: {hostname} | User: {user} | OS: {os_info}")
+                print(f"{'=' * 80}")
+                print(" Commands are executed in REAL-TIME via interactive API")
+                print(" Type 'back' to leave interactive mode")
+                print(" All commands go directly to agent, bypassing task queue")
+                print(" Exclusive access - other operators locked out")
+                print(f"{'=' * 80}")
+            else:
+                print(f"{message}")
         else:
             print(str(message))
 
@@ -902,18 +1139,31 @@ class NeoC2RemoteCLI:
                 if self.is_interactive_mode:
                     interactive_result = self._try_receive_interactive_result()
                     while interactive_result:
-                        result_text = interactive_result.get('result', '')
+                        # Handle JSON response from server
+                        if isinstance(interactive_result, dict):
+                            result_data = interactive_result.get('result', '')
+                            if isinstance(result_data, dict):
+                                # If the result is itself a JSON object, format it appropriately
+                                if 'result' in result_data:
+                                    result_text = result_data.get('result', '')
+                                else:
+                                    result_text = str(result_data)
+                            else:
+                                result_text = result_data
+                        else:
+                            result_text = interactive_result.get('result', '')
+
                         # Colorize result text based on content patterns
-                        if result_text.startswith('[+]'):
+                        if isinstance(result_text, str) and result_text.startswith('[+]'):
                             colored_result = green(result_text)
-                        elif result_text.startswith('[-]'):
+                        elif isinstance(result_text, str) and result_text.startswith('[-]'):
                             colored_result = red(result_text)
-                        elif result_text.startswith('[*]'):
+                        elif isinstance(result_text, str) and result_text.startswith('[*]'):
                             colored_result = blue(result_text)
-                        elif result_text.startswith('[!]'):
+                        elif isinstance(result_text, str) and result_text.startswith('[!]'):
                             colored_result = yellow(result_text)
                         else:
-                            colored_result = result_text
+                            colored_result = str(result_text)
                         print(colored_result)
 
                         self.interactive_command_sent = False
@@ -1032,7 +1282,10 @@ class NeoC2RemoteCLI:
 
                         if status == 'interactive':
                             self.is_interactive_mode = True
-                            if 'Agent:' in result:
+                            # Handle JSON interactive response
+                            if isinstance(result, dict) and 'agent_id' in result:
+                                self.current_agent = result.get('agent_id', 'unknown')
+                            elif isinstance(result, str) and 'Agent:' in result:
                                 try:
                                     agent_line = [line for line in result.split('\n') if 'Agent:' in line][0]
                                     agent_id = agent_line.split('Agent:')[1].strip()
@@ -1040,10 +1293,10 @@ class NeoC2RemoteCLI:
                                 except:
                                     self.current_agent = 'unknown'
 
-                            print(f"{result}")
+                            self.print_result(result, status)
                         elif status == 'file_download':
                             self.print_result(result, status)
-                        elif 'Exited interactive mode' in result or 'exited interactive mode' in result.lower():
+                        elif isinstance(result, str) and ('Exited interactive mode' in result or 'exited interactive mode' in result.lower()):
                             self.is_interactive_mode = False
                             self.current_agent = None
 
