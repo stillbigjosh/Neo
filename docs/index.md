@@ -6,7 +6,9 @@ A modular server-client architecture post-exploitation framework built for colla
 
 ## Getting Started
 
+*  [**Features**](getting_started/Features.md)
 *  [**Installation**](getting_started/Installation.md): Start here for installations
+
 
 ### Core Concepts
 
