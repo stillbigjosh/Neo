@@ -1326,9 +1326,9 @@ DB Inactive:       {stats.get('db_inactive_agents', 0)}
                 self._process_agent_update_queue()
 
                 if self.is_interactive_mode and self.current_agent:
-                    prompt = f"{cyan('NeoC2 [INTERACTIVE:' + self.current_agent[:8] + '] > ')}"
+                    prompt = f"\001{Fore.CYAN}\002NeoC2 [INTERACTIVE:{self.current_agent[:8]}] > \001{Style.RESET_ALL}\002"
                 else:
-                    prompt = f"{cyan('NeoC2 (' + self.username + '@remote) > ')}"
+                    prompt = f"\001{Fore.CYAN}\002NeoC2 ({self.username}@remote) > \001{Style.RESET_ALL}\002"
 
                 # Show the prompt and get input
                 command = input(prompt)
