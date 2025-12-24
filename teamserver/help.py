@@ -215,3 +215,179 @@ TIPS:
   • For more details on a specific command, use: encryption <command>
   • Base64 encoding is used automatically for binary data
     """
+
+
+def get_listener_usage():
+    return "USAGE: listener <action> <listener_name> [options]"
+
+
+def get_modules_load_usage():
+    return "Usage: modules load <module_path>"
+
+
+def get_modules_check_usage():
+    return "Usage: modules check <module_path>"
+
+
+def get_pinject_usage():
+    return "USAGE: pinject <shellcode_file> [agent_id=<agent_id>]"
+
+
+def get_pwsh_usage():
+    return "USAGE: pwsh <script_file> [agent_id=<agent_id>] [arguments=<script_arguments>]"
+
+
+def get_execute_bof_usage():
+    return "USAGE: execute-bof <bof_file> [arguments] [agent_id=<agent_id>]"
+
+
+def get_execute_assembly_usage():
+    return "USAGE: execute-assembly <assembly_file> [agent_id=<agent_id>]"
+
+
+def get_persist_usage():
+    return "USAGE: persist <method> <payload_path> [agent_id=<agent_id>] [name=<persistence_name>] [interval=<minutes>]"
+
+
+def get_peinject_usage():
+    return "USAGE: peinject <pe_file> [agent_id=<agent_id>]"
+
+
+def get_agent_interact_usage():
+    return "Usage: agent interact <agent_id>"
+
+
+def get_agent_execute_usage():
+    return "Usage: agent execute <command>"
+
+
+def get_agent_info_usage():
+    return "Usage: agent info <agent_id>"
+
+
+def get_agent_kill_usage():
+    return "Usage: agent kill <agent_id>"
+
+
+def get_agent_monitor_usage():
+    return "Usage: agent monitor <agent_id>"
+
+
+def get_agent_unmonitor_usage():
+    return "Usage: agent unmonitor <agent_id>"
+
+
+def get_encryption_stego_hide_usage():
+    return "Usage: encryption stego hide <image_path> <data> <output_path> [key=<key>]"
+
+
+def get_encryption_stego_extract_usage():
+    return "Usage: encryption stego extract <image_path> [key=<key>]"
+
+
+def get_encryption_hmac_generate_usage():
+    return "Usage: encryption hmac generate <data> [key=<key>]"
+
+
+def get_encryption_hmac_verify_usage():
+    return "Usage: encryption hmac verify <data> <hmac> [key=<key>]"
+
+
+def get_download_usage():
+    return "Usage: download <agent_id> <remote_file_path> (for agent downloads) OR download <server_file_path> (for server downloads)"
+
+
+def get_upload_usage():
+    return "Usage: upload <agent_id> <local_file_path> <remote_file_path> OR upload <local_file_path> <remote_file_path> (in interactive mode)"
+
+
+def get_profile_add_usage():
+    return "Usage: profile add <path_to_json> OR profile add base64:<base64_encoded_json>"
+
+
+def get_profile_reload_usage():
+    return "USAGE: profile reload <profile_path> <profile_name>"
+
+
+def get_payload_upload_usage():
+    return "Usage: payload_upload upload <local_file_path>"
+
+
+def get_taskchain_create_usage():
+    return "Usage: taskchain create <agent_id> <module1=arg1,arg2,module2=arg3,module3> [name=chain_name] [execute=true] OR taskchain create <module1=arg1,arg2,module2=arg3,module3> (in interactive mode)"
+
+
+def get_taskchain_status_usage():
+    return "Usage: taskchain status <chain_id>"
+
+
+def get_taskchain_execute_usage():
+    return "Usage: taskchain execute <chain_id>"
+
+
+def get_reporting_export_usage():
+    return "Usage: reporting export <report_type> <format> [options]"
+
+
+def get_task_usage():
+    return "Usage: task <agent_id> OR task (in interactive mode)"
+
+
+def get_result_usage():
+    return "Usage: result <agent_id> OR result list OR result <task_id>"
+
+
+def get_addcmd_usage():
+    return "USAGE: addcmd <agent_id> <command> OR addcmd <command> (in interactive mode)\n\nNote: Uses the standard queued API for command execution."
+
+
+def get_save_usage():
+    return "Usage: save <task_id>"
+
+
+def get_interact_usage():
+    return "Usage: interact <agent_id>"
+
+
+def get_cmd_usage():
+    return "Usage: cmd <command> (in interactive mode)"
+
+
+def get_event_search_usage():
+    return "Usage: event search <query>"
+
+
+def get_reverse_proxy_usage():
+    return "Usage: reverse_proxy <start|stop> [agent_id] [port]"
+
+
+def get_cli_socks_proxy_usage():
+    return "Usage: cli_socks_proxy <start|stop> [agent_id] [port]"
+
+
+def get_failover_import_keys_usage():
+    return "Usage: failover import-keys <file_path>"
+
+
+def get_failover_export_keys_usage():
+    return "Usage: failover export-keys <file_path> [agent_id]"
+
+
+def get_task_pending_usage():
+    return "Usage: task <agent_id> pending tasks would be shown here"
+
+
+def get_result_list_usage():
+    return "Usage: result <agent_id> OR result list OR result <task_id>"
+
+
+def get_addcmd_agent_usage():
+    return "Usage: addcmd <agent_id> <command>"
+
+
+def get_save_task_id_usage():
+    return "Usage: save <task_id>"
+
+
+def get_interact_agent_id_usage():
+    return "Usage: interact <agent_id>"
