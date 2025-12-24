@@ -6,7 +6,7 @@ A modular server-client architecture post-exploitation framework built for colla
 
 ## Getting Started
 
-*  [**Features**](getting_started/Features.md)
+*  [**Features**](getting_started/Features.md): Notable features of NeoC2
 *  [**Installation**](getting_started/Installation.md): Start here for installations
 
 
