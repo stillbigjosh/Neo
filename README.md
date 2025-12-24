@@ -29,15 +29,15 @@
 - **Task Orchestrator**: Chain modules for complex operations
 - **Role-Based Access Control:** Co-ordinates access and permissions with admin/operator/viewer roles
 - **Multi-Operator Extension Module System:** Operators use their own local extension modules without interfering with each other
-- **Modular Payload Architecture** Customize the implant capability by including or excluding specific advanced features. 
+- **Modular Payload Architecture** Customize the implant capability by including or excluding specific advanced features
 - **Polymorphic Payloads:** Randomized variable and function names, XOR-based string obfuscation
+- **Secure Communication:** HTTPS is the primary C2 channel. Implants are pre-registered with a per-agent symmetric keys (AES-128-CBC + HMAC-SHA256). The framework validates the secret key and enforces encrypted communication using Fernet layer over HTTPS
 - **Malleable profiles:** Customize agent behavior and communication patterns
 - **Sanbox & Debugger Detection**: Anti-analysis self-deletion 
 - **Payload staging** Seamless staging of payloads, files
 - **File Operations**: Upload and download files
 - **Redirector Support**: Manage external infrastructure pointing to internal listeners via profiles
 - **Failover deployment**: Agent embeds failover C2 servers
-- **Fernet layer over HTTPS:** Per-agent symmetric keys (AES-128-CBC + HMAC-SHA256) Secure comms over HTTPS
 - **Shellcode Injection**: Shellcode injection into sacrificial processes with NtQueueApcThread, NtCreateThreadEx, RtlCreateUserThread, CreateRemoteThread
 - **Arbitrary Windows Executables injection**: Execute arbitrary Windows executables (PE) in a sacrificial process with Process Hollowing
 - **.NET Assembly Execution**: In-memory execution of .NET Assemblies
