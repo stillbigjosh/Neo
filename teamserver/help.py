@@ -377,6 +377,26 @@ def get_failover_unknown_action_usage():
     return "Unknown failover action. Use: import-keys, export-keys"
 
 
+def get_failover_help():
+    return """
+FAILOVER COMMANDS
+═══════════════════════════════════════════════════════════════════
+
+COMMANDS:
+  • failover import-keys <file_path>          - Import agent keys from distribution file
+  • failover export-keys <file_path> [agent_id] - Export agent keys to distribution file
+
+DESCRIPTION:
+  Import and export agent secret keys for failover C2 server setup.
+  This allows agents to communicate with backup/secondary C2 servers.
+
+EXAMPLES:
+  • failover export-keys /tmp/agent_keys.json
+  • failover export-keys /tmp/single_agent.json AGENT123
+  • failover import-keys /tmp/agent_keys.json
+                    """
+
+
 def get_task_pending_usage():
     return "Usage: task <agent_id> pending tasks would be shown here"
 

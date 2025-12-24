@@ -6450,23 +6450,7 @@ DB Inactive:       {stats['db_inactive_agents']}
                         status = 'error'
             elif base_cmd == 'failover':
                 if len(command_parts) < 2:
-                    result = """
-FAILOVER COMMANDS
-═══════════════════════════════════════════════════════════════════
-
-COMMANDS:
-  • failover import-keys <file_path>          - Import agent keys from distribution file
-  • failover export-keys <file_path> [agent_id] - Export agent keys to distribution file
-
-DESCRIPTION:
-  Import and export agent secret keys for failover C2 server setup.
-  This allows agents to communicate with backup/secondary C2 servers.
-
-EXAMPLES:
-  • failover export-keys /tmp/agent_keys.json
-  • failover export-keys /tmp/single_agent.json AGENT123
-  • failover import-keys /tmp/agent_keys.json
-                    """
+                    result = help.get_failover_help()
                     status = 'info'
                     return {'output': result, 'status': status}
 
