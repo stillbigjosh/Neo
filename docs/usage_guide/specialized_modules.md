@@ -195,7 +195,7 @@ The shellcode injection techniques are ordered by stealthiness:
 - CreateRemoteThread (least stealthy, but most stable) - Classic method, widely monitored
 
 #### Shellcode Injection Flow:
-1. The agent will enumerate the suitable process (dllhost.exe, taskhost.exe, conhost.exe, notepad.exe explorer.exe)
+1. The agent will enumerate by trying more stable processes first (dllhost.exe, taskhost.exe, conhost.exe, notepad.exe explorer.exe)
 2. The agent opens a handle to the target process 
 3. The agent attempts several injection techniques:
 
