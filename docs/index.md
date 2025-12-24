@@ -6,12 +6,14 @@ A modular server-client architecture post-exploitation framework built for colla
 
 ## Getting Started
 
+*  [**Features**](getting_started/Features.md): Notable features of NeoC2
 *  [**Installation**](getting_started/Installation.md): Start here for installations
+
 
 ### Core Concepts
 
 *   [**Agents & Stagers**](core_concepts/agents_and_stagers_guide.md): Manage agents and stagers within your environment
-*   [**Profiles & Listeners**](usage_guide/profiles_and_listeners.md): Configure communication profiles and HTTP listeners
+*   [**Profiles & Listeners**](usage_guide/profiles_and_listeners.md): Configure communication profiles and HTTPS listeners
 
 ### Usage Guide
 
