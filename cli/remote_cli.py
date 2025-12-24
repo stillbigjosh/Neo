@@ -909,6 +909,25 @@ class NeoC2RemoteCLI:
                                 description = description[:32] + ".."
 
                             print(f"{name:<25} {module_type:<15} {technique_id:<15} {mitre_tactics:<25} {description:<35}")
+                elif 'module_info' in message:
+                    # Format module info as before
+                    module_info = message.get('module_info', {})
+                    print(f"Module Information: {module_info.get('name', 'Unknown')}")
+                    print("=" * 80)
+                    print(f"Description: {module_info.get('description', 'No description')}")
+                    print(f"Type: {module_info.get('type', 'Unknown')}")
+                    print(f"Platform: {module_info.get('platform', 'Unknown')}")
+                    print(f"Author: {module_info.get('author', 'Unknown')}")
+                    print(f"References: {', '.join(module_info.get('references', []))}")
+
+                    if module_info.get('options'):
+                        print("\nOptions:")
+                        for opt_name, opt_info in module_info['options'].items():
+                            print(f"  {opt_name}: {opt_info.get('description', 'No description')}")
+                            if opt_info.get('required', False):
+                                print("    (Required)")
+                            if 'default' in opt_info and opt_info['default'] is not None:
+                                print(f"    Default: {opt_info['default']}")
                 elif 'profiles' in message:
                     # Format profiles list as a table
                     profiles = message.get('profiles', [])
@@ -947,6 +966,138 @@ class NeoC2RemoteCLI:
                                   f"{chain.get('status', ''):<12} "
                                   f"{chain.get('modules', '')[:24]:<25} "
                                   f"{chain.get('created_at', ''):<20}")
+                elif 'chain_status' in message:
+                    # Format chain status as before
+                    chain_status = message.get('chain_status', {})
+                    print(f"Chain Details:")
+                    print("-" * 80)
+                    print(f"Chain ID:   {chain_status.get('chain_id', '')}")
+                    print(f"Name:       {chain_status.get('name', '')}")
+                    print(f"Agent ID:   {chain_status.get('agent_id', '')}")
+                    print(f"Status:     {chain_status.get('status', '')}")
+                    print(f"Created:    {chain_status.get('created_at', '')}")
+                    print(f"Started:    {chain_status.get('started_at', 'N/A')}")
+                    print(f"Completed:  {chain_status.get('completed_at', 'N/A')}")
+                    print("-" * 80)
+                    print("Tasks:")
+                    print("-" * 80)
+
+                    for task in chain_status.get('tasks', []):
+                        print(f"  [{task.get('sequence_order', '')}] {task.get('module_name', '')} - {task.get('status', '')}")
+                        if task.get('error'):
+                            print(f"      Error: {task.get('error')}")
+                        if task.get('result_output'):
+                            print(f"      Result: {task.get('result_output')}")
+                        print("-" * 80)
+                elif 'task_details' in message:
+                    # Format task details as before
+                    task_details = message.get('task_details', {})
+                    print(f"Task Details:")
+                    print("-" * 80)
+                    print(f"Task ID:      {task_details.get('id', '')}")
+                    print(f"Agent ID:     {task_details.get('agent_id', '')}")
+                    print(f"Hostname:     {task_details.get('hostname', 'N/A')} ({task_details.get('user', 'N/A')})")
+                    print(f"IP Address:   {task_details.get('ip_address', 'N/A')}")
+                    print(f"Command:      {task_details.get('command', '')[:20]}{'...' if len(task_details.get('command', '')) > 20 else ''}")
+                    print(f"Status:       {task_details.get('status', '')}")
+                    print(f"Task Type:    {task_details.get('task_type', 'queued')}")
+                    print(f"Created:      {task_details.get('created_at', '')}")
+                    print(f"Completed:    {task_details.get('completed_at', 'N/A')}")
+                    print("-" * 80)
+                    print(f"Complete Result:")
+                    print(f"{task_details.get('result', 'No result available')}")
+                    print("-" * 80)
+                elif 'tasks' in message:
+                    # Format tasks as before
+                    tasks = message.get('tasks', [])
+                    agent_id = message.get('agent_id', '')
+                    limit = message.get('limit', 50)
+
+                    if not tasks:
+                        if agent_id:
+                            print(f"No pending tasks for agent {agent_id}")
+                        else:
+                            print(f"No results found")
+                    else:
+                        if agent_id:
+                            print(f"Pending Tasks for Agent {agent_id}:")
+                        else:
+                            print(f"Recent Task Results (Last {limit}):")
+
+                        print("-" * 80)
+                        for task in tasks:
+                            if agent_id:  # Pending tasks
+                                print(f"Task ID: {task.get('id', '')}")
+                                print(f"Command: {task.get('command', '')[:20]}{'...' if len(task.get('command', '')) > 20 else ''}")
+                                print(f"Status: {task.get('status', '')} ({task.get('task_type', '')})")
+                                print(f"Created: {task.get('created_at', '')}")
+                            else:  # Recent results
+                                print(f"Task ID:      {task.get('task_id', '')}")
+                                print(f"Agent:        {task.get('agent_id', '')} ({task.get('hostname', 'N/A')}@{task.get('user', 'N/A')})")
+                                print(f"Command:      {task.get('command', '')[:20]}{'...' if len(task.get('command', '')) > 20 else ''}")
+                                print(f"Type:         {task.get('task_type', '')}")
+                                print(f"Completed:    {task.get('completed_at', '')}")
+                                print(f"Result:       {task.get('result', '')[:100]}{'...' if len(task.get('result', '')) > 100 else ''}")
+                            print("-" * 80)
+                elif 'results' in message:
+                    # Format results as before
+                    results = message.get('results', [])
+                    agent_id = message.get('agent_id', '')
+
+                    if not results:
+                        if agent_id:
+                            print(f"No results found for agent {agent_id}")
+                        else:
+                            print(f"No results found")
+                    else:
+                        if agent_id:
+                            print(f"Results for Agent {agent_id}:")
+                        else:
+                            limit = message.get('limit', 50)
+                            print(f"Recent Task Results (Last {limit}):")
+
+                        print("-" * 80)
+                        for res in results:
+                            if agent_id:  # Results for specific agent
+                                print(f"Task ID:      {res.get('task_id', '')}")
+                                print(f"Command:      {res.get('command', '')}")
+                                print(f"Created:      {res.get('created_at', '')}")
+                                print(f"Completed:    {res.get('completed_at', '')}")
+                                print(f"Result:       {res.get('result', '')[:100]}{'...' if len(res.get('result', '')) > 100 else ''}")
+                            else:  # Recent results
+                                print(f"Task ID:      {res.get('task_id', '')}")
+                                print(f"Agent:        {res.get('agent_id', '')} ({res.get('hostname', 'N/A')}@{res.get('user', 'N/A')})")
+                                print(f"Command:      {res.get('command', '')[:20]}{'...' if len(res.get('command', '')) > 20 else ''}")
+                                print(f"Type:         {res.get('task_type', '')}")
+                                print(f"Completed:    {res.get('completed_at', '')}")
+                                print(f"Result:       {res.get('result', '')[:100]}{'...' if len(res.get('result', '')) > 100 else ''}")
+                            print("-" * 80)
+                elif 'chain_data' in message:
+                    # Format chain data as before
+                    chain_data = message.get('chain_data', {})
+                    chain_name = chain_data.get('chain_name', '')
+                    chain_id = chain_data.get('chain_id', '')
+                    modules = chain_data.get('modules', [])
+                    execution_status = chain_data.get('execution_status', '')
+
+                    print(f"Task chain '{chain_name}' created successfully")
+                    print(f"Chain ID: {chain_id}")
+                    print(f"Modules: {', '.join(modules)}")
+                    if execution_status:
+                        print(execution_status)
+                elif 'status' in message:
+                    # Format status as before
+                    stats = message.get('status', {})
+                    print(f"""
+Framework Status:
+Total Agents:      {stats.get('total_agents', 0)}
+Active Agents:     {stats.get('active_agents', 0)}
+Total Tasks:       {stats.get('total_tasks', 0)}
+Pending Tasks:     {stats.get('pending_tasks', 0)}
+DB Total Agents:   {stats.get('db_total_agents', 0)}
+DB Active Agents:  {stats.get('db_active_agents', 0)}
+DB Inactive:       {stats.get('db_inactive_agents', 0)}
+                    """.strip())
                 elif 'reports' in message:
                     # Format reports list as a table
                     reports = message.get('reports', [])
