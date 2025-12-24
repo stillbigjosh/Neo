@@ -5565,15 +5565,18 @@ DB Inactive:       {stats['db_inactive_agents']}
                             result = f"No pending tasks for agent {agent_id}"
                             status = 'info'
                         else:
-                            output = f"Pending Tasks for Agent {agent_id}:\n"
-                            output += "-" * 80 + "\n"
+                            # Return raw task data as JSON instead of formatted output
+                            task_data = []
                             for task in tasks:
-                                output += f"Task ID: {task['id']}\n"
-                                output += f"Command: {task['command'][:20]}{'...' if len(task['command']) > 20 else ''}\n"
-                                output += f"Status: {task['status']} ({task['task_type']})\n"
-                                output += f"Created: {task['created_at']}\n"
-                                output += "-" * 80 + "\n"
-                            result = output
+                                task_data.append({
+                                    'id': task['id'],
+                                    'command': task['command'],
+                                    'status': task['status'],
+                                    'task_type': task['task_type'],
+                                    'created_at': task['created_at']
+                                })
+
+                            result = {"tasks": task_data, "agent_id": agent_id}
                             status = 'success'
                     elif base_cmd == 'result':
                         if len(command_parts) < 2:
@@ -5587,17 +5590,21 @@ DB Inactive:       {stats['db_inactive_agents']}
                                 result = "No results found"
                                 status = 'info'
                             else:
-                                output = f"Recent Task Results (Last {limit}):\n"
-                                output += "-" * 80 + "\n"
+                                # Return raw result data as JSON instead of formatted output
+                                result_data = []
                                 for res in results:
-                                    output += f"Task ID:      {res['task_id']}\n"
-                                    output += f"Agent:        {res['agent_id']} ({res['hostname']}@{res['user']})\n"
-                                    output += f"Command:      {res['command']}\n"
-                                    output += f"Type:         {res['task_type']}\n"
-                                    output += f"Completed:    {res['completed_at']}\n"
-                                    output += f"Result:       {res['result'][:100]}{'...' if len(res['result']) > 100 else ''}\n"
-                                    output += "-" * 80 + "\n"
-                                result = output
+                                    result_data.append({
+                                        'task_id': res['task_id'],
+                                        'agent_id': res['agent_id'],
+                                        'hostname': res['hostname'],
+                                        'user': res['user'],
+                                        'command': res['command'],
+                                        'task_type': res['task_type'],
+                                        'completed_at': res['completed_at'],
+                                        'result': res['result']
+                                    })
+
+                                result = {"results": result_data, "limit": limit}
                                 status = 'success'
                         elif len(command_parts) == 2 and command_parts[1].replace('-', '').replace('_', '').isalnum():
                             task_id = command_parts[1]
@@ -5626,22 +5633,22 @@ DB Inactive:       {stats['db_inactive_agents']}
                                         task_dict = dict(task)
                                         task_result = task_dict.get('result', 'No result available')
 
-                                        output = f"Task Details:\n"
-                                        output += "-" * 80 + "\n"
-                                        output += f"Task ID:      {task_dict['id']}\n"
-                                        output += f"Agent ID:     {task_dict['agent_id']}\n"
-                                        output += f"Hostname:     {task_dict.get('hostname', 'N/A')} ({task_dict.get('user', 'N/A')})\n"
-                                        output += f"IP Address:   {task_dict.get('ip_address', 'N/A')}\n"
-                                        output += f"Command:      {task_dict['command'][:20]}{'...' if len(task_dict['command']) > 20 else ''}\n"
-                                        output += f"Status:       {task_dict['status']}\n"
-                                        output += f"Task Type:    {task_dict.get('task_type', 'queued')}\n"
-                                        output += f"Created:      {task_dict['created_at']}\n"
-                                        output += f"Completed:    {task_dict['completed_at'] if task_dict['completed_at'] else 'N/A'}\n"
-                                        output += "-" * 80 + "\n"
-                                        output += f"Complete Result:\n{task_result}\n"
-                                        output += "-" * 80 + "\n"
+                                        # Return raw task details as JSON instead of formatted output
+                                        task_details = {
+                                            'id': task_dict['id'],
+                                            'agent_id': task_dict['agent_id'],
+                                            'hostname': task_dict.get('hostname', 'N/A'),
+                                            'user': task_dict.get('user', 'N/A'),
+                                            'ip_address': task_dict.get('ip_address', 'N/A'),
+                                            'command': task_dict['command'],
+                                            'status': task_dict['status'],
+                                            'task_type': task_dict.get('task_type', 'queued'),
+                                            'created_at': task_dict['created_at'],
+                                            'completed_at': task_dict['completed_at'] if task_dict['completed_at'] else 'N/A',
+                                            'result': task_result
+                                        }
 
-                                        result = output
+                                        result = {"task_details": task_details}
                                         status = 'success'
                                 except Exception as e:
                                     result = f"Error retrieving task result: {str(e)}"
@@ -5656,16 +5663,18 @@ DB Inactive:       {stats['db_inactive_agents']}
                                 result = f"No results found for current agent"
                                 status = 'info'
                             else:
-                                output = f"Results for Current Agent ({agent_id}):\n"
-                                output += "-" * 80 + "\n"
+                                # Return raw result data as JSON instead of formatted output
+                                result_data = []
                                 for res in results:
-                                    output += f"Task ID:      {res['task_id']}\n"
-                                    output += f"Command:      {res['command']}\n"
-                                    output += f"Created:      {res['created_at']}\n"
-                                    output += f"Completed:    {res['completed_at']}\n"
-                                    output += f"Result:       {res['result'][:100]}{'...' if len(res['result']) > 100 else ''}\n"
-                                    output += "-" * 80 + "\n"
-                                result = output
+                                    result_data.append({
+                                        'task_id': res['task_id'],
+                                        'command': res['command'],
+                                        'created_at': res['created_at'],
+                                        'completed_at': res['completed_at'],
+                                        'result': res['result']
+                                    })
+
+                                result = {"results": result_data, "agent_id": agent_id}
                                 status = 'success'
                         else:
                             agent_id = command_parts[1]
@@ -5676,16 +5685,18 @@ DB Inactive:       {stats['db_inactive_agents']}
                                 result = f"No results found for agent {agent_id}"
                                 status = 'info'
                             else:
-                                output = f"Results for Agent {agent_id}:\n"
-                                output += "-" * 80 + "\n"
+                                # Return raw result data as JSON instead of formatted output
+                                result_data = []
                                 for res in results:
-                                    output += f"Task ID:      {res['task_id']}\n"
-                                    output += f"Command:      {res['command'][:20]}{'...' if len(res['command']) > 20 else ''}\n"
-                                    output += f"Created:      {res['created_at']}\n"
-                                    output += f"Completed:    {res['completed_at']}\n"
-                                    output += f"Result:       {res['result'][:100]}{'...' if len(res['result']) > 100 else ''}\n"
-                                    output += "-" * 80 + "\n"
-                                result = output
+                                    result_data.append({
+                                        'task_id': res['task_id'],
+                                        'command': res['command'],
+                                        'created_at': res['created_at'],
+                                        'completed_at': res['completed_at'],
+                                        'result': res['result']
+                                    })
+
+                                result = {"results": result_data, "agent_id": agent_id}
                                 status = 'success'
                     elif base_cmd == 'addcmd':
                         if len(command_parts) < 2:
@@ -5963,21 +5974,23 @@ DB Inactive:       {stats['db_inactive_agents']}
                     results = self.agent_manager.get_all_results(limit)
                     
                     if not results:
-                        result = "No results found"
-                        status = 'info'
+                        result = {"results": [], "limit": limit}, 'info'
                     else:
-                        output = f"Recent Task Results (Last {limit}):\n"
-                        output += "-" * 80 + "\n"
+                        # Return raw result data as JSON instead of formatted output
+                        result_data = []
                         for res in results:
-                            output += f"Task ID:      {res['task_id']}\n"
-                            output += f"Agent:        {res['agent_id']} ({res['hostname']}@{res['user']})\n"
-                            output += f"Command:      {res['command'][:20]}{'...' if len(res['command']) > 20 else ''}\n"
-                            output += f"Type:         {res['task_type']}\n"
-                            output += f"Completed:    {res['completed_at']}\n"
-                            output += f"Result:       {res['result'][:100]}{'...' if len(res['result']) > 100 else ''}\n"
-                            output += "-" * 80 + "\n"
-                        result = output
-                        status = 'success'
+                            result_data.append({
+                                'task_id': res['task_id'],
+                                'agent_id': res['agent_id'],
+                                'hostname': res['hostname'],
+                                'user': res['user'],
+                                'command': res['command'],
+                                'task_type': res['task_type'],
+                                'completed_at': res['completed_at'],
+                                'result': res['result']
+                            })
+
+                        result = {"results": result_data, "limit": limit}, 'success'
                 elif len(command_parts) == 2 and command_parts[1].replace('-', '').replace('_', '').isalnum():
                     task_id = command_parts[1]
 
@@ -6005,22 +6018,22 @@ DB Inactive:       {stats['db_inactive_agents']}
                                 task_dict = dict(task)
                                 task_result = task_dict.get('result', 'No result available')
 
-                                output = f"Task Details:\n"
-                                output += "-" * 80 + "\n"
-                                output += f"Task ID:      {task_dict['id']}\n"
-                                output += f"Agent ID:     {task_dict['agent_id']}\n"
-                                output += f"Hostname:     {task_dict.get('hostname', 'N/A')} ({task_dict.get('user', 'N/A')})\n"
-                                output += f"IP Address:   {task_dict.get('ip_address', 'N/A')}\n"
-                                output += f"Command:      {task_dict['command'][:20]}{'...' if len(task_dict['command']) > 20 else ''}\n"
-                                output += f"Status:       {task_dict['status']}\n"
-                                output += f"Task Type:    {task_dict.get('task_type', 'queued')}\n"
-                                output += f"Created:      {task_dict['created_at']}\n"
-                                output += f"Completed:    {task_dict['completed_at'] if task_dict['completed_at'] else 'N/A'}\n"
-                                output += "-" * 80 + "\n"
-                                output += f"Complete Result:\n{task_result}\n"
-                                output += "-" * 80 + "\n"
+                                # Return raw task details as JSON instead of formatted output
+                                task_details = {
+                                    'id': task_dict['id'],
+                                    'agent_id': task_dict['agent_id'],
+                                    'hostname': task_dict.get('hostname', 'N/A'),
+                                    'user': task_dict.get('user', 'N/A'),
+                                    'ip_address': task_dict.get('ip_address', 'N/A'),
+                                    'command': task_dict['command'],
+                                    'status': task_dict['status'],
+                                    'task_type': task_dict.get('task_type', 'queued'),
+                                    'created_at': task_dict['created_at'],
+                                    'completed_at': task_dict['completed_at'] if task_dict['completed_at'] else 'N/A',
+                                    'result': task_result
+                                }
 
-                                result = output
+                                result = {"task_details": task_details}
                                 status = 'success'
                         except Exception as e:
                             result = f"Error retrieving task result: {str(e)}"
@@ -6035,16 +6048,18 @@ DB Inactive:       {stats['db_inactive_agents']}
                         result = f"No results found for current agent"
                         status = 'info'
                     else:
-                        output = f"Results for Current Agent ({agent_id}):\n"
-                        output += "-" * 80 + "\n"
+                        # Return raw result data as JSON instead of formatted output
+                        result_data = []
                         for res in results:
-                            output += f"Task ID:      {res['task_id']}\n"
-                            output += f"Command:      {res['command']}\n"
-                            output += f"Created:      {res['created_at']}\n"
-                            output += f"Completed:    {res['completed_at']}\n"
-                            output += f"Result:       {res['result'][:100]}{'...' if len(res['result']) > 100 else ''}\n"
-                            output += "-" * 80 + "\n"
-                        result = output
+                            result_data.append({
+                                'task_id': res['task_id'],
+                                'command': res['command'],
+                                'created_at': res['created_at'],
+                                'completed_at': res['completed_at'],
+                                'result': res['result']
+                            })
+
+                        result = {"results": result_data, "agent_id": agent_id}
                         status = 'success'
                 else:
                     agent_id = command_parts[1]
@@ -6055,16 +6070,18 @@ DB Inactive:       {stats['db_inactive_agents']}
                         result = f"No results found for agent {agent_id}"
                         status = 'info'
                     else:
-                        output = f"Results for Agent {agent_id}:\n"
-                        output += "-" * 80 + "\n"
+                        # Return raw result data as JSON instead of formatted output
+                        result_data = []
                         for res in results:
-                            output += f"Task ID:      {res['task_id']}\n"
-                            output += f"Command:      {res['command']}\n"
-                            output += f"Created:      {res['created_at']}\n"
-                            output += f"Completed:    {res['completed_at']}\n"
-                            output += f"Result:       {res['result'][:100]}{'...' if len(res['result']) > 100 else ''}\n"
-                            output += "-" * 80 + "\n"
-                        result = output
+                            result_data.append({
+                                'task_id': res['task_id'],
+                                'command': res['command'],
+                                'created_at': res['created_at'],
+                                'completed_at': res['completed_at'],
+                                'result': res['result']
+                            })
+
+                        result = {"results": result_data, "agent_id": agent_id}
                         status = 'success'
             elif base_cmd == 'addcmd':
                 if len(command_parts) < 2:
@@ -6494,7 +6511,7 @@ EXAMPLES:
                             status = 'error'
 
                 else:
-                    result = f"Unknown failover action: {action}. Use: import-keys, export-keys"
+                    result = help.get_failover_unknown_action_usage()
                     status = 'error'
             else:
                 result, status = self.handle_neoc2_command(command, remote_session)

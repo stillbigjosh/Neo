@@ -373,6 +373,10 @@ def get_failover_export_keys_usage():
     return "Usage: failover export-keys <file_path> [agent_id]"
 
 
+def get_failover_unknown_action_usage():
+    return "Unknown failover action. Use: import-keys, export-keys"
+
+
 def get_task_pending_usage():
     return "Usage: task <agent_id> pending tasks would be shown here"
 
