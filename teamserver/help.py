@@ -315,16 +315,18 @@ PAYLOAD UPLOAD COMMANDS
 ═══════════════════════════════════════════════════════════════════
 
 COMMANDS:
-  • payload_upload upload <file>    - Upload a payload file for stagers
-  • payload_upload status           - Check status of uploaded payload
-  • payload_upload clear            - Clear the currently uploaded payload
+  • payload_upload upload <file> [uri=<custom_uri>] - Upload a payload file for stagers
+  • payload_upload status                          - Check status of uploaded payload
+  • payload_upload clear                           - Clear the currently uploaded payload
 
 DESCRIPTION:
   Upload custom payloads (executables, scripts, etc.) to be used with stagers.
+  Optionally specify a custom URI where the payload will be available.
   Supported extensions: .exe, .dll, .py, .js, .vbs, .bat, .ps1, .bin, .dat, .raw
 
 EXAMPLES:
-  • payload_upload upload /tmp/myscript.exe
+  • payload_upload upload /tmp/myscript.exe                    # Upload with default URI
+  • payload_upload upload /tmp/myscript.exe uri=custom_payload # Upload with custom URI
   • payload_upload status
   • payload_upload clear
     """

