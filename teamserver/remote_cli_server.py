@@ -359,9 +359,7 @@ class RemoteCLIServer:
         
         elif action == 'info':
             if len(command_parts) < 3:
-                return """
-                USAGE:
-                modules info <module_name>""", 'error'
+                return help.get_modules_info_usage(), 'error'
             
             module_name = command_parts[2]
             
@@ -1897,27 +1895,7 @@ class RemoteCLIServer:
 
     def handle_encrypt(self, command_parts):
         if len(command_parts) < 3:
-            return """
-    USAGE:
-        encryption encrypt <algorithm> <data> [options]
-
-    ALGORITHMS:
-        fernet    - Symmetric encryption (default)
-        aes       - AES encryption (requires password=<pwd>)
-        rsa       - RSA encryption (requires public_key=<path>)
-        xor       - XOR encryption (requires key=<key>)
-
-    OPTIONS:
-        password=<pwd>      - Password for AES
-        public_key=<path>   - Path to RSA public key file
-        key=<key>           - Key for XOR (hex string)
-        output=<path>       - Save encrypted data to file
-
-    EXAMPLES:
-        encryption encrypt fernet "Hello World"
-        encryption encrypt aes "Secret Data" password=mypass123
-        encryption encrypt xor "Data" key=deadbeef output=out.enc
-            """, 'error'
+            return help.get_encryption_encrypt_usage(), 'error'
         
         algorithm = command_parts[1].lower()
         data = command_parts[2]
@@ -1998,28 +1976,7 @@ class RemoteCLIServer:
 
     def handle_decrypt(self, command_parts):
         if len(command_parts) < 3:
-            return """
-    USAGE:
-        encryption decrypt <algorithm> <encrypted_data> [options]
-
-    ALGORITHMS:
-        fernet    - Symmetric decryption
-        aes       - AES decryption (requires password=<pwd> salt=<salt>)
-        rsa       - RSA decryption (requires private_key=<path>)
-        xor       - XOR decryption (requires key=<key>)
-
-    OPTIONS:
-        password=<pwd>      - Password for AES
-        salt=<salt>         - Salt for AES (base64)
-        private_key=<path>  - Path to RSA private key file
-        key=<key>           - Key for XOR (hex string)
-        input=<path>        - Read encrypted data from file
-
-    EXAMPLES:
-        encryption decrypt fernet <base64_data>
-        encryption decrypt aes <data> password=mypass123 salt=<salt>
-        encryption decrypt xor <data> key=deadbeef
-            """, 'error'
+            return help.get_encryption_decrypt_usage(), 'error'
         
         algorithm = command_parts[1].lower()
         encrypted_data_b64 = command_parts[2] if len(command_parts) > 2 else None
@@ -2103,26 +2060,7 @@ class RemoteCLIServer:
 
     def handle_keygen(self, command_parts):
         if len(command_parts) < 2:
-            return """
-    USAGE:
-        encryption keygen <algorithm> [options]
-
-    ALGORITHMS:
-        fernet    - Generate Fernet key
-        aes       - Generate AES key (requires password=<pwd>)
-        rsa       - Generate RSA key pair
-        xor       - Generate XOR key (optional: length=<bytes>)
-
-    OPTIONS:
-        password=<pwd>      - Password for AES key derivation
-        length=<bytes>      - Length for XOR key (default: 32)
-        output=<prefix>     - Output prefix for key files
-
-    EXAMPLES:
-        encryption keygen rsa output=my_rsa
-        encryption keygen xor length=64
-        encryption keygen aes password=mypass123
-            """, 'error'
+            return help.get_encryption_keygen_usage(), 'error'
         
         algorithm = command_parts[1].lower()
         
@@ -2206,18 +2144,7 @@ class RemoteCLIServer:
 
     def handle_steganography(self, command_parts):
         if len(command_parts) < 2:
-            return """
-    USAGE:
-        encryption stego hide <image_path> <data> <output_path> [key=<key>]
-        encryption stego extract <image_path> [key=<key>]
-
-    DESCRIPTION:
-        Hide or extract data from images using LSB steganography
-
-    EXAMPLES:
-        encryption stego hide image.png "Secret Message" stego_image.png
-        encryption stego extract stego_image.png
-            """, 'error'
+            return help.get_encryption_stego_usage(), 'error'
         
         operation = command_parts[1].lower()
         
@@ -2288,18 +2215,7 @@ class RemoteCLIServer:
 
     def handle_hmac(self, command_parts):
         if len(command_parts) < 2:
-            return """
-    USAGE:
-        encryption hmac generate <data> [key=<key>]
-        encryption hmac verify <data> <hmac> [key=<key>]
-
-    DESCRIPTION:
-        Generate or verify HMAC signatures
-
-    EXAMPLES:
-        encryption hmac generate "Important Data" key=deadbeef
-        encryption hmac verify "Important Data" <hmac_hex> key=deadbeef
-            """, 'error'
+            return help.get_encryption_hmac_usage(), 'error'
         
         operation = command_parts[1].lower()
         
@@ -2682,21 +2598,7 @@ class RemoteCLIServer:
 
     def handle_profile_command(self, command_parts, session):
         if len(command_parts) < 2:
-            return """
-PROFILE MANAGEMENT COMMANDS
-═══════════════════════════════════════════════════════════════════
-
-COMMANDS:
-  • profile add <path>                - Add a new communication profile from a JSON file
-  • profile add base64:<encoded_json> - Add a new communication profile from base64 encoded JSON
-  • profile list                      - List all communication profiles in the database
-  • profile reload <path> <name>      - Reload an existing profile with changes from a JSON file
-
-EXAMPLES:
-  • profile add /path/to/profile.json
-  • profile add base64:eyJuYW1lIjoiTXlQcm9maWxlIiwiY29uZmlnIjp7fX0=
-  • profile reload /path/to/updated.json MyProfile
-""", "info"
+            return help.get_profile_help_display(), "info"
 
         action = command_parts[1].lower()
 
@@ -2814,36 +2716,7 @@ EXAMPLES:
     def handle_payload_command(self, command_parts, session):
 
         if len(command_parts) < 3:
-            return """
-PAYLOAD GENERATION COMMANDS
-═══════════════════════════════════════════════════════════════════
-
-SYNTAX:
-  • payload <type> <listener_name> [options]
-
-AVAILABLE PAYLOAD TYPES:
-  • phantom_hawk_agent   - Python agent
-  • go_agent             - Go agent compiled to Windows executable
-
-OPTIONS:
-  • --obfuscate          - Enable string obfuscation
-  • --disable-sandbox    - Disable sandbox/antidebugging checks
-  • --output <filename>  - Save payload to file (optional)
-  • --linux              - Compile payload to Linux binary
-  • --windows            - Compile payload to Windows binary
-  • --redirector         - Use redirector host and port from profile instead of C2 URL
-  • --use-failover       - Embed failover C2 URLs from profile into agent
-  • --no-bof             - Exclude Beacon Object File (BOF) execution capability
-  • --no-assembly        - Exclude .NET assembly execution capability
-  • --no-pe              - Exclude PE injection capability
-  • --no-shellcode       - Exclude shellcode injection capability
-  • --no-reverse-proxy   - Exclude reverse proxy (SOCKS5) capability
-  • --no-sandbox         - Exclude sandbox detection capability
-
-EXAMPLES:
-  • payload phantom_hawk_agent <listener_name> [--obfuscate] [--disable-sandbox] [--linux] [--redirector] [--use-failover]
-  • payload go_agent <listener_name> [--obfuscate] [--disable-sandbox] [--windows] [--redirector] [--use-failover] [--no-bof] [--no-assembly] [--no-pe] [--no-shellcode] [--no-reverse-proxy] [--no-sandbox]
-            """, 'info'
+            return help.get_payload_help_display(), 'info'
 
         payload_type = command_parts[1].lower()
         listener_name = command_parts[2]
@@ -3164,30 +3037,13 @@ Use 'download' command or access the file directly from the server.
 
     def handle_payload_upload_command(self, command_parts, session):
         if len(command_parts) < 2:
-            return """
-PAYLOAD UPLOAD COMMANDS
-═══════════════════════════════════════════════════════════════════
-
-COMMANDS:
-  • payload_upload upload <file>    - Upload a payload file for stagers
-  • payload_upload status           - Check status of uploaded payload
-  • payload_upload clear            - Clear the currently uploaded payload
-
-DESCRIPTION:
-  Upload custom payloads (executables, scripts, etc.) to be used with stagers.
-  Supported extensions: .exe, .dll, .py, .js, .vbs, .bat, .ps1, .bin, .dat, .raw
-
-EXAMPLES:
-  • payload_upload upload /tmp/myscript.exe
-  • payload_upload status
-  • payload_upload clear
-            """, 'info'
+            return help.get_payload_upload_help_display(), 'info'
 
         action = command_parts[1].lower()
 
         if action == 'upload':
             if len(command_parts) < 3:
-                return help.get_payload_upload_usage(), 'error'
+                return help.get_payload_upload_help_display(), 'error'
 
             local_file_path = command_parts[2]
 
@@ -3477,33 +3333,7 @@ UPLOADED PAYLOAD STATUS:
 
     def handle_taskchain_command(self, command_parts, session):
         if len(command_parts) < 2:
-            return """
-TASK CHAIN COMMANDS
-═══════════════════════════════════════════════════════════════════
-
-COMMANDS:
-  • taskchain create <agent_id> <module1=arg1,arg2,module2=arg3,module3> [name=chain_name] [execute=true]
-  • taskchain create <module1=arg1,arg2,module2=arg3,module3> [name=chain_name] [execute=true] (in interactive mode)
-  • taskchain list [agent_id=<agent_id>] [status=<status>] [limit=<limit>]
-  • taskchain status <chain_id>
-  • taskchain execute <chain_id>
-  • taskchain help
-
-OPTIONS:
-  • name=chain_name    - Name for the task chain
-  • execute=true       - Execute the chain immediately after creation (default: false)
-  • agent_id=agent_id  - Filter chains by agent ID (for list command)
-  • status=status      - Filter chains by status (for list command)
-  • limit=limit        - Limit number of results (for list command)
-
-EXAMPLES:
-  • taskchain create AGENT001 execute-bof=whoami.x64.o,tasklist.x64.o,pwsh=Get-ComputerName.ps1,execute-assembly=rubeus.exe name=test
-  • taskchain create execute-bof=whoami.x64.o,tasklist.x64.o name=test (in interactive mode)
-  • taskchain list
-  • taskchain list agent_id=AGENT001 status=pending
-  • taskchain status CHAIN123
-  • taskchain execute CHAIN123
-            """, 'info'
+            return help.get_taskchain_help_display(), 'info'
 
         action = command_parts[1].lower()
 
@@ -3778,34 +3608,7 @@ EXAMPLES:
           csv, json
         """
         if len(command_parts) < 2:
-            return """
-REPORTING COMMANDS
-═══════════════════════════════════════════════════════════════════
-
-COMMANDS:
-  • reporting list
-  • reporting <report_type> [start_date=YYYY-MM-DD] [end_date=YYYY-MM-DD] [agent_id=AGENT_ID] [user_id=USER_ID]
-  • reporting export <report_type> <format> [start_date=YYYY-MM-DD] [end_date=YYYY-MM-DD] [agent_id=AGENT_ID] [user_id=USER_ID]
-  • reporting help
-
-REPORT TYPES:
-  • agent_activity    - Agent activity and communication report
-  • task_execution    - Task execution and results report
-  • audit_log         - Security audit log with user actions
-  • module_usage      - Module usage and execution patterns
-  • system_overview   - System health and configuration report
-
-EXPORT FORMATS:
-  • csv, json
-
-EXAMPLES:
-  • reporting list
-  • reporting agent_activity
-  • reporting task_execution start_date=2024-01-01 end_date=2024-12-31
-  • reporting audit_log agent_id=AGENT001
-  • reporting export module_usage csv
-  • reporting export task_execution json start_date=2024-01-01
-            """, 'info'
+            return help.get_reporting_help_display(), 'info'
 
         action = command_parts[1].lower()
 
