@@ -2,7 +2,7 @@
 
 <img src="docs/img.jpeg" alt="Logo" width="220" style="margin-bottom: 20px;"/>
 
-# The NeoC2 Framework 
+# The Neo C2 Framework 
 
 [![Version](https://img.shields.io/badge/Version-1.5.1-orange.svg)](https://github.com/stillbigjosh/Neo/releases)
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
