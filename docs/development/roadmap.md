@@ -24,16 +24,15 @@
 
 ## To be implemented
 - [ ] Built-in modules for network reconnaissance and internal enumeration
-- [ ] Enhanced Agent Traffic-shaping 
-- [ ] Support for multiple communication protocols (DNS, ICMP)
+- [ ] Support for additional communication protocols (DNS, ICMP)
 - [ ] File browser
 - [ ] Large powershell scripts broken down in chunks in-memory to bypass characater limit
-- [ ] Support for domain fronting
+- [ ] DNS over HTTPS
 - [ ] Lateral movement module
 - [ ] URI endpoint rotation in malleable profiles
 - [ ] Runtime obfuscation
-- [ ] Enhanced and Opsec safe P2P Agent comm
-- [ ] Keylogging, screenshot module
+- [ ] OPSEC Safe P2P Agent communication
+- [ ] Keylogging & screenshot module
 - [ ] Early bird APC injection
 - [ ] DLL Sideloading
 
