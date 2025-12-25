@@ -1,6 +1,6 @@
 # CLI Extender for Neo C2 Framework
 
-The CLI Extender automatically registers object files as remote client commands, allowing operators to run simplified commands that get converted to the appropriate execute commands.
+The CLI Extender automatically registers Object files and Assemblies as remote client commands, allowing operators to run simplified commands that get converted to the appropriate execute commands.
 
 ## Overview
 
