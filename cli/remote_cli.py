@@ -48,6 +48,32 @@ try:
 except ImportError:
     RICH_AVAILABLE = False
 
+# Import CLI extender - handle both execution contexts (from Neo root and from cli directory)
+import sys
+import os
+script_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(script_dir)
+
+# Add project root to path to support imports from cli subdirectory
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+try:
+    # First try the standard import (works when run from Neo root)
+    from cli.extender import CLIExtender
+    EXTENDER_AVAILABLE = True
+except ImportError:
+    try:
+        # If that fails, try importing directly (works when run from cli directory)
+        # Add script directory to path for direct imports
+        if script_dir not in sys.path:
+            sys.path.insert(0, script_dir)
+        from extender import CLIExtender
+        EXTENDER_AVAILABLE = True
+    except ImportError:
+        EXTENDER_AVAILABLE = False
+        CLIExtender = None
+
 try:
     from colorama import init, Fore, Back, Style
     init(autoreset=True)
@@ -171,6 +197,23 @@ class NeoC2RemoteCLI:
         self.received_messages = []
         self.received_messages_lock = threading.Lock()
 
+        # Initialize CLI extender if available
+        self.extender = None
+        if EXTENDER_AVAILABLE and CLIExtender:
+            try:
+                self.extender = CLIExtender(self)
+                print(f"{green('[+]')} CLI extender initialized successfully")
+            except Exception as e:
+                print(f"{red('[-]')} Error initializing CLI extender: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                self.extender = None
+        else:
+            # Print debug info about why extender is not available
+            print(f"{yellow('[*]')} CLI extender not available:")
+            print(f"{yellow('[*]')}   EXTENDER_AVAILABLE: {EXTENDER_AVAILABLE}")
+            print(f"{yellow('[*]')}   CLIExtender: {CLIExtender}")
+
     def _completer(self, text, state):
         commands = [
             'help', 'agent', 'listener', 'modules', 'run', 'pwsh', 'persist', 'pinject', 'peinject', 'encryption',
@@ -178,6 +221,10 @@ class NeoC2RemoteCLI:
             'exit', 'quit', 'clear', 'status', 'task', 'result', 'save', 'addcmd',
             'harvest', 'execute-bof', 'execute-assembly', 'cmd', 'socks'
         ]
+
+        # Add extension commands if available
+        if self.extender:
+            commands.extend(self.extender.get_available_commands())
 
         options = [cmd for cmd in commands if cmd.startswith(text.lower())]
 
@@ -383,8 +430,29 @@ class NeoC2RemoteCLI:
         try:
             command_parts = command.strip().split()
 
+            # Check if this is an extension command (like 'whoami' which should become 'execute-bof whoami.x64.o')
+            if self.extender and self.extender.is_extension_command(command):
+                # Handle extension command by converting it to the appropriate execute command
+                converted_command = self.extender.handle_extension_command(command)
+                if converted_command:
+                    # Only show a brief message that the command is being processed
+                    print(f"{blue('[*]')} Processing extension command: '{command}'")
+                    command_data = {
+                        'type': 'command',
+                        'command': converted_command,
+                        'token': self.auth_token,
+                        'session_id': self.session_id
+                    }
+                else:
+                    # If conversion failed, send original command
+                    command_data = {
+                        'type': 'command',
+                        'command': command,
+                        'token': self.auth_token,
+                        'session_id': self.session_id
+                    }
             # Check if this is an extension command that needs client-side file lookup
-            if command_parts and command_parts[0].lower() in ['execute-bof', 'execute-assembly', 'peinject', 'pwsh', 'pinject']:
+            elif command_parts and command_parts[0].lower() in ['execute-bof', 'execute-assembly', 'peinject', 'pwsh', 'pinject']:
                 result = self._handle_extension_command(command)
                 if result and result != "FILE_NOT_FOUND_ON_CLIENT" and result != "NO_FILE_SPECIFIED":
                     # File was found and processed successfully
@@ -1421,6 +1489,13 @@ DB Inactive:       {stats.get('db_inactive_agents', 0)}
                         error_msg = socks_stop_response.get('result', 'Unknown error') if socks_stop_response else 'Failed to stop server CLI SOCKS proxy'
                         print(f"{red('[-]')} Failed to stop server CLI SOCKS proxy: {error_msg}")
                     continue
+                elif command.lower() == 'extender' or command.lower() == 'extensions':
+                    # Show available extension commands
+                    if self.extender:
+                        self.extender.print_available_commands()
+                    else:
+                        print(f"{red('[-]')} CLI extender is not available or failed to initialize")
+                    continue
 
                 response = self.send_command(command)
 
@@ -1479,6 +1554,19 @@ DB Inactive:       {stats.get('db_inactive_agents', 0)}
             else:
                 result = response.get('result', 'No help available from server')
                 status = response.get('status', 'info')
+
+                # If the response is a string and contains general help, append extension info
+                if isinstance(result, str) and "available commands" in result.lower():
+                    # Append extension commands info
+                    if self.extender:
+                        result += f"\n\nExtension Commands:"
+                        result += f"\n  extender / extensions - Show all available extension commands"
+                        result += f"\n  Extension commands like 'whoami' will automatically be converted to 'execute-bof whoami.x64.o'"
+                    else:
+                        result += f"\n\nExtension Commands:"
+                        result += f"\n  extender / extensions - Show all available extension commands"
+                        result += f"\n  (Extension system not available)"
+
                 self.print_result(result, status)
         else:
             self.print_result("No response from server while retrieving help", 'error')

@@ -12,6 +12,9 @@ func executeCommandHidden(command string) (string, error) {
 		return string(output), nil
 	}
 
+	// Detect if this is a PowerShell command
+	isPowerShell := isPowerShellCommand(command)
+
 	// Create anonymous pipes for capturing output
 	var saAttr SECURITY_ATTRIBUTES
 	saAttr.NLength = uint32(unsafe.Sizeof(saAttr))
@@ -44,7 +47,16 @@ func executeCommandHidden(command string) (string, error) {
 
 	// Prepare the command line
 	var cmdLine *uint16
-	shell := fmt.Sprintf("cmd /C %s", command)
+	var shell string
+	if isPowerShell {
+		// Use PowerShell with hidden window and bypass execution policy
+		// Encode the command as base64 to handle special characters and ensure proper execution
+		encodedCommand := base64.StdEncoding.EncodeToString([]byte(command))
+		shell = fmt.Sprintf("powershell -WindowStyle Hidden -ExecutionPolicy Bypass -EncodedCommand %s", encodedCommand)
+	} else {
+		// Use cmd for regular commands
+		shell = fmt.Sprintf("cmd /C %s", command)
+	}
 	cmdLine, err := syscall.UTF16PtrFromString(shell)
 	if err != nil {
 		syscall.CloseHandle(syscall.Handle(stdoutRead))
@@ -88,6 +100,7 @@ func executeCommandHidden(command string) (string, error) {
 		return "", err
 	}
 
+	// Close the write handles for both PowerShell and regular commands
 	syscall.CloseHandle(syscall.Handle(stdoutWrite))
 	syscall.CloseHandle(syscall.Handle(stderrWrite))
 
@@ -214,4 +227,63 @@ func executeCommandHidden(command string) (string, error) {
 	}
 
 	return output, nil
+}
+
+// isPowerShellCommand detects if a command is a PowerShell command based on common PowerShell patterns
+func isPowerShellCommand(command string) bool {
+	// Convert to lowercase for pattern matching
+	cmdLower := strings.ToLower(command)
+
+	// Check for PowerShell-specific patterns
+	powerShellPatterns := []string{
+		"$",                    // PowerShell variables
+		"get-",                 // PowerShell cmdlets
+		"set-",                 // PowerShell cmdlets
+		"new-",                 // PowerShell cmdlets
+		"remove-",              // PowerShell cmdlets
+		"invoke-",              // PowerShell cmdlets
+		"select-",              // PowerShell cmdlets
+		"where-",               // PowerShell cmdlets
+		"foreach-",             // PowerShell cmdlets
+		"out-",                 // PowerShell cmdlets
+		"export-",              // PowerShell cmdlets
+		"import-",              // PowerShell cmdlets
+		"write-",               // PowerShell cmdlets
+		"read-",                // PowerShell cmdlets
+		"clear-",               // PowerShell cmdlets
+		"update-",              // PowerShell cmdlets
+		"get-service",          // PowerShell cmdlets
+		"get-wmiobject",        // PowerShell cmdlets
+		"get-ciminstance",      // PowerShell cmdlets
+		"start-process",        // PowerShell cmdlets
+		"stop-service",         // PowerShell cmdlets
+		"restart-service",      // PowerShell cmdlets
+		"set-service",          // PowerShell cmdlets
+		"try {",                // PowerShell try-catch blocks
+		"catch {",              // PowerShell try-catch blocks
+		"finally {",            // PowerShell try-catch blocks
+		"get-itemproperty",     // Registry operations
+		"set-itemproperty",     // Registry operations
+		"new-object",           // PowerShell object creation
+		"add-type",             // PowerShell type definitions
+	}
+
+	// Count matching patterns
+	patternCount := 0
+	for _, pattern := range powerShellPatterns {
+		if strings.Contains(cmdLower, pattern) {
+			patternCount++
+			// If we find 2 or more PowerShell patterns, it's likely a PowerShell command
+			if patternCount >= 2 {
+				return true
+			}
+		}
+	}
+
+	// Additional check: if it has PowerShell variable assignment pattern
+	if strings.Contains(cmdLower, "$") && (strings.Contains(cmdLower, " = ") || strings.Contains(cmdLower, "=")) {
+		return true
+	}
+
+	return patternCount > 0
 }

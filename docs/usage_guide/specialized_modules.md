@@ -289,6 +289,10 @@ This module helps operators establishes persistence on systems using various tec
 - Linux debian
 - MacOS
 
+#### Limitations:
+
+- Windows persistence techniques are detectable by Advanced EDR due to the usage of PowerShell command execution
+
 #### Required Options:
 - `agent_id`: ID of the agent to establish persistence on
 - `method`: Persistence method (registry, startup, cron, launchd, systemd, or service)
@@ -322,3 +326,13 @@ persist agent_id=abc123-4567-8901-2345-67890abcdef1 method=systemd payload_path=
 macOS LaunchAgent:
 persist agent_id=abc123-4567-8901-2345-67890abcdef1 method=launchd payload_path=/Applications/payload.sh
 ```
+
+
+
+
+
+---
+
+
+
+

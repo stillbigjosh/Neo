@@ -1,13 +1,13 @@
 # NeoC2 Agents and Stagers Guide
 
 ## Table of Contents
-- [Trinity Agent](#trinity-agent)
-- [Seraph Agent](#seraph-agent)
+- [Trinity](#trinity)
+- [Seraph](#seraph)
 - [Droppers](#droppers)
 
 ---
 
-## Trinity Agent
+## Trinity
 
 The Trinity Agent is a Golang, Windows-based, feature-rich polymorphic payload designed for advanced operations. It is compiled to a native executable and provides extensive capabilities for post-exploitation activities.
 
@@ -147,7 +147,7 @@ Feature exclusion provides the following benefits:
 - **Simpler execution**: Fewer checks and capabilities to process
 
 
-## Seraph Agent
+## Seraph
 
 ### Description
 Seraph is a Python variant with limited capability.
