@@ -124,7 +124,6 @@ COMMANDS:
   • modules list                    List all modules
   • modules load <module_name>      Load module into memory
   • modules info <module_name>      Display module details
-  • modules reload <module_name>    Reload module
   • modules check <module_name>     Check module compatibility
 
 TIPS:

