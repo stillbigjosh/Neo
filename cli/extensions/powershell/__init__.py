@@ -1,3 +1,3 @@
 """
-Place your PowerShell client extensions here
+Place your PowerShell scripts client extensions here
 """
