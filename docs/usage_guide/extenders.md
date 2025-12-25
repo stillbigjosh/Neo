@@ -8,7 +8,7 @@ The CLI Extender enables operators to run commands like `whoami` which automatic
 
 ## Features
 
-- **Automatic Registration**: Automatically scans `cli/extensions/bof/` and `cli/extensions/assemblies/` directories for object files
+- **Automatic Registration**: Automatically scans `cli/extensions/bof/` and `cli/extensions/assemblies/` directories for object files and assemblies
 - **Command Conversion**: Converts simple commands to appropriate execute commands (BOF or Assembly)
 - **Argument Support**: Supports passing arguments to extension commands
 - **Tab Completion**: Integrates with CLI tab completion for extension commands
