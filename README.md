@@ -9,7 +9,7 @@
 [![Golang](https://img.shields.io/badge/Go-1.2%2B-blue.svg)](https://www.go.dev/)
 [![License](https://img.shields.io/badge/License-GPL-green.svg)](LICENSE)
 [![Tool](https://img.shields.io/badge/Tool-Adversary%20Emulation-red.svg)](https://github.com/stillbigjosh/Neo)
-[![Platform](https://img.shields.io/badge/platform-Linux-lightgrey.svg)](https://github.com/stillbigjosh/Neo)
+[![Platform](https://img.shields.io/badge/platform-Linux/Windows/MacOS-lightgrey.svg)](https://github.com/stillbigjosh/Neo)
 
 
 
