@@ -24,7 +24,7 @@ A modular server-client architecture post-exploitation framework built for colla
 *   [**File Operations**](usage_guide/file_operations.md): File handling
 *   [**Event Monitoring**](usage_guide/event_monitoring.md): Monitoring and logging C2 operations
 *   [**Specialized Modules**](usage_guide/specialized_modules.md): Advanced module operations (PowerShell, BOF, shellcode injection, etc.)
-*   [**Extenders**](usage_guide/extenders.md): Remote client extenders (BOFs & Assemblies)
+*   [**Extenders**](usage_guide/extenders.md): Manage remote client extenders (BOFs & Assemblies)
 *   [**Troubleshooting**](usage_guide/troubleshooting.md): Common issues and debugging
 
 ### Advanced Features
