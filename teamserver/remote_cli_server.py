@@ -2809,7 +2809,7 @@ class RemoteCLIServer:
             if payload_type == 'trinity':
                 output_path = generated_result
                 payload_code = ""
-            elif payload_type == 'seraph':
+            elif payload_type == 'morpheus':
                 payload_code = generated_result
                 import os
                 import subprocess
@@ -2979,7 +2979,7 @@ class RemoteCLIServer:
                 else:
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     safe_listener_name = listener_name.replace(" ", "_").replace("/", "_").replace("\\", "_").replace("|", "_")
-                    if payload_type in ['seraph']:
+                    if payload_type in ['morpheus']:
                         ext = '.py'
                     elif payload_type == 'trinity':
                         if options['linux']:
@@ -2994,7 +2994,7 @@ class RemoteCLIServer:
                     
 
             try:
-                if payload_type == 'seraph' and not options['linux']:
+                if payload_type == 'morpheus' and not options['linux']:
                     pass
                 elif payload_type != 'trinity':
                     with open(output_path, 'w', encoding='utf-8') as f:
@@ -3004,9 +3004,9 @@ class RemoteCLIServer:
                 size = os.path.getsize(output_path)
                 if payload_type == 'trinity':
                     size_str = f"{size} bytes (compiled executable)"
-                elif payload_type == 'seraph' and options['linux']:
+                elif payload_type == 'morpheus' and options['linux']:
                     size_str = f"{size} bytes (compiled executable)"
-                elif payload_type == 'seraph':
+                elif payload_type == 'morpheus':
                     size_str = f"{size} bytes"
                 else:
                     size_str = f"{size} bytes"

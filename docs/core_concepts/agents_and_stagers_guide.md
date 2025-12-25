@@ -2,7 +2,7 @@
 
 ## Table of Contents
 - [Trinity](#trinity)
-- [Seraph](#seraph)
+- [Morpheus](#morpheus)
 - [Droppers](#droppers)
 
 ---
@@ -147,10 +147,10 @@ Feature exclusion provides the following benefits:
 - **Simpler execution**: Fewer checks and capabilities to process
 
 
-## Seraph
+## Morpheus
 
 ### Description
-Seraph is a Python cross-platforn agent with very limited capability.
+Morpheus is a Python cross-platforn agent with very limited capability.
 
 ### Tested
 - Windows x64 (Compile to exe on a Windows host)
@@ -185,17 +185,17 @@ NeoC2 [INTERACTIVE:abc123] > [reverse_proxy_start, reverse_proxy_stop, cmd, pwsh
 
 **Default agent**
 ```
-payload seraph web_app_default
+payload morpheus web_app_default
 ```
 
 **Agent with disabled sandbox detection and anti-debuggers**
 ```
-payload seraph web_app_default --disable-sandbox
+payload morpheus web_app_default --disable-sandbox
 ```
 
 **Agent with embeded failover servers**
 ```
-payload seraph web_app_default --use-failover
+payload morpheus web_app_default --use-failover
 ```
 
 ## Droppers
@@ -220,7 +220,7 @@ stager generate linux_binary host=<c2_host> port=<c2_port> [protocol=https] [dow
 ### Usage Examples
 ```
 # Upload Agent to a non-default custom staging endpoint
-payload_upload upload logs/payload_web_app_default_seraph_20251224_175614.py uri=/api/ag.py
+payload_upload upload logs/payload_web_app_default_morpheus_20251224_175614.py uri=/api/ag.py
 
 # Stager downloads Agent from https://127.0.0.1:7443/api/ag.py
 stager generate linux_binary host=127.0.0.1 port=7443 protocol=https download_uri=/api/ag.py
