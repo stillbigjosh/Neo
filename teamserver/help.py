@@ -123,7 +123,7 @@ Available Modules Commands:
 ═══════════════════════════════════════════════════════════════════
 
 SYNTAX:
-  • modules <list|load|info|reload|check> [module_name]
+  • modules <list|load|info|check> [module_name]
 
 COMMANDS:
   • modules list                    List all modules
@@ -449,8 +449,8 @@ SYNTAX:
   • payload <type> <listener_name> [options]
 
 AVAILABLE PAYLOAD TYPES:
-  • morpheus               - Lightweight Python agent (cross platform)
-  • trinity              - Trinity agent compiled to Windows executable
+  • morpheus             - Lightweight Python agent (cross platform)
+  • trinity              - Advanced Go agent compiled to Windows executable
 
 OPTIONS:
   • --obfuscate          - Enable string obfuscation
