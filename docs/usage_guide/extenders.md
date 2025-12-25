@@ -1,15 +1,16 @@
 # CLI Extender for Neo C2 Framework
 
-The CLI Extender automatically registers Object files and Assemblies as remote client commands, allowing operators to run simplified commands that get converted to the appropriate execute commands.
+The CLI Extender automatically registers Object files and Assemblies as remote client commands, allowing operators to run simplified commands that get handled by their appropriate command chain. As such, Operators gets to extend the remote client based on their third-party tools. 
+
 
 ## Overview
 
-The CLI Extender enables operators to run commands like `whoami` which automatically get converted to `execute-bof cli/extensions/bof/whoami.x64.o` in the backend and sent to the remote client server.
+The CLI Extender enables operators to run commands like `whoami` which automatically gets handled as `execute-bof cli/extensions/bof/whoami.x64.o` in the backend and sent to the remote client server.
 
 ## Features
 
 - **Automatic Registration**: Automatically scans `cli/extensions/bof/` and `cli/extensions/assemblies/` directories for object files and assemblies
-- **Command Conversion**: Converts simple commands to appropriate execute commands (BOF or Assembly)
+- **Command Conversion**: Converts simple commands to its appropriate command chain (BOF or Assembly)
 - **Argument Support**: Supports passing arguments to extension commands
 - **Tab Completion**: Integrates with CLI tab completion for extension commands
 - **Full Command Compatibility**: Operators can still run full commands like `execute-bof whoami.x64.o`
