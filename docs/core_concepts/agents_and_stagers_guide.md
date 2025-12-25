@@ -9,7 +9,7 @@
 
 ## Trinity
 
-The Trinity Agent is a Golang, Windows-based, feature-rich polymorphic payload designed for advanced operations. It is compiled to a native executable and provides extensive capabilities for post-exploitation activities.
+The Trinity Agent, which is the main agent of the framework is a Golang, Windows-based, feature-rich polymorphic payload designed for advanced operations. It is compiled to a native executable and provides extensive capabilities for post-exploitation activities.
 
 ### Architecture
 
@@ -150,7 +150,7 @@ Feature exclusion provides the following benefits:
 ## Seraph
 
 ### Description
-Seraph is a Python variant with limited capability.
+Seraph is a Python cross-platforn agent with very limited capability.
 
 ### Tested
 - Windows x64 (Compile to exe on a Windows host)
