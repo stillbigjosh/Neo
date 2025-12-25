@@ -1,3 +1,3 @@
 """
-Place your unmanged pe client extensions here
+Place your unmanged pe payload client extensions here
 """
