@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/img.jpeg" alt="Logo" width="220" style="margin-bottom: 20px;"/>
+<img src="docs/assets/img.jpeg" alt="Logo" width="220" style="margin-bottom: 20px;"/>
 
 # The Neo C2 Framework 
 
