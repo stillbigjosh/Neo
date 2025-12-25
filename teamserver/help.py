@@ -14,9 +14,14 @@ INFRASTRUCTURE MANAGEMENT:
 AGENT MANAGEMENT:
   agent       - Manage agents (list, interact, info, kill)
   beacon      - Active HTTP/S Agents
-  interact    - Enter Interactive mode with a beacon
-  interactive - Check if session is in interactive mode
+  upload      - Upload files to agents
   sleep       - Change agent sleep interval
+  interact    - Enter Interactive mode with a beacon
+  download    - Download files from agents
+  tty_shell   - Start tty shell
+  interactive - Check if session is in interactive mode
+  reverse_proxy_start - Start agent connection to server proxy
+  reverse_proxy_stop - Stop agent connection to server proxy
 
 MODULES & EXECUTION:
   modules     - Manage modules (list, load, info, check)
@@ -28,18 +33,18 @@ MODULES & EXECUTION:
   addcmd      - Execute shell command using queued api
 
 OPERATIONS & TACTICS:
-  upload      - Upload files to agents
-  download    - Download files from agents/C2 server
   reverse_proxy - Start server-side reverse proxy 
-  reverse_proxy_start - Make agent connect to server proxy
-  socks       - Start a local socks5 proxy chain
+  pwsh        - Execute powershell script on agent session
   persist     - Persist an executable or script
   execute-bof - Load and execute bofs on agent session
   execute-assembly - Load and execute .NET assemblies in-memory on agent session
   peinject    - Unmanaged PE injection into svchost.exe (Process Hollowing)
   pinject     - Shellcode injection into available stable process (NtQueueApcThread)
-  pwsh        - Execute powershell script on agent session
-  tty_shell   - Start tty shell
+
+CLIENT:
+  download    - Download logs from C2 server
+  extenders   - List available extensions (BOFs & Assemblies)
+  socks       - Start a local socks5 proxy chain
 
 ENCRYPTION & SECURITY:
   encryption  - Encryption operations
