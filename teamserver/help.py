@@ -123,7 +123,7 @@ Available Modules Commands:
 ═══════════════════════════════════════════════════════════════════
 
 SYNTAX:
-  • modules <list|load|info|reload|check> [module_name]
+  • modules <list|load|info|check> [module_name]
 
 COMMANDS:
   • modules list                    List all modules
@@ -449,8 +449,8 @@ SYNTAX:
   • payload <type> <listener_name> [options]
 
 AVAILABLE PAYLOAD TYPES:
-  • seraph               - Lightweight Python agent (cross platform)
-  • trinity              - Trinity agent compiled to Windows executable
+  • morpheus             - Lightweight Python agent (cross platform)
+  • trinity              - Advanced Go agent compiled to Windows executable
 
 OPTIONS:
   • --obfuscate          - Enable string obfuscation
@@ -468,7 +468,7 @@ OPTIONS:
   • --no-sandbox         - Exclude sandbox detection capability
 
 EXAMPLES:
-  • payload seraph <listener_name> [--obfuscate] [--disable-sandbox] [--linux] [--redirector] [--use-failover]
+  • payload morpheus <listener_name> [--obfuscate] [--disable-sandbox] [--linux] [--redirector] [--use-failover]
   • payload trinity <listener_name> [--obfuscate] [--disable-sandbox] [--windows] [--redirector] [--use-failover] [--no-bof] [--no-assembly] [--no-pe] [--no-shellcode] [--no-reverse-proxy] [--no-sandbox]
     """
 

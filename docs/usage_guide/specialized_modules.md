@@ -84,7 +84,7 @@ This `pwsh` module helps operators run their own extendible powershell scripts o
 
 ### Compatibility:
 - Trinity
-- Seraph agent
+- Morpheus agent
 - Windows x64
 
 ### Basic Usage:
@@ -284,7 +284,7 @@ This module helps operators establishes persistence on systems using various tec
 
 ### Compatibility:
 - Trinity
-- Seraph agent
+- Morpheus agent
 - Windows x64
 - Linux debian
 - MacOS
