@@ -122,7 +122,7 @@ class CLIExtender:
                     'file_path': str(file_path),
                     'original_name': file_path.name
                 }
-                print(f"[+] Registered BOF command: {command_name} -> {file_path.name}")
+                #print(f"[+] Registered BOF command: {command_name} -> {file_path.name}")
     
     def _register_assembly_files(self):
         if not self.assemblies_dir.exists():
@@ -139,7 +139,7 @@ class CLIExtender:
                     'file_path': str(file_path),
                     'original_name': file_path.name
                 }
-                print(f"[+] Registered Assembly command: {command_name} -> {file_path.name}")
+                #print(f"[+] Registered Assembly command: {command_name} -> {file_path.name}")
         
         for file_path in self.assemblies_dir.glob("*.dll"):
             command_name = self._extract_command_name(file_path.name)
@@ -149,7 +149,7 @@ class CLIExtender:
                     'file_path': str(file_path),
                     'original_name': file_path.name
                 }
-                print(f"[+] Registered Assembly command: {command_name} -> {file_path.name}")
+                #print(f"[+] Registered Assembly command: {command_name} -> {file_path.name}")
     
     def _extract_command_name(self, filename):
         # Remove .x64, .x86, .exe, .dll, .o extensions in order
