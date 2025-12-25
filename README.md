@@ -28,7 +28,7 @@
 - **Proxy Awareness:** Network pivoting using SOCKS5 proxy functionality
 - **Task Orchestrator**: Chain modules for complex operations
 - **Role-Based Access Control:** Co-ordinates access and permissions with admin/operator/viewer roles
-- **Multi-Operator Extension Module System:** Operators use their own local extension modules without interfering with each other
+- **Multi-Operator Extension Module System:** Operators integrate their own local extension modules without interfering with each other
 - **Modular Payload Architecture** Customize the implant capability by including or excluding specific advanced features
 - **Polymorphic Payloads:** Randomized variable and function names, XOR-based string obfuscation
 - **Secure Communication:** HTTPS is the primary C2 channel. Implants are pre-registered with a per-agent symmetric keys (AES-128-CBC + HMAC-SHA256). The framework validates the secret key and enforces encrypted communication using Fernet layer over HTTPS
