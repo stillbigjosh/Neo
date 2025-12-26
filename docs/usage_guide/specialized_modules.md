@@ -125,6 +125,8 @@ execute-bof whoami.x64.o
 execute-bof whoami.x64.o -h
 ```
 
+
+
 ## Execute-Assembly
 
 This module interfaces with an agent and enables in-memory execution of .NET assemblies without any disk writes. The solution leverages the go-clr library to execute .NET assemblies directly in the agent's memory space, supporting both .NET executables (.exe) and libraries (.dll).
@@ -277,6 +279,10 @@ peinject pe_file=payload.exe agent_id=abc123-4567-8901-2345-67890abcdef1
 - windows/x64/exec
 - windows/x64/shell_reverse_tcp
 - windows/x64/meterpreter/reverse_tcp
+
+### Limitation
+Large PE files triggers a "missing pe_file" server/client error. Use a smaller PE file that fits within the framework's constraint
+
 
 ## Persist
 
