@@ -1596,7 +1596,7 @@ class RemoteCLIServer:
                 if not agent_manager:
                     return {"error": "Agent manager not initialized"}, 'error'
 
-                agents = agent_manager.list_agents()
+                agents = agent_manager.list_agents(include_inactive=True)
                 if not agents:
                     return {"agents": []}, 'success'
 
