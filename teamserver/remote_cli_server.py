@@ -6275,20 +6275,33 @@ DB Inactive:       {stats['db_inactive_agents']}
         if session_id in self.active_sessions:
             session_info = self.active_sessions[session_id]
             addr = session_info['addr']
-            
+
+            # Check if the session had an interactive lock on an agent and release it
+            current_agent = session_info.get('current_agent')
+            username = session_info.get('username')
+            if current_agent and username:
+                # Check if this agent is locked by this specific operator
+                if self.agent_manager.is_agent_locked_interactively(current_agent):
+                    lock_info = self.agent_manager.get_interactive_lock_info(current_agent)
+                    if lock_info and lock_info['operator'] == username:
+                        # Release the interactive lock for this agent
+                        self.agent_manager.exit_interactive_mode(current_agent)
+                        self.agent_manager.release_interactive_lock(current_agent)
+                        self.logger.info(f"Released interactive lock for agent {current_agent} due to session termination for operator {username}")
+
             if 'token' in session_info:
                 token = session_info['token']
                 if token in self.auth_tokens:
                     del self.auth_tokens[token]
-            
+
             if self.multiplayer_coordinator:
                 try:
                     self.multiplayer_coordinator.remove_user_session(session_id)
                 except Exception as e:
                     self.logger.error(f"Error removing multiplayer session: {str(e)}")
-            
+
             del self.active_sessions[session_id]
-            
+
             self.logger.info(f"Client session {session_id[:8]}... from {addr} closed")
 
     def _ssl_files_exist(self):
