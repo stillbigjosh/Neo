@@ -13,7 +13,7 @@ INFRASTRUCTURE MANAGEMENT:
 
 AGENT MANAGEMENT:
   agent       - Manage agents (list, interact, info, kill)
-  beacon      - Active HTTP/S Agents
+  beacon      - List HTTP/S Agents
   upload      - Upload files to agents
   sleep       - Change agent sleep interval
   interact    - Enter Interactive mode with a beacon
@@ -193,9 +193,6 @@ COMMANDS:
 
   encryption list
       List available encryption capabilities
-
-  encryption help
-      Show this help message
 
 EXAMPLES:
 
@@ -655,3 +652,37 @@ def get_encryption_hmac_usage():
         encryption hmac generate "Important Data" key=deadbeef
         encryption hmac verify "Important Data" <hmac_hex> key=deadbeef
     """
+
+
+def get_encryption_list_display():
+    return """
+Available Encryption Capabilities:
+═══════════════════════════════════════════════════════════════════
+
+SYMMETRIC ENCRYPTION:
+  • Fernet      - High-level symmetric encryption (recommended)
+  • AES         - Advanced Encryption Standard (password-based)
+  • XOR         - Simple XOR cipher (fast, low security)
+
+ASYMMETRIC ENCRYPTION:
+  • RSA         - Public-key cryptography (2048-bit)
+
+STEGANOGRAPHY:
+  • LSB         - Least Significant Bit image steganography
+
+MESSAGE AUTHENTICATION:
+  • HMAC        - Hash-based Message Authentication Code (SHA-256)
+
+KEY GENERATION:
+  • Fernet keys
+  • AES keys (password-derived with PBKDF2)
+  • RSA key pairs (2048-bit)
+  • XOR keys (custom length)
+  • Steganography keys
+
+Use 'encryption help' for detailed command usage.
+    """
+
+
+def get_addcmd_usage_detailed():
+    return "USAGE: addcmd <agent_id> <command> OR addcmd <command> (in interactive mode)\n\nNote: Uses the standard queued API for command execution."

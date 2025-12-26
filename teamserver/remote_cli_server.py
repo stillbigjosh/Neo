@@ -1596,7 +1596,7 @@ class RemoteCLIServer:
                 if not agent_manager:
                     return {"error": "Agent manager not initialized"}, 'error'
 
-                agents = agent_manager.list_agents()
+                agents = agent_manager.list_agents(include_inactive=True)
                 if not agents:
                     return {"agents": []}, 'success'
 
@@ -2281,34 +2281,7 @@ class RemoteCLIServer:
             return f"HMAC error: {str(e)}", 'error'
 
     def handle_list(self, command_parts):
-        output = """
-    Available Encryption Capabilities:
-    ════════════════════════════════════════════════════════════════════
-
-    SYMMETRIC ENCRYPTION:
-      • Fernet      - High-level symmetric encryption (recommended)
-      • AES         - Advanced Encryption Standard (password-based)
-      • XOR         - Simple XOR cipher (fast, low security)
-
-    ASYMMETRIC ENCRYPTION:
-      • RSA         - Public-key cryptography (2048-bit)
-
-    STEGANOGRAPHY:
-      • LSB         - Least Significant Bit image steganography
-
-    MESSAGE AUTHENTICATION:
-      • HMAC        - Hash-based Message Authentication Code (SHA-256)
-
-    KEY GENERATION:
-      • Fernet keys
-      • AES keys (password-derived with PBKDF2)
-      • RSA key pairs (2048-bit)
-      • XOR keys (custom length)
-      • Steganography keys
-
-    Use 'encryption help' for detailed command usage.
-        """
-        return output.strip(), 'info'
+        return help.get_encryption_list_display(), 'info'
 
     def handle_download_command(self, command_parts, session):
         if len(command_parts) < 2:
@@ -5464,7 +5437,7 @@ DB Inactive:       {stats['db_inactive_agents']}
                             agent_id = command_parts[1]
                             command_to_send = ' '.join(command_parts[2:])
                         else:
-                            result = "USAGE: addcmd <agent_id> <command> OR addcmd <command> (in interactive mode)\n\nNote: Uses the standard queued API for command execution."
+                            result = help.get_addcmd_usage_detailed()
                             status = 'error'
                             return {'output': result, 'status': status}
 
@@ -5849,7 +5822,7 @@ DB Inactive:       {stats['db_inactive_agents']}
                     agent_id = command_parts[1]
                     command_to_send = ' '.join(command_parts[2:])
                 else:
-                    result = "USAGE: addcmd <agent_id> <command> OR addcmd <command> (in interactive mode)\n\nNote: Uses the standard queued API for command execution."
+                    result = help.get_addcmd_usage_detailed()
                     status = 'error'
                     return {'output': result, 'status': status}
 
@@ -6302,20 +6275,33 @@ DB Inactive:       {stats['db_inactive_agents']}
         if session_id in self.active_sessions:
             session_info = self.active_sessions[session_id]
             addr = session_info['addr']
-            
+
+            # Check if the session had an interactive lock on an agent and release it
+            current_agent = session_info.get('current_agent')
+            username = session_info.get('username')
+            if current_agent and username:
+                # Check if this agent is locked by this specific operator
+                if self.agent_manager.is_agent_locked_interactively(current_agent):
+                    lock_info = self.agent_manager.get_interactive_lock_info(current_agent)
+                    if lock_info and lock_info['operator'] == username:
+                        # Release the interactive lock for this agent
+                        self.agent_manager.exit_interactive_mode(current_agent)
+                        self.agent_manager.release_interactive_lock(current_agent)
+                        self.logger.info(f"Released interactive lock for agent {current_agent} due to session termination for operator {username}")
+
             if 'token' in session_info:
                 token = session_info['token']
                 if token in self.auth_tokens:
                     del self.auth_tokens[token]
-            
+
             if self.multiplayer_coordinator:
                 try:
                     self.multiplayer_coordinator.remove_user_session(session_id)
                 except Exception as e:
                     self.logger.error(f"Error removing multiplayer session: {str(e)}")
-            
+
             del self.active_sessions[session_id]
-            
+
             self.logger.info(f"Client session {session_id[:8]}... from {addr} closed")
 
     def _ssl_files_exist(self):
