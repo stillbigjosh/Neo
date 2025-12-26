@@ -4,9 +4,8 @@
 ## Completed
 - [x] Polymorphic trinity generator
 - [x] Configurable killdate/workingtime
-- [x] In-memory shellcode Injection
 - [x] C2 Redirector support
-- [x] In-memory execution of Windows PE file
+- [x] Process Hollowing: Injection of Windows PE into sacrificial process
 - [x] Failover server deployment support
 - [x] In-memory COFF/BOF Execution
 - [x] Powershell module handler 
@@ -16,11 +15,12 @@
 - [x] Enhanced Task Orchestrator
 - [x] Failover handler for managing primary and secondary C2s
 - [x] Socks5 support for reverse proxying
-- [x] NtQueueApcThread,NtCreateThreadEx,RtlCreateUserThread Shellcode injection
+- [x] NtQueueApcThread,NtCreateThreadEx,RtlCreateUserThread Shellcode injection into sacrificial process
 
 
 ## Actively Under development
 - [ ] EDR Evasion modules
+- [ ] Reflective PE Loader
 - [ ] 2.0 Stable release
 
 ## To be implemented
