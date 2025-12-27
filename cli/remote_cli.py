@@ -1229,7 +1229,7 @@ DB Inactive:       {stats.get('db_inactive_agents', 0)}
 
                     print(f"\n{'=' * 80}")
                     print(f"{msg}")
-                    print(f"Agent: {agent_id}")
+                    print(f"Agent: {cyan(agent_id)}")
                     print(f"Hostname: {hostname} | User: {user} | OS: {os_info}")
                     print(f"{'=' * 80}")
                     print("Commands are executed in REAL-TIME via interactive API")
@@ -1294,7 +1294,7 @@ DB Inactive:       {stats.get('db_inactive_agents', 0)}
 
                 print(f"\n{'=' * 80}")
                 print(f"{msg}")
-                print(f"Agent: {agent_id}")
+                print(f"Agent: {cyan(agent_id)}")
                 print(f"Hostname: {hostname} | User: {user} | OS: {os_info}")
                 print(f"{'=' * 80}")
                 print("Commands are executed in REAL-TIME via interactive API")
