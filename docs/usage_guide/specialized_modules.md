@@ -152,7 +152,7 @@ Execute .NET assemblies using the execute-assembly command:
 ```
 modules info execute-assembly
 # In interactive mode, the agent ID is automatically inferred:
-execute-assembly <assembly_filename> [agent_id=<agent_id>]
+execute-assembly <assembly_filename> [agent_id=<agent_id>] [arguments=<assembly_args>]
 # Examples:
 execute-assembly Rubeus.exe
 execute-assembly SharpHound.exe agent_id=abc123-4567-8901-2345-67890abcdef1
@@ -164,7 +164,7 @@ execute-assembly SharpHound.exe agent_id=abc123-4567-8901-2345-67890abcdef1
 - Handles both .NET executables and libraries
 - Direct in-memory execution without file system access
 - Compatible with tools like Rubeus, SharpHound, and other .NET utilities
-- Supports both positional arguments and named parameters (e.g., `execute-assembly Rubeus.exe` or `execute-assembly assembly_path=Rubeus.exe`)
+- Supports both positional arguments and named parameters (e.g., `execute-assembly Rubeus.exe asktgt` or `execute-assembly assembly_path=Rubeus.exe arguments=asktgt`)
 
 ## PInject
 

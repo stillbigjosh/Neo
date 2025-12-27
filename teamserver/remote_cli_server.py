@@ -1085,21 +1085,32 @@ class RemoteCLIServer:
 
             # Parse command arguments - handle both positional and key-value format
             if '=' in command_parts[1] and 'agent_id=' in command_parts[1]:
-                # Handle format like: execute-assembly agent_id=abc-123-def assembly_path
+                # Handle format like: execute-assembly agent_id=abc-123-def assembly_path [arguments=...]
                 for part in command_parts[1:]:
                     if '=' in part:
                         key, value = part.split('=', 1)
                         options[key] = value
             else:
-                # Handle format: execute-assembly assembly_path [agent_id=value]
+                # Handle format: execute-assembly assembly_path [agent_id=value] [arguments=...]
                 assembly_path = command_parts[1]
                 options['assembly_path'] = assembly_path
 
-                # Look for agent_id in remaining arguments
+                # Look for agent_id and arguments in remaining arguments
                 for part in command_parts[2:]:
-                    if '=' in part and part.startswith('agent_id='):
+                    if '=' in part:
                         key, value = part.split('=', 1)
-                        options['agent_id'] = value
+                        if key == 'agent_id':
+                            options['agent_id'] = value
+                        elif key == 'arguments':
+                            options['arguments'] = value
+                    # If it's not a key-value pair, assume it's additional arguments to the assembly
+                    else:
+                        # If arguments key doesn't exist yet, set it to the remaining part
+                        if 'arguments' not in options:
+                            options['arguments'] = part
+                        else:
+                            # Append to existing arguments
+                            options['arguments'] += ' ' + part
 
             # If in interactive mode and no agent_id specified, use the current agent
             if session.interactive_mode and session.current_agent and 'agent_id' not in options:
