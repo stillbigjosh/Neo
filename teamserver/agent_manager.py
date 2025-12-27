@@ -692,22 +692,22 @@ class AgentManager:
         if not agent:
             self.logger.warning(f"Agent {agent_id} not found")
             return {'success': False, 'error': f"Agent {agent_id} not found"}
-    
+
         processed_command = command
         if self._is_script_command(command):
             encoded_script = base64.b64encode(command.encode('utf-8')).decode('utf-8')
-            processed_command = f"module {encoded_script}"
-            self.logger.info(f"Detected script command, encoded as module: {command[:50]}...")
+            processed_command = f"pwsh {encoded_script}"
+            self.logger.info(f"Detected script command, encoded as pwsh: {command[:50]}...")
 
         try:
             cursor = self.db.execute('''
                 INSERT INTO agent_tasks (agent_id, command, status, created_at, task_type)
                 VALUES (?, ?, ?, ?, ?)
             ''', (agent_id, processed_command, 'pending', datetime.now(), 'queued'))
-            
+
             new_task_id = cursor.lastrowid
             self.logger.info(f"Task {new_task_id} added for agent {agent_id}: {processed_command[:50]}...")
-            
+
             with agent.lock:
                 agent.tasks.append({
                     'id': new_task_id,
@@ -715,7 +715,7 @@ class AgentManager:
                     'status': 'pending',
                     'created_at': datetime.now()
                 })
-            
+
             if self.audit_logger:
                 self.audit_logger.log_event(
                     user_id="system",  # System event
@@ -729,7 +729,7 @@ class AgentManager:
                     }),
                     ip_address=agent.ip_address if agent else "unknown"
                 )
-            
+
             # Return a dictionary instead of just the number
             return {'success': True, 'task_id': new_task_id}
         except Exception as e:

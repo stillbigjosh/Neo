@@ -61,7 +61,8 @@ rm -f /opt/neoc2/server.crt /opt/neoc2/server.key 2>/dev/null || true
 echo "Step 6: Checking for any remaining NeoC2 processes..."
 pkill -f "neoc2" 2>/dev/null || true
 pkill -f "NeoC2" 2>/dev/null || true
-
+rm /usr/local/bin/neoc2
+rm /usr/local/bin/neoc2-cli
 echo ""
 echo "Uninstallation completed!"
 echo ""
