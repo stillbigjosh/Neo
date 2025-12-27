@@ -1,5 +1,6 @@
 # Modules for the NeoC2 Framework
 
+Modules are server-side component that directly interfaces with the Tasks Agent manager and an external module to be executed on an agent session. 
 
 ## Creating a Basic Module
 
