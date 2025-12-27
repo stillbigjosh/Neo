@@ -447,7 +447,7 @@ SYNTAX:
 
 AVAILABLE PAYLOAD TYPES:
   • morpheus             - Lightweight Python agent (cross platform)
-  • trinity              - Advanced Go agent compiled to Windows executable
+  • trinity              - Advanced & Modular Go agent compiled to Windows executable
 
 OPTIONS:
   • --obfuscate          - Enable string obfuscation
