@@ -243,7 +243,7 @@ def get_execute_bof_usage():
 
 
 def get_execute_assembly_usage():
-    return "USAGE: execute-assembly <assembly_file> [agent_id=<agent_id>]"
+    return "USAGE: execute-assembly <assembly_file> [agent_id=<agent_id>] [arguments=<assembly_args>]"
 
 
 def get_persist_usage():

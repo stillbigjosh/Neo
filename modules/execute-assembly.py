@@ -44,6 +44,11 @@ def get_info():
             "assembly_path": {
                 "description": "Path to the .NET assembly file on client machine",
                 "required": True
+            },
+            "arguments": {
+                "description": "Arguments to pass to the .NET assembly",
+                "required": False,
+                "default": ""
             }
         }
     }
@@ -52,6 +57,7 @@ def get_info():
 def execute(options, session):
     agent_id = options.get("agent_id")
     assembly_path = options.get("assembly_path")
+    arguments = options.get("arguments", "")
 
     if not agent_id:
         return {
@@ -101,14 +107,21 @@ def execute(options, session):
                 "error": f"Invalid input format. CLI should send base64 encoded assembly content, but received: {assembly_path[:50]}..."
             }
 
-        assembly_command = f"assembly {encoded_assembly}"
+        # Encode arguments if they exist
+        encoded_arguments = base64.b64encode(arguments.encode('utf-8')).decode('utf-8') if arguments else ""
+
+        if arguments:
+            assembly_command = f"assembly {encoded_assembly} {encoded_arguments}"
+        else:
+            assembly_command = f"assembly {encoded_assembly}"
 
         if hasattr(session, 'is_interactive_execution') and session.is_interactive_execution:
             result = {
                 "success": True,
                 "output": f"[x] .NET assembly execution prepared for interactive mode",
                 "command": assembly_command,
-                "encoded_assembly_size": len(encoded_assembly)
+                "encoded_assembly_size": len(encoded_assembly),
+                "arguments": arguments
             }
 
             session.audit_logger = getattr(session, 'audit_logger', None)
@@ -118,7 +131,7 @@ def execute(options, session):
                     action='dotnet_assembly_execute',
                     resource_type='task',
                     resource_id='interactive',
-                    details=f".NET assembly execution prepared for interactive mode. Command: assembly <base64_data> ({len(encoded_assembly)} chars encoded)",
+                    details=f".NET assembly execution prepared for interactive mode. Command: assembly <base64_data> ({len(encoded_assembly)} chars encoded) with arguments: {arguments}",
                     ip_address='127.0.0.1'
                 )
 
@@ -131,7 +144,8 @@ def execute(options, session):
                     "output": f"[x] .NET assembly execution task queued for agent {agent_id}",
                     "task_id": task_id,
                     "assembly_command": assembly_command,
-                    "encoded_assembly_size": len(encoded_assembly)
+                    "encoded_assembly_size": len(encoded_assembly),
+                    "arguments": arguments
                 }
 
                 session.audit_logger = getattr(session, 'audit_logger', None)
@@ -141,7 +155,7 @@ def execute(options, session):
                         action='dotnet_assembly_execute',
                         resource_type='task',
                         resource_id=task_id,
-                        details=f".NET assembly execution queued for agent {agent_id}. Command: assembly <base64_data> ({len(encoded_assembly)} chars encoded)",
+                        details=f".NET assembly execution queued for agent {agent_id}. Command: assembly <base64_data> ({len(encoded_assembly)} chars encoded) with arguments: {arguments}",
                         ip_address='127.0.0.1'
                     )
 
