@@ -92,7 +92,7 @@ def execute(options, session):
             "error": f"Invalid input format. CLI should send base64 encoded shellcode content, but received: {shellcode_input[:50]}..."
         }
 
-    command = f"shellcode {encoded_shellcode}"
+    command = f"pinject {encoded_shellcode}"
 
     # Check if this is being executed in interactive mode
     if hasattr(session, 'is_interactive_execution') and session.is_interactive_execution:
