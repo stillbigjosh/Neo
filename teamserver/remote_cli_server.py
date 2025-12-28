@@ -6208,6 +6208,8 @@ DB Inactive:       {stats['db_inactive_agents']}
                 result, status = self.handle_inline_execute_command(command_parts, remote_session)
             elif base_cmd == 'execute-assembly':
                 result, status = self.handle_inline_execute_assembly_command(command_parts, remote_session)
+            elif base_cmd == 'execute-pe':
+                result, status = self.handle_execute_pe_command(command_parts, remote_session)
             elif base_cmd == 'interact':
                 # Handle the interact command (alias for agent interact)
                 if len(command_parts) < 2:

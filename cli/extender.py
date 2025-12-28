@@ -89,22 +89,26 @@ class CLIExtender:
         self.extensions_dir = Path("cli/extensions")
         self.bof_dir = self.extensions_dir / "bof"
         self.assemblies_dir = self.extensions_dir / "assemblies"
-        
+        self.pe_dir = self.extensions_dir / "pe"
+
         # Dictionary to store command name to file mapping
         self.command_registry = {}
-        
+
         # Load and register all available extensions
         self._load_extensions()
     
     def _load_extensions(self):
         print(f"[+] Loading extensions from {self.extensions_dir}")
-        
+
         # Register BOF files
         self._register_bof_files()
-        
+
         # Register assembly files
         self._register_assembly_files()
-        
+
+        # Register PE files
+        self._register_pe_files()
+
         print(f"[+] Registered {len(self.command_registry)} extension commands")
     
     def _register_bof_files(self):
@@ -150,7 +154,34 @@ class CLIExtender:
                     'original_name': file_path.name
                 }
                 #print(f"[+] Registered Assembly command: {command_name} -> {file_path.name}")
-    
+
+    def _register_pe_files(self):
+        if not self.pe_dir.exists():
+            print(f"[-] PE directory does not exist: {self.pe_dir}")
+            return
+
+        print(f"[*] Scanning PE directory: {self.pe_dir}")
+
+        for file_path in self.pe_dir.glob("*.exe"):
+            command_name = self._extract_command_name(file_path.name)
+            if command_name:
+                self.command_registry[command_name] = {
+                    'type': 'execute-pe',
+                    'file_path': str(file_path),
+                    'original_name': file_path.name
+                }
+                #print(f"[+] Registered PE command: {command_name} -> {file_path.name}")
+
+        for file_path in self.pe_dir.glob("*.dll"):
+            command_name = self._extract_command_name(file_path.name)
+            if command_name:
+                self.command_registry[command_name] = {
+                    'type': 'execute-pe',
+                    'file_path': str(file_path),
+                    'original_name': file_path.name
+                }
+                #print(f"[+] Registered PE command: {command_name} -> {file_path.name}")
+
     def _extract_command_name(self, filename):
         # Remove .x64, .x86, .exe, .dll, .o extensions in order
         name = filename.lower()
@@ -210,6 +241,14 @@ class CLIExtender:
                 os.path.join(os.getcwd(), file_path),
                 os.path.join(os.getcwd(), os.path.basename(file_path))
             ]
+        elif extension_info['type'] == 'execute-pe':
+            search_paths = [
+                file_path,  # Direct path from registry
+                os.path.join('cli', 'extensions', 'pe', os.path.basename(file_path)),
+                os.path.join('cli', 'extensions', os.path.basename(file_path)),
+                os.path.join(os.getcwd(), file_path),
+                os.path.join(os.getcwd(), os.path.basename(file_path))
+            ]
         else:
             return None
 
@@ -238,6 +277,8 @@ class CLIExtender:
             execute_cmd = f"execute-bof {encoded_content}"
         elif extension_info['type'] == 'assembly':
             execute_cmd = f"execute-assembly {encoded_content}"
+        elif extension_info['type'] == 'execute-pe':
+            execute_cmd = f"execute-pe {encoded_content}"
         else:
             return None
 
