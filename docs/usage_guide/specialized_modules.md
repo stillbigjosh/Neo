@@ -279,10 +279,6 @@ peinject pe_file=payload.exe agent_id=abc123-4567-8901-2345-67890abcdef1
 7. Sets the modified thread context back to the suspended thread
 8. Resumes the target process thread using ResumeThread, which begins execution of the injected PE
 
-#### Supported Payloads
-- windows/x64/exec
-- windows/x64/shell_reverse_tcp
-- windows/x64/meterpreter/reverse_tcp
 
 ### Limitation
 Large PE files triggers a "missing pe_file" server/client error. Use a smaller PE file that fits within the framework's constraint
