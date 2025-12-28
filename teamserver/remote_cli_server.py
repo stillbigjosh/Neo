@@ -4481,8 +4481,15 @@ UPLOADED PAYLOAD STATUS:
                     if len(command_parts) < 2:
                         return help.get_result_list_usage(), 'error'
                     elif command_parts[1] == 'list':
-                        limit = int(command_parts[2]) if len(command_parts) > 2 else 50
-                        results = self.agent_manager.get_all_results(limit)
+                        try:
+                            limit = int(command_parts[2]) if len(command_parts) > 2 else 50
+                        except ValueError:
+                            return f"Invalid limit value: {command_parts[2]}. Please provide a valid number.", 'error'
+
+                        try:
+                            results = self.agent_manager.get_all_results(limit)
+                        except Exception as e:
+                            return f"Error retrieving results: {str(e)}", 'error'
 
                         if not results:
                             return {"results": [], "limit": limit}, 'info'
@@ -4547,8 +4554,15 @@ UPLOADED PAYLOAD STATUS:
                                 return f"Error retrieving task result: {str(e)}", 'error'
                     else:
                         agent_id = command_parts[1]
-                        limit = int(command_parts[2]) if len(command_parts) > 2 else 50
-                        results = self.agent_manager.get_agent_results(agent_id, limit)
+                        try:
+                            limit = int(command_parts[2]) if len(command_parts) > 2 else 50
+                        except ValueError:
+                            return f"Invalid limit value: {command_parts[2]}. Please provide a valid number.", 'error'
+
+                        try:
+                            results = self.agent_manager.get_agent_results(agent_id, limit)
+                        except Exception as e:
+                            return f"Error retrieving agent results: {str(e)}", 'error'
 
                         if not results:
                             return {"results": [], "agent_id": agent_id}, 'info'
@@ -5319,8 +5333,19 @@ DB Inactive:       {stats['db_inactive_agents']}
                             result = help.get_result_usage()
                             status = 'error'
                         elif command_parts[1] == 'list':
-                            limit = int(command_parts[2]) if len(command_parts) > 2 else 50
-                            results = self.agent_manager.get_all_results(limit)
+                            try:
+                                limit = int(command_parts[2]) if len(command_parts) > 2 else 50
+                            except ValueError:
+                                result = f"Invalid limit value: {command_parts[2]}. Please provide a valid number."
+                                status = 'error'
+                                return {'output': result, 'status': status}
+
+                            try:
+                                results = self.agent_manager.get_all_results(limit)
+                            except Exception as e:
+                                result = f"Error retrieving results: {str(e)}"
+                                status = 'error'
+                                return {'output': result, 'status': status}
 
                             if not results:
                                 result = "No results found"
@@ -5414,8 +5439,19 @@ DB Inactive:       {stats['db_inactive_agents']}
                                 status = 'success'
                         else:
                             agent_id = command_parts[1]
-                            limit = int(command_parts[2]) if len(command_parts) > 2 else 50
-                            results = self.agent_manager.get_agent_results(agent_id, limit)
+                            try:
+                                limit = int(command_parts[2]) if len(command_parts) > 2 else 50
+                            except ValueError:
+                                result = f"Invalid limit value: {command_parts[2]}. Please provide a valid number."
+                                status = 'error'
+                                return {'output': result, 'status': status}
+
+                            try:
+                                results = self.agent_manager.get_agent_results(agent_id, limit)
+                            except Exception as e:
+                                result = f"Error retrieving agent results: {str(e)}"
+                                status = 'error'
+                                return {'output': result, 'status': status}
 
                             if not results:
                                 result = f"No results found for agent {agent_id}"
@@ -5706,11 +5742,23 @@ DB Inactive:       {stats['db_inactive_agents']}
                     result = help.get_result_usage()
                     status = 'error'
                 elif command_parts[1] == 'list':
-                    limit = int(command_parts[2]) if len(command_parts) > 2 else 50
-                    results = self.agent_manager.get_all_results(limit)
-                    
+                    try:
+                        limit = int(command_parts[2]) if len(command_parts) > 2 else 50
+                    except ValueError:
+                        result = f"Invalid limit value: {command_parts[2]}. Please provide a valid number."
+                        status = 'error'
+                        return {'output': result, 'status': status}
+
+                    try:
+                        results = self.agent_manager.get_all_results(limit)
+                    except Exception as e:
+                        result = f"Error retrieving results: {str(e)}"
+                        status = 'error'
+                        return {'output': result, 'status': status}
+
                     if not results:
-                        result = {"results": [], "limit": limit}, 'info'
+                        result = {"results": [], "limit": limit}
+                        status = 'info'
                     else:
                         # Return raw result data as JSON instead of formatted output
                         result_data = []
@@ -5726,7 +5774,8 @@ DB Inactive:       {stats['db_inactive_agents']}
                                 'result': res['result']
                             })
 
-                        result = {"results": result_data, "limit": limit}, 'success'
+                        result = {"results": result_data, "limit": limit}
+                        status = 'success'
                 elif len(command_parts) == 2 and command_parts[1].replace('-', '').replace('_', '').isalnum():
                     task_id = command_parts[1]
 
@@ -5799,8 +5848,19 @@ DB Inactive:       {stats['db_inactive_agents']}
                         status = 'success'
                 else:
                     agent_id = command_parts[1]
-                    limit = int(command_parts[2]) if len(command_parts) > 2 else 50
-                    results = self.agent_manager.get_agent_results(agent_id, limit)
+                    try:
+                        limit = int(command_parts[2]) if len(command_parts) > 2 else 50
+                    except ValueError:
+                        result = f"Invalid limit value: {command_parts[2]}. Please provide a valid number."
+                        status = 'error'
+                        return {'output': result, 'status': status}
+
+                    try:
+                        results = self.agent_manager.get_agent_results(agent_id, limit)
+                    except Exception as e:
+                        result = f"Error retrieving agent results: {str(e)}"
+                        status = 'error'
+                        return {'output': result, 'status': status}
 
                     if not results:
                         result = f"No results found for agent {agent_id}"
