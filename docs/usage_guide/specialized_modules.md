@@ -197,7 +197,7 @@ pinject shellcode.b64 technique=auto
 
 #### Notes
 
-The shellcode injection techniques are ordered by stealthiness:
+When technique=auto, multiple shellcode injection technques are tried ordered by stealthiness:
 
 - NtQueueApcThread (most stealthy) - Injects into existing threads
 - NtCreateThreadEx (more stealthy) - Uses native API, less monitored
