@@ -460,6 +460,7 @@ OPTIONS:
   • --use-failover       - Embed failover C2 URLs from profile into agent
   • --no-bof             - Exclude Beacon Object File (BOF) execution capability
   • --no-assembly        - Exclude .NET assembly execution capability
+  • --no-execute-pe      - Exclude PE execution on agent memory space capability
   • --no-pe              - Exclude PE injection capability
   • --no-shellcode       - Exclude shellcode injection capability
   • --no-reverse-proxy   - Exclude reverse proxy (SOCKS5) capability
@@ -467,7 +468,7 @@ OPTIONS:
 
 EXAMPLES:
   • payload morpheus <listener_name> [--obfuscate] [--disable-sandbox] [--linux] [--redirector] [--use-failover]
-  • payload trinity <listener_name> [--obfuscate] [--disable-sandbox] [--windows] [--redirector] [--use-failover] [--no-bof] [--no-assembly] [--no-pe] [--no-shellcode] [--no-reverse-proxy] [--no-sandbox]
+  • payload trinity <listener_name> [--obfuscate] [--disable-sandbox] [--windows] [--redirector] [--use-failover] [--no-bof] [--no-assembly] [--no-execute-pe] [--no-pe] [--no-shellcode] [--no-reverse-proxy] [--no-sandbox]
     """
 
 
