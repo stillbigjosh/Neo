@@ -9,8 +9,8 @@ The CLI Extender enables operators to run commands like `whoami` which automatic
 
 ## Features
 
-- **Automatic Registration**: Automatically scans `cli/extensions/bof/` and `cli/extensions/assemblies/` directories for object files and assemblies
-- **Command Conversion**: Converts simple commands to its appropriate command chain (BOF or Assembly)
+- **Automatic Registration**: Automatically scans `cli/extensions/bof/`, `cli/extensions/assemblies/` and `cli/extensions/pe` directories for object files, assemblies and pe
+- **Command Conversion**: Converts simple commands to its appropriate command chain (BOF, Assembly or PE)
 - **Argument Support**: Supports passing arguments to extension commands
 - **Tab Completion**: Integrates with CLI tab completion for extension commands
 - **Full Command Compatibility**: Operators can still run full commands like `execute-bof whoami.x64.o`
@@ -61,6 +61,11 @@ Total: 1 extension commands
 - Located in: `cli/extensions/assemblies/`
 - File pattern: `*.exe`, `*.dll`
 - Converted to: `execute-assembly <file_path> [arguments]`
+
+### Portable Executables
+- Located in: `cli/extensions/pe/`
+- File pattern: `*.exe`, `*.dll`
+- Converted to: `execute-pe <file_path> [arguments]`
 
 ## Command Name Extraction
 
