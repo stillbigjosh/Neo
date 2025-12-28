@@ -168,7 +168,7 @@ execute-assembly SharpHound.exe agent_id=abc123-4567-8901-2345-67890abcdef1
 
 ## PInject
 
-This module interfaces with an active agent for In-memory shellcode injection into a sacrificial processes with NtQueueApcThread, NtCreateThreadEx, RtlCreateUserThread, CreateRemoteThread, by their order of stealthiness
+This module interfaces with an active agent for in-memory shellcode injection into a sacrificial processes with NtQueueApcThread, NtCreateThreadEx, RtlCreateUserThread, CreateRemoteThread, by their order of stealthiness
 
 #### Compatibility
 - Trinity
@@ -235,7 +235,7 @@ When technique=auto, multiple shellcode injection technques are tried ordered by
 
 ## PEInject
 
-This module interfaces with an agent and enables In-memory Injection of an unmanaged PE(Portable Executable) using Process Hollowing into a sacrificial process
+This module interfaces with an agent and enables In-memory injection of an unmanaged PE(Portable Executable) using Process Hollowing into a sacrificial process
 
 #### Compatibility
 - Trinity
@@ -272,6 +272,51 @@ peinject payload.exe agent_id=abc123-4567-8901-2345-67890abcdef1
 
 ### Limitation
 Large PE files triggers a "missing pe_file" server/client error. Use a smaller PE file that fits within the framework's constraint
+
+
+## Execute-PE
+
+This module interfaces with an agent and enables in-memory execution of Portable Executables (PE). Unlike PE injection which uses process hollowing, execute-pe runs PE files in memory without creating a new process, providing enhanced stealth and evasion capabilities.
+
+#### Compatibility
+- Trinity
+- Windows x64
+
+#### Usage
+1. Place PE files in the `cli/extensions/pe/` directory on the client
+2. Use the module with a PE filename (path will be resolved automatically)
+3. The agent will execute the PE in-memory using its built-in module
+4. PE execution results are captured and sent back through the C2 channel
+5. No files written to disk at any stage; complete execution in agent's memory space
+
+### Command syntax
+Execute PE files using the execute-pe command:
+
+```
+modules info execute-pe
+# In interactive mode, the agent ID is automatically inferred:
+execute-pe <pe_filename> [arguments] [agent_id=<agent_id>]
+# Examples:
+execute-pe mimikatz.exe
+execute-pe whoami.exe
+execute-pe custom_tool.exe "arg1 arg2 arg3"
+execute-pe payload.exe agent_id=abc123-4567-8901-2345-67890abcdef1
+```
+
+### Key Features:
+- Pure in-memory execution using goffloader library
+- No process creation or file system writes
+- Supports command line arguments for PE execution
+- Complete PE execution in agent's memory space
+- Enhanced evasion compared to traditional PE injection
+- Compatible with standard Windows executables (.exe files)
+
+### Technical Details:
+- Uses goffloader's PE execution engine for in-memory loading
+- Maintains execution context within the agent process
+- Captures PE output and returns to C2 operator
+- Supports both console and GUI applications (GUI output not captured)
+- Handles PE dependencies and imports automatically
 
 
 ## Persist
