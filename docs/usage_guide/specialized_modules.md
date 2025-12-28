@@ -207,7 +207,7 @@ When technique=auto, multiple shellcode injection technques are tried ordered by
 #### Shellcode Injection Flow:
 1. The agent will enumerate by trying more stable processes first (dllhost.exe, taskhost.exe, conhost.exe, notepad.exe explorer.exe)
 2. The agent opens a handle to the target process 
-3. The agent attempts several injection techniques:
+3. The agent attempts the specified injection technique
 
 ##### Technique 1: NtQueueApcThread (Most Stealthy)
 - Allocates executable memory in the target process
