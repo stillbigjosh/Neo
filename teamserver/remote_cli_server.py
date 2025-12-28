@@ -1595,6 +1595,192 @@ class RemoteCLIServer:
         except Exception as e:
             return f"Error running peinject: {str(e)}", 'error'
 
+    def handle_execute_pe_command(self, command_parts, session):
+        module_name = "execute-pe"
+
+        if len(command_parts) < 2:
+            return "Usage: execute-pe <pe_file> [arguments] [agent_id=value]", 'error'
+
+        try:
+            db = session.agent_manager.db if session.agent_manager else self.db
+            module_manager = self.module_manager
+
+            options = {}
+
+            if '=' in command_parts[1]:
+                for part in command_parts[1:]:
+                    if '=' in part:
+                        key, value = part.split('=', 1)
+                        options[key] = value
+            else:
+                pe_file_input = command_parts[1]
+                options['pe_file'] = pe_file_input
+
+                # Check if there are additional arguments
+                if len(command_parts) > 2:
+                    # Check if the last argument is agent_id=... or arguments=...
+                    last_arg = command_parts[-1]
+                    if '=' in last_arg:
+                        # Process key=value pairs
+                        for part in command_parts[2:]:
+                            if '=' in part:
+                                key, value = part.split('=', 1)
+                                if key == 'agent_id':
+                                    options['agent_id'] = value
+                                elif key == 'arguments':
+                                    options['arguments'] = value
+                                else:
+                                    # If it's not agent_id or arguments, treat it as additional arguments
+                                    if 'arguments' not in options:
+                                        options['arguments'] = value
+                                    else:
+                                        options['arguments'] += ' ' + value
+                    else:
+                        # Last argument is not key=value, so treat all remaining as arguments
+                        args = []
+                        for part in command_parts[2:]:
+                            if '=' in part:
+                                key, value = part.split('=', 1)
+                                if key == 'agent_id':
+                                    options['agent_id'] = value
+                                else:
+                                    args.append(part)
+                            else:
+                                args.append(part)
+                        if args:
+                            options['arguments'] = ' '.join(args)
+
+            if session.interactive_mode and session.current_agent and 'agent_id' not in options:
+                options['agent_id'] = session.current_agent
+
+            wait_timeout = int(options.get('wait_timeout', 0))
+
+            module_manager.load_all_modules()
+            module_manager.load_modules_from_db()
+
+            loaded_modules_dict = getattr(module_manager, 'loaded_modules', {})
+
+            if module_name not in loaded_modules_dict:
+                import importlib.util
+                module_path = os.path.join("modules", f"{module_name}.py")
+                if os.path.exists(module_path):
+                    spec = importlib.util.spec_from_file_location(module_name, module_path)
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+
+                    if hasattr(module, 'get_info'):
+                        module_info = module.get_info()
+                    else:
+                        module_info = {}
+
+                    loaded_modules_dict[module_name] = {
+                        'module': module,
+                        'info': module_info,
+                        'path': module_path
+                    }
+                else:
+                    return f"Module not found: {module_name}", 'error'
+
+            if module_name in loaded_modules_dict:
+                module_data = loaded_modules_dict[module_name]
+                module = module_data['module']
+                info = module_data.get('info', {})
+
+                if hasattr(module, 'execute'):
+                    required_options = [opt for opt, opt_info in info.get('options', {}).items() if opt_info.get('required', False)]
+                    missing = [opt for opt in required_options if opt not in options]
+                    if missing:
+                        return f"Missing required options: {', '.join(missing)}", 'error'
+
+                    agent_id = options.get('agent_id')
+                    if agent_id:
+                        if session.agent_manager.is_agent_locked_interactively(agent_id):
+                            lock_info = session.agent_manager.get_interactive_lock_info(agent_id)
+                            if lock_info and lock_info['operator'] != session.username:
+                                return f"Agent {agent_id} is currently in exclusive interactive mode with operator: {lock_info['operator']}. Access denied.", 'error'
+
+                    original_agent = session.current_agent
+                    try:
+                        # Check if we're in interactive mode and if the module should be executed interactively
+                        if session.interactive_mode and session.current_agent and agent_id == session.current_agent:
+                            # Temporarily set a flag to indicate this is for interactive execution
+                            session.is_interactive_execution = True
+
+                            result = module.execute(options, session)
+
+                            # Remove the flag after execution
+                            if hasattr(session, 'is_interactive_execution'):
+                                delattr(session, 'is_interactive_execution')
+
+                            if 'success' in result and result['success'] and 'command' in result:
+                                # This is a command that should be executed interactively
+                                command_to_execute = result['command']
+
+                                # Execute the command via the interactive API instead of queuing it
+                                interactive_result, error = session.agent_manager.send_interactive_command(
+                                    session.current_agent, command_to_execute, timeout=120
+                                )
+
+                                if error:
+                                    return f"Error executing interactive command: {error}", 'error'
+
+                                if interactive_result is not None:
+                                    formatted_result = str(interactive_result).strip()
+                                    if len(formatted_result) > 10000:  # Truncate very long results
+                                        formatted_result = formatted_result[:10000] + "\n... (truncated)"
+
+                                    return f"[+] Interactive module execution completed:\n{formatted_result}", 'success'
+                                else:
+                                    return "No response from agent", 'warning'
+                            else:
+                                # If the module doesn't return a command to execute, use the original result
+                                if 'success' in result:
+                                    status = 'success' if result['success'] else 'error'
+                                    output = result.get('output', result.get('error', 'Unknown error'))
+                                else:
+                                    output = result.get('output', 'No output')
+                                    status = result.get('status', 'unknown')
+                                return output, status
+                        else:
+                            # Normal execution (not in interactive mode)
+                            result = module.execute(options, session)
+                            if 'success' in result:
+                                status = 'success' if result['success'] else 'error'
+                                output = result.get('output', result.get('error', 'Unknown error'))
+                            else:
+                                output = result.get('output', 'No output')
+                                status = result.get('status', 'unknown')
+
+                            if status == 'success' and wait_timeout > 0 and 'task_id' in result:
+                                task_id = result['task_id']
+                                agent_id = options.get('agent_id')
+                                if not agent_id:
+                                    return f"Task {task_id} queued, but cannot monitor without agent_id", 'error'
+
+                                import time
+                                start_time = time.time()
+                                while time.time() - start_time < wait_timeout:
+                                    task_data = db.execute(
+                                        "SELECT status, result FROM agent_tasks WHERE id = ? AND agent_id = ?",
+                                        (task_id, agent_id)
+                                    ).fetchone()
+                                    if task_data and task_data['status'] == 'completed':
+                                        return f"Task {task_id} completed: {task_data['result']}", 'success'
+                                    time.sleep(1)
+
+                                return f"Task {task_id} queued but not completed within {wait_timeout} seconds (status: {task_data['status'] if task_data else 'unknown'})", 'warning'
+
+                            return output, status
+                    finally:
+                        session.current_agent = original_agent
+                else:
+                    return f"Module '{module_name}' does not have an execute function", 'error'
+            else:
+                return f"Could not load module: {module_name}", 'error'
+
+        except Exception as e:
+            return f"Error running execute-pe: {str(e)}", 'error'
+
     def handle_agent_command(self, command_parts, session):
         if len(command_parts) < 2:
             return help.get_agent_help_display(), 'info'
@@ -2716,6 +2902,7 @@ class RemoteCLIServer:
             'include_bof': True,
             'include_assembly': True,
             'include_pe': True,
+            'include_execute_pe': True,
             'include_shellcode': True,
             'include_reverse_proxy': True,
             'include_sandbox': True
@@ -2742,6 +2929,8 @@ class RemoteCLIServer:
                 options['include_assembly'] = False
             elif option == '--no-pe':
                 options['include_pe'] = False
+            elif option == '--no-execute-pe':
+                options['include_execute_pe'] = False
             elif option == '--no-shellcode':
                 options['include_shellcode'] = False
             elif option == '--no-reverse-proxy':
@@ -2785,6 +2974,7 @@ class RemoteCLIServer:
                 include_bof=options['include_bof'],
                 include_assembly=options['include_assembly'],
                 include_pe=options['include_pe'],
+                include_execute_pe=options['include_execute_pe'],
                 include_shellcode=options['include_shellcode'],
                 include_reverse_proxy=options['include_reverse_proxy'],
                 include_sandbox=options['include_sandbox']
@@ -2832,7 +3022,14 @@ class RemoteCLIServer:
                                     disable_sandbox=options['disable_sandbox'],
                                     platform=platform,
                                     use_redirector=options['redirector'],
-                                    use_failover=options['use_failover']
+                                    use_failover=options['use_failover'],
+                                    include_bof=options['include_bof'],
+                                    include_assembly=options['include_assembly'],
+                                    include_pe=options['include_pe'],
+                                    include_execute_pe=options['include_execute_pe'],
+                                    include_shellcode=options['include_shellcode'],
+                                    include_reverse_proxy=options['include_reverse_proxy'],
+                                    include_sandbox=options['include_sandbox']
                                 )
                                 payload_code = generated_result
                                 with open(temp_file_path, 'w') as temp_file:
@@ -2846,7 +3043,14 @@ class RemoteCLIServer:
                                 disable_sandbox=options['disable_sandbox'],
                                 platform=platform,
                                 use_redirector=options['redirector'],
-                                use_failover=options['use_failover']
+                                use_failover=options['use_failover'],
+                                include_bof=options['include_bof'],
+                                include_assembly=options['include_assembly'],
+                                include_pe=options['include_pe'],
+                                include_execute_pe=options['include_execute_pe'],
+                                include_shellcode=options['include_shellcode'],
+                                include_reverse_proxy=options['include_reverse_proxy'],
+                                include_sandbox=options['include_sandbox']
                             )
                             payload_code = generated_result
                             with open(temp_file_path, 'w') as temp_file:
@@ -5146,7 +5350,7 @@ UPLOADED PAYLOAD STATUS:
     
     def _is_framework_command(self, base_cmd):
         framework_commands = {
-            'agent', 'listener', 'modules', 'run', 'pwsh', 'persist', 'pinject', 'peinject', 'encryption',
+            'agent', 'listener', 'modules', 'run', 'pwsh', 'persist', 'pinject', 'peinject', 'execute-pe', 'encryption',
             'download', 'upload', 'stager', 'profile', 'payload', 'execute-bof', 'execute-assembly',
             'interact', 'event', 'task', 'result', 'addcmd', 'back', 'exit',
             'quit', 'clear', 'help', 'status', 'save', 'protocol', 'interactive',
@@ -5204,6 +5408,7 @@ UPLOADED PAYLOAD STATUS:
                 'persist': 'modules.execute',  # persist command requires modules.execute permission
                 'execute-bof': 'modules.execute',  # execute-bof command requires modules.execute permission
                 'execute-assembly': 'modules.execute',  # execute-assembly command requires modules.execute permission
+                'execute-pe': 'modules.execute',  # execute-pe command requires modules.execute permission
                 'help': 'agents.list',  # Help command should be available to all roles with basic access
                 'cmd': 'agents.interact',  # cmd command requires agents.interact permission
                 'failover': 'agents.list',  # failover command requires agents.list permission
@@ -5608,6 +5813,8 @@ DB Inactive:       {stats['db_inactive_agents']}
                         result, status = self.handle_inline_execute_command(command_parts, remote_session)
                     elif base_cmd == 'execute-assembly':
                         result, status = self.handle_inline_execute_assembly_command(command_parts, remote_session)
+                    elif base_cmd == 'execute-pe':
+                        result, status = self.handle_execute_pe_command(command_parts, remote_session)
                     elif base_cmd == 'interact':
                         if len(command_parts) < 2:
                             result = help.get_interact_usage()

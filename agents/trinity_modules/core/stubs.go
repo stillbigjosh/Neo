@@ -19,6 +19,10 @@ func (a *{AGENT_STRUCT_NAME}) injectPE_stub(peData []byte) string {
     return "[ERROR] PE injection is not available in this agent build"
 }
 
+func (a *{AGENT_STRUCT_NAME}) executePE_stub(peData []byte, args []string) (string, error) {
+    return "[ERROR] PE execution is not available in this agent build", fmt.Errorf("PE execution is not available in this agent build")
+}
+
 func (a *{AGENT_STRUCT_NAME}) startReverseProxy_stub() {
     // Do nothing - reverse proxy not available
     // Use context and url to avoid "import not used" error when feature is disabled

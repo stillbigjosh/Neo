@@ -216,7 +216,7 @@ class NeoC2RemoteCLI:
 
     def _completer(self, text, state):
         commands = [
-            'help', 'agent', 'listener', 'modules', 'run', 'pwsh', 'persist', 'pinject', 'peinject', 'encryption',
+            'help', 'agent', 'listener', 'modules', 'run', 'pwsh', 'persist', 'pinject', 'peinject', 'execute-pe', 'encryption',
             'profile', 'protocol', 'stager', 'download', 'upload', 'interactive',
             'exit', 'quit', 'clear', 'status', 'task', 'result', 'save', 'addcmd',
             'harvest', 'execute-bof', 'execute-assembly', 'cmd', 'socks'
@@ -452,7 +452,7 @@ class NeoC2RemoteCLI:
                         'session_id': self.session_id
                     }
             # Check if this is an extension command that needs client-side file lookup
-            elif command_parts and command_parts[0].lower() in ['execute-bof', 'execute-assembly', 'peinject', 'pwsh', 'pinject']:
+            elif command_parts and command_parts[0].lower() in ['execute-bof', 'execute-assembly', 'peinject', 'execute-pe', 'pwsh', 'pinject']:
                 result = self._handle_extension_command(command)
                 if result and result != "FILE_NOT_FOUND_ON_CLIENT" and result != "NO_FILE_SPECIFIED":
                     # File was found and processed successfully
@@ -767,7 +767,7 @@ class NeoC2RemoteCLI:
                     file_path = value
                 elif cmd_name == 'execute-assembly' and key_lower in ['assembly_path', 'assemblypath']:
                     file_path = value
-                elif cmd_name == 'peinject' and key_lower in ['pe_file', 'pefile']:
+                elif cmd_name in ['peinject', 'execute-pe'] and key_lower in ['pe_file', 'pefile']:
                     file_path = value
                 elif cmd_name == 'pinject' and key_lower in ['shellcode', 'script_path', 'scriptpath']:
                     file_path = value
@@ -812,6 +812,15 @@ class NeoC2RemoteCLI:
                 os.path.join(os.getcwd(), file_path),
                 os.path.join('cli', 'extensions', os.path.basename(file_path)),
                 os.path.join('cli', 'extensions', 'pe', os.path.basename(file_path)),
+            ]
+        elif cmd_name == 'execute-pe':
+            search_paths = [
+                os.path.join('cli', 'extensions', 'pe', file_path),
+                os.path.join('cli', 'extensions', file_path),
+                file_path,  # Direct path
+                os.path.join(os.getcwd(), file_path),
+                os.path.join('cli', 'extensions', 'pe', os.path.basename(file_path)),
+                os.path.join('cli', 'extensions', os.path.basename(file_path)),
             ]
 
         elif cmd_name == 'pwsh':
