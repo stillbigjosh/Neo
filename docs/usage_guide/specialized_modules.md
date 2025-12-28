@@ -130,7 +130,6 @@ execute-bof whoami.x64.o -h
 ```
 
 
-
 ## Execute-Assembly
 
 This module interfaces with an agent and enables in-memory execution of .NET assemblies without any disk writes. The solution leverages the go-clr library to execute .NET assemblies directly in the agent's memory space, supporting both .NET executables (.exe) and libraries (.dll).
@@ -165,6 +164,48 @@ execute-assembly SharpHound.exe agent_id=abc123-4567-8901-2345-67890abcdef1
 - Direct in-memory execution without file system access
 - Compatible with tools like Rubeus, SharpHound, and other .NET utilities
 - Supports both positional arguments and named parameters (e.g., `execute-assembly Rubeus.exe asktgt` or `execute-assembly assembly_path=Rubeus.exe arguments=asktgt`)
+
+
+## Execute-PE
+
+This module interfaces with an agent and enables in-memory execution of Portable Executables (PE). Unlike PE injection which uses process hollowing, execute-pe runs PE files in memory without creating a new process, providing enhanced stealth and evasion capabilities.
+
+#### Compatibility
+- Trinity
+- Windows x64
+
+#### Usage
+1. Place PE files in the `cli/extensions/pe/` directory on the client
+2. Use the module with a PE filename (path will be resolved automatically)
+3. The agent will execute the PE in-memory using its built-in module
+4. PE execution results are captured and sent back through the C2 channel
+5. No files written to disk at any stage; complete execution in agent's memory space
+
+### Command syntax
+Execute PE files using the execute-pe command:
+
+```
+modules info execute-pe
+# In interactive mode, the agent ID is automatically inferred:
+execute-pe <pe_filename> [arguments] [agent_id=<agent_id>]
+# Examples:
+execute-pe mimikatz.exe
+execute-pe whoami.exe
+execute-pe custom_tool.exe "arg1 arg2 arg3"
+execute-pe payload.exe agent_id=abc123-4567-8901-2345-67890abcdef1
+```
+
+### Key Features:
+- Pure in-memory execution
+- Supports command line arguments for PE execution
+- Complete PE execution in agent's memory space
+- Enhanced evasion compared to traditional PE injection
+- Compatible with standard Windows executables (.exe files)
+- Maintains execution context within the agent process
+- Captures PE output and returns to C2 operator
+- Supports both console and GUI applications (GUI output not captured)
+- Handles PE dependencies and imports automatically
+
 
 ## PInject
 
@@ -272,47 +313,6 @@ peinject payload.exe agent_id=abc123-4567-8901-2345-67890abcdef1
 
 ### Limitation
 Large PE files triggers a "missing pe_file" server/client error. Use a smaller PE file that fits within the framework's constraint
-
-
-## Execute-PE
-
-This module interfaces with an agent and enables in-memory execution of Portable Executables (PE). Unlike PE injection which uses process hollowing, execute-pe runs PE files in memory without creating a new process, providing enhanced stealth and evasion capabilities.
-
-#### Compatibility
-- Trinity
-- Windows x64
-
-#### Usage
-1. Place PE files in the `cli/extensions/pe/` directory on the client
-2. Use the module with a PE filename (path will be resolved automatically)
-3. The agent will execute the PE in-memory using its built-in module
-4. PE execution results are captured and sent back through the C2 channel
-5. No files written to disk at any stage; complete execution in agent's memory space
-
-### Command syntax
-Execute PE files using the execute-pe command:
-
-```
-modules info execute-pe
-# In interactive mode, the agent ID is automatically inferred:
-execute-pe <pe_filename> [arguments] [agent_id=<agent_id>]
-# Examples:
-execute-pe mimikatz.exe
-execute-pe whoami.exe
-execute-pe custom_tool.exe "arg1 arg2 arg3"
-execute-pe payload.exe agent_id=abc123-4567-8901-2345-67890abcdef1
-```
-
-### Key Features:
-- Pure in-memory execution
-- Supports command line arguments for PE execution
-- Complete PE execution in agent's memory space
-- Enhanced evasion compared to traditional PE injection
-- Compatible with standard Windows executables (.exe files)
-- Maintains execution context within the agent process
-- Captures PE output and returns to C2 operator
-- Supports both console and GUI applications (GUI output not captured)
-- Handles PE dependencies and imports automatically
 
 
 ## Persist
