@@ -39,7 +39,7 @@
 - **Redirector Support**: Manage external infrastructure pointing to internal listeners via profiles
 - **Failover deployment**: Agent embeds failover C2 servers
 - **Shellcode Injection**: Shellcode injection into sacrificial processes with NtQueueApcThread, NtCreateThreadEx, RtlCreateUserThread, CreateRemoteThread
-- **Arbitrary Windows Executables injection**: Execute arbitrary Windows executables (PE) in a sacrificial process with Process Hollowing
+- **Unmanaged PE Execution**: Execute arbitrary Windows executables (PE) in a sacrificial process with Process Hollowing, or Complete PE execution in agent's memory space
 - **.NET Assembly Execution**: In-memory execution of .NET Assemblies
 - **BOF Execution**: Load and Execute Beacon Object Files 
 - **Reporting handler:** Easy post-operation report writing
