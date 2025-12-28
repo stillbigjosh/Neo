@@ -36,8 +36,9 @@ OPERATIONS & TACTICS:
   reverse_proxy - Start server-side reverse proxy 
   pwsh        - Execute powershell script on agent session
   persist     - Persist an executable or script
-  execute-bof - Load and execute bofs on agent session
+  execute-bof - Load and execute bofs in-memory on agent session
   execute-assembly - Load and execute .NET assemblies in-memory on agent session
+  execute-pe  - Load and execute unmanaged pe in-memory on agent session
   peinject    - Unmanaged PE injection into svchost.exe (Process Hollowing)
   pinject     - Shellcode injection into available stable process (NtQueueApcThread)
 
