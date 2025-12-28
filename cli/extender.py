@@ -166,7 +166,7 @@ class CLIExtender:
             command_name = self._extract_command_name(file_path.name)
             if command_name:
                 self.command_registry[command_name] = {
-                    'type': 'execute-pe',
+                    'type': 'pe',
                     'file_path': str(file_path),
                     'original_name': file_path.name
                 }
@@ -176,7 +176,7 @@ class CLIExtender:
             command_name = self._extract_command_name(file_path.name)
             if command_name:
                 self.command_registry[command_name] = {
-                    'type': 'execute-pe',
+                    'type': 'pe',
                     'file_path': str(file_path),
                     'original_name': file_path.name
                 }
@@ -241,7 +241,7 @@ class CLIExtender:
                 os.path.join(os.getcwd(), file_path),
                 os.path.join(os.getcwd(), os.path.basename(file_path))
             ]
-        elif extension_info['type'] == 'execute-pe':
+        elif extension_info['type'] == 'pe':
             search_paths = [
                 file_path,  # Direct path from registry
                 os.path.join('cli', 'extensions', 'pe', os.path.basename(file_path)),
@@ -277,7 +277,7 @@ class CLIExtender:
             execute_cmd = f"execute-bof {encoded_content}"
         elif extension_info['type'] == 'assembly':
             execute_cmd = f"execute-assembly {encoded_content}"
-        elif extension_info['type'] == 'execute-pe':
+        elif extension_info['type'] == 'pe':
             execute_cmd = f"execute-pe {encoded_content}"
         else:
             return None
