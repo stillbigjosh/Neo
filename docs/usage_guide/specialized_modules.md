@@ -304,15 +304,11 @@ execute-pe payload.exe agent_id=abc123-4567-8901-2345-67890abcdef1
 ```
 
 ### Key Features:
-- Pure in-memory execution using goffloader library
-- No process creation or file system writes
+- Pure in-memory execution
 - Supports command line arguments for PE execution
 - Complete PE execution in agent's memory space
 - Enhanced evasion compared to traditional PE injection
 - Compatible with standard Windows executables (.exe files)
-
-### Technical Details:
-- Uses goffloader's PE execution engine for in-memory loading
 - Maintains execution context within the agent process
 - Captures PE output and returns to C2 operator
 - Supports both console and GUI applications (GUI output not captured)
