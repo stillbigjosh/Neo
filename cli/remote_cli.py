@@ -867,8 +867,28 @@ class NeoC2RemoteCLI:
 
                 # Reconstruct the command with the base64 encoded content
                 # Use the original command format to preserve arguments
-                original_args = [part for part in command_parts[1:] if '=' not in part or part.split('=', 1)[0].lower() not in ['script_path', 'scriptpath', 'bof_path', 'bofpath', 'assembly_path', 'assemblypath', 'pe_file', 'pefile', 'shellcode']]
-                if original_args:
+                original_args = []
+                technique_arg = None
+
+                for part in command_parts[1:]:
+                    if '=' in part:
+                        key, value = part.split('=', 1)
+                        key_lower = key.lower()
+                        # Skip file path parameters that were already processed
+                        if key_lower not in ['script_path', 'scriptpath', 'bof_path', 'bofpath', 'assembly_path', 'assemblypath', 'pe_file', 'pefile', 'shellcode']:
+                            if key_lower == 'technique':
+                                technique_arg = value
+                            else:
+                                original_args.append(part)
+                    else:
+                        # This is a positional argument, skip the file path (first positional)
+                        # since it's already been processed into encoded_content
+                        continue
+
+                # Add technique parameter to the command if specified
+                if technique_arg:
+                    new_command = f"{cmd_name} {technique_arg} {encoded_content} {' '.join(original_args)}"
+                elif original_args:
                     new_command = f"{cmd_name} {encoded_content} {' '.join(original_args)}"
                 else:
                     new_command = f"{cmd_name} {encoded_content}"
