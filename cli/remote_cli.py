@@ -862,9 +862,8 @@ class NeoC2RemoteCLI:
                         file_content = f.read()
                     encoded_content = base64.b64encode(file_content).decode('utf-8')
 
-                # For peinject, we need to add the 'pe' prefix as the agent expects
-                if cmd_name == 'peinject':
-                    encoded_content = "pe" + encoded_content
+                # For peinject, no prefix needed - server handles the command prefixing
+                # The agent expects "peinject <base64_content>" format directly
 
                 # Reconstruct the command with the base64 encoded content
                 # Use the original command format to preserve arguments

