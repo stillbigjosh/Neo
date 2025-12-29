@@ -24,6 +24,11 @@ This directory contains the modular structure for the Trinity agent, allowing op
 - Function: Execute .NET assemblies in memory
 - Dependencies: github.com/Ne0nd0g/go-clr
 
+#### PE Execution
+- Path: `go_modules/execute_pe/`
+- Function: Execute PE files in memory
+- Dependencies: github.com/praetorian-inc/goffloader
+
 #### Shellcode Injection
 - Path: `go_modules/shellcode/`
 - Function: Inject and execute shellcode in target processes
