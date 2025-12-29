@@ -236,24 +236,6 @@ When creating a listener, you associate it with a communication profile:
 listener create my_http_listener type=https port=443 profile_name=stealth_crawler
 ```
 
-## Secure Commuication
-
-HTTPS is the primary implant-C2 channel. HTTP is only supported as a fallback to HTTPS.
-
-Listeners exposes REST-style endpoints defined by the JSON communication profiles. TCP and TLS is handled by the Flask web application's listener stack. However, Fernet-encryption is applied at the application layer before transmission over HTTP/HTTPS. 
-
-So the framework implements dual-layer security:
-- Application-layer encryption using Fernet (symmetric encryption with shared secrets)
-- Transport-layer encryption using HTTPS/TLS when available
-
-This means that even when HTTPS is used, the data payloads are additionally encrypted with Fernet, and when HTTP is used (without TLS), the Fernet encryption still protects the data payloads. The Fernet encryption is not dependent on whether TLS is available - it's applied in both cases.
-
-Each agent gets a unique secret key stored in the database and cached in memory
-
-Implant's Authentication is via pre-registered agent_id + secret_key, validated against the database at Agent registration. 
-
-After successful registration, all tasking/results JSON bodies are Fernet-encrypted per agent. 
-
-
+---
 
 
