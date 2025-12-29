@@ -6,7 +6,7 @@
 
 ---
 
-# Overview
+# Neo C2 Framework
 
 A modular server-client architecture post-exploitation framework built for collaborative agent management in red team operations and security testing. Enables flexibility by allowing operators to integrate their own extension modules.
 
