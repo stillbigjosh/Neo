@@ -1257,8 +1257,8 @@ DB Inactive:       {stats.get('db_inactive_agents', 0)}
 
                     print(f"\n{'=' * 80}")
                     print(f"{msg}")
-                    print(f"Agent: {cyan(agent_id)}")
-                    print(f"Hostname: {hostname} | User: {user} | OS: {os_info}")
+                    print(f"Agent: {yellow(agent_id)}")
+                    print(f"Hostname: {yellow(hostname)} | User: {yellow(user)} | OS: {yellow(os_info)}")
                     print(f"{'=' * 80}")
                     print("Commands are executed in REAL-TIME via interactive API")
                     print("Type 'back' to leave interactive mode")
@@ -1322,8 +1322,8 @@ DB Inactive:       {stats.get('db_inactive_agents', 0)}
 
                 print(f"\n{'=' * 80}")
                 print(f"{msg}")
-                print(f"Agent: {cyan(agent_id)}")
-                print(f"Hostname: {hostname} | User: {user} | OS: {os_info}")
+                print(f"Agent: {yellow(agent_id)}")
+                print(f"Hostname: {yellow(hostname)} | User: {yellow(user)} | OS: {yellow(os_info)}")
                 print(f"{'=' * 80}")
                 print("Commands are executed in REAL-TIME via interactive API")
                 print("Type 'back' to leave interactive mode")
