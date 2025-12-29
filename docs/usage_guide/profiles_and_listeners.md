@@ -1,8 +1,7 @@
 # Profile & Listener Management
 
-[Profile Management](#profile-management)
-[Listener Management](#listener-management)
-[Secure Communication](#secure-communication)
+- [Profile Management](#profile-management)
+- [Listener Management](#listener-management)
 
 
 ## Profile Management
