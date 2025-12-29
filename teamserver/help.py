@@ -13,7 +13,6 @@ INFRASTRUCTURE MANAGEMENT:
 
 AGENT MANAGEMENT:
   agent       - Manage agents (list, interact, info, kill)
-  beacon      - List HTTP/S Agents
   upload      - Upload files to agents
   sleep       - Change agent sleep interval
   interact    - Enter Interactive mode with a beacon
