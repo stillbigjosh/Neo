@@ -1,8 +1,5 @@
 # Neo C2 Framework - Communication Protocol Documentation
 
-## Overview
-
-The Neo C2 Framework implements a sophisticated communication system between the Command and Control (C2) server and the agent (Trinity). The communication system supports multiple protocols (HTTP, DNS, ICMP, UDP) and provides various communication channels for different purposes including registration, tasking, results, and interactive communication.
 
 ## Communication Architecture
 
