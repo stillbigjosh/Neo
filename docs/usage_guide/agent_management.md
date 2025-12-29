@@ -17,12 +17,28 @@ Agents in NeoC2 follow a complete lifecycle:
 ## Agent Commands
 
 ```
-agent list                    # List all active agents
-beacon
-agent interact <agent_id>     # Enter interactive mode with agent
-interact <agent_id>
-agent info <agent_id>         # Get detailed agent information
-agent kill <agent_id>         # Activate self-deletion & remove agent from management
+# List all active agents
+NeoC2 > agent list
+NeoC2 > beacon
+
+# Enter interactive mode with agent
+NeoC2 > agent interact <agent_id>     
+NeoC2 > interact <agent_id>
+
+# Get detailed agent information
+NeoC2 > agent info <agent_id>
+NeoC2 [INTERACTIVE:d2862d54] > info
+
+# Activate self-deletion & remove agent from management
+NeoC2 > agent kill <agent_id>
+
+# Get agent tasks result
+NeoC2 > result <agent_id>
+NeoC2 [INTERACTIVE:d2862d54] > result
+
+# Get agent pending tasks
+NeoC2 > task <agent_id>
+NeoC2 [INTERACTIVE:d2862d54] > task
 ```
 
 ## Agent Status Indicators
