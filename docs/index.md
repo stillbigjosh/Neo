@@ -1,6 +1,12 @@
+<div align="center">
+
+<img src="assets/img.jpeg" alt="Logo" width="220" style="margin-bottom: 20px;"/>
+
 # Overview
 
 A modular server-client architecture post-exploitation framework built for collaborative agent management in red team operations and security testing. Enables flexibility by allowing operators to add their own modules.
+
+</div>
 
 ---
 

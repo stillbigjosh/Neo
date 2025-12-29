@@ -4,7 +4,7 @@
 
 # The Neo C2 Framework 
 
-[![Version](https://img.shields.io/badge/Version-1.5.5-orange.svg)](https://github.com/stillbigjosh/Neo/releases)
+[![Version](https://img.shields.io/badge/Version-1.6.1-orange.svg)](https://github.com/stillbigjosh/Neo/releases)
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
 [![Golang](https://img.shields.io/badge/Go-1.2%2B-blue.svg)](https://www.go.dev/)
 [![License](https://img.shields.io/badge/License-GPL-green.svg)](LICENSE)
@@ -25,7 +25,7 @@
 
 ### Features
 - **Multiplayer-mode:** Real-time collaboration between operators with Interactive session locking
-- **Proxy Awareness:** Network pivoting using SOCKS5 proxy functionality
+- **Proxy Awareness:** SOCKS5 reverse proxy functionality
 - **Task Orchestrator**: Chain modules for complex operations
 - **Role-Based Access Control:** Co-ordinates access and permissions with admin/operator/viewer roles
 - **Multi-Operator Extension Module System:** Operators integrate their own local extension modules without interfering with each other
