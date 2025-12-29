@@ -947,9 +947,9 @@ class NeoC2RemoteCLI:
                         print(f"{blue('[*]')} No active agents found.")
                     else:
                         print("Active Agents:")
-                        print("-" * 150)
-                        print(f"{'ID':<30} {'IP Address':<15} {'Hostname':<20} {'OS':<15} {'User':<15} {'Listener ID':<15} {'Status':<12} {'Last Seen':<19}")
-                        print("-" * 150)
+                        print("-" * 188)
+                        print(f"{'ID':<38} {'IP Address':<15} {'Hostname':<20} {'OS':<15} {'User':<15} {'Listener ID':<38} {'Status':<12} {'Last Seen':<19}")
+                        print("-" * 188)
                         for agent in agents:
                             agent_id = agent.get('id', '')
                             ip_address = agent.get('ip_address', '')
@@ -960,7 +960,7 @@ class NeoC2RemoteCLI:
                             status = agent.get('status', '')
                             last_seen = agent.get('last_seen', '')[:19] if agent.get('last_seen') else 'N/A'  # Truncate timestamp
 
-                            print(f"{agent_id:<30} {ip_address:<15} {hostname:<20} {os_info:<15} {user:<15} {listener_id:<15} {status:<12} {last_seen:<19}")
+                            print(f"{agent_id:<38} {ip_address:<15} {hostname:<20} {os_info:<15} {user:<15} {listener_id:<38} {status:<12} {last_seen:<19}")
                 elif 'listeners' in message:
                     # Format listeners list as a table
                     listeners = message.get('listeners', [])
