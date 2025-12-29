@@ -5578,7 +5578,30 @@ DB Inactive:       {stats['db_inactive_agents']}
                             result = {"tasks": task_data, "agent_id": agent_id}
                             status = 'success'
                     elif base_cmd == 'result':
-                        if len(command_parts) < 2:
+                        if len(command_parts) == 1 and remote_session.interactive_mode and remote_session.current_agent:
+                            # Handle: result (in interactive mode - show current agent results)
+                            agent_id = remote_session.current_agent
+                            limit = 50  # Default limit
+                            results = self.agent_manager.get_agent_results(agent_id, limit)
+
+                            if not results:
+                                result = f"No results found for current agent"
+                                status = 'info'
+                            else:
+                                # Return raw result data as JSON instead of formatted output
+                                result_data = []
+                                for res in results:
+                                    result_data.append({
+                                        'task_id': res['task_id'],
+                                        'command': res['command'],
+                                        'created_at': res['created_at'],
+                                        'completed_at': res['completed_at'],
+                                        'result': res['result']
+                                    })
+
+                                result = {"results": result_data, "agent_id": agent_id}
+                                status = 'success'
+                        elif len(command_parts) < 2:
                             result = help.get_result_usage()
                             status = 'error'
                         elif command_parts[1] == 'list':
@@ -5720,14 +5743,14 @@ DB Inactive:       {stats['db_inactive_agents']}
                                 result = {"results": result_data, "agent_id": agent_id}
                                 status = 'success'
                     elif base_cmd == 'addcmd':
-                        if len(command_parts) < 2:
-                            result = help.get_addcmd_usage()
-                            status = 'error'
-                            return {'output': result, 'status': status}
-                        elif len(command_parts) == 2 and remote_session.interactive_mode and remote_session.current_agent:
+                        if len(command_parts) == 2 and remote_session.interactive_mode and remote_session.current_agent:
                             # Handle: addcmd <command> in interactive mode
                             agent_id = remote_session.current_agent
                             command_to_send = command_parts[1]
+                        elif len(command_parts) < 2:
+                            result = help.get_addcmd_usage()
+                            status = 'error'
+                            return {'output': result, 'status': status}
                         elif len(command_parts) >= 3:
                             # Handle: addcmd <agent_id> <command>
                             agent_id = command_parts[1]
@@ -5999,10 +6022,7 @@ DB Inactive:       {stats['db_inactive_agents']}
                 result = output.strip()
                 status = 'success'
             elif base_cmd == 'task':
-                if len(command_parts) == 1 and remote_session.interactive_mode and remote_session.current_agent:
-                    # Handle: task (in interactive mode - show current agent tasks)
-                    agent_id = remote_session.current_agent
-                elif len(command_parts) >= 2:
+                if len(command_parts) >= 2:
                     # Handle: task <agent_id> [other_args]
                     agent_id = command_parts[1]
                 else:
@@ -6117,29 +6137,6 @@ DB Inactive:       {stats['db_inactive_agents']}
                         except Exception as e:
                             result = f"Error retrieving task result: {str(e)}"
                             status = 'error'
-                elif len(command_parts) == 1 and remote_session.interactive_mode and remote_session.current_agent:
-                    # Handle: result (in interactive mode - show current agent results)
-                    agent_id = remote_session.current_agent
-                    limit = 50  # Default limit
-                    results = self.agent_manager.get_agent_results(agent_id, limit)
-
-                    if not results:
-                        result = f"No results found for current agent"
-                        status = 'info'
-                    else:
-                        # Return raw result data as JSON instead of formatted output
-                        result_data = []
-                        for res in results:
-                            result_data.append({
-                                'task_id': res['task_id'],
-                                'command': res['command'],
-                                'created_at': res['created_at'],
-                                'completed_at': res['completed_at'],
-                                'result': res['result']
-                            })
-
-                        result = {"results": result_data, "agent_id": agent_id}
-                        status = 'success'
                 else:
                     agent_id = command_parts[1]
                     try:
@@ -6178,10 +6175,6 @@ DB Inactive:       {stats['db_inactive_agents']}
                     result = help.get_addcmd_usage()
                     status = 'error'
                     return {'output': result, 'status': status}
-                elif len(command_parts) == 2 and remote_session.interactive_mode and remote_session.current_agent:
-                    # Handle: addcmd <command> in interactive mode
-                    agent_id = remote_session.current_agent
-                    command_to_send = command_parts[1]
                 elif len(command_parts) >= 3:
                     # Handle: addcmd <agent_id> <command>
                     agent_id = command_parts[1]
