@@ -39,7 +39,7 @@ A modular server-client architecture post-exploitation framework built for colla
 *   [**Task Orchestration**](advanced_features/taskorchestration.md): Automated task chaining
 *   [**Reporting**](advanced_features/reporting.md): Generating and viewing reports
 
-### Architecture
+### Architectural Guide
 
 *   [**Communication**](development/communication.md): Communication system
 
