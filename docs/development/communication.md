@@ -206,17 +206,11 @@ Profiles can define custom endpoints in the configuration:
 
 The ProtocolManager class handles multiple communication protocols:
 
-1. **HTTP Protocol**: Standard HTTP/HTTPS communication with user-agent rotation
-2. **DNS Protocol**: Covert channel using DNS queries with base64-encoded data
-3. **ICMP Protocol**: Covert channel using ICMP packets with encrypted payloads
-4. **UDP Protocol**: Covert channel using UDP packets with encrypted payloads
+1. **HTTP Protocol**: Primary and Standard HTTP/HTTPS communication with user-agent rotation
+2. **DNS Protocol**: Covert channel using DNS queries with base64-encoded data __(under devlopment)_
+3. **ICMP Protocol**: Covert channel using ICMP packets with encrypted payloads __(under devlopment)_
+4. **UDP Protocol**: Covert channel using UDP packets with encrypted payloads __(under devlopment)_
 
-### Traffic Shaping and Evasion
-
-- **Jitter**: Randomized timing to avoid signature detection
-- **Traffic Shaping**: Mimics legitimate traffic patterns (browser, video, VoIP)
-- **Multi-hop**: Support for proxy chains to obscure origin
-- **CDN Integration**: Routes traffic through CDN domains for additional obfuscation
 
 ## Failover and Resilience
 
@@ -291,7 +285,7 @@ The agent includes multiple sandbox detection and evasion techniques:
 
 ## Communication Endpoints
 
-### Standard Endpoints
+### Default Endpoints
 
 The framework uses disguised endpoint names to blend with legitimate traffic:
 
@@ -328,7 +322,6 @@ The framework includes a catch-all handler that:
 
 ### Evasion Techniques
 
-- Traffic shaping to mimic legitimate traffic
 - Multiple protocol support for resilience
 - Jitter and randomized timing
 - Disguised endpoint names
