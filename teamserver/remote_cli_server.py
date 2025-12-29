@@ -5354,7 +5354,7 @@ UPLOADED PAYLOAD STATUS:
             'download', 'upload', 'stager', 'profile', 'payload', 'execute-bof', 'execute-assembly',
             'interact', 'event', 'task', 'result', 'addcmd', 'back', 'exit',
             'quit', 'clear', 'help', 'status', 'save', 'protocol', 'interactive',
-            'taskchain', 'beacon', 'cmd', 'failover'
+            'taskchain', 'beacon', 'cmd', 'failover', 'info'
         }
         return base_cmd.lower() in framework_commands
 
@@ -5414,8 +5414,12 @@ UPLOADED PAYLOAD STATUS:
                 'failover': 'agents.list',  # failover command requires agents.list permission
             }
             
-            required_permission = permission_map.get(base_cmd, f'{base_cmd}.list')
-        
+            if base_cmd == 'info':
+                # The 'info' command should require agents.list permission (same as agent command)
+                required_permission = 'agents.list'
+            else:
+                required_permission = permission_map.get(base_cmd, f'{base_cmd}.list')
+
         return required_permission in permissions or '*' in permissions
 
     def _execute_command(self, command, session_info):
@@ -5480,6 +5484,46 @@ UPLOADED PAYLOAD STATUS:
                             result, status = self.handle_interactive_command(' '.join(command_parts[1:]), remote_session)
                         else:
                             result, status = 'Not in interactive mode. Use: agent interact <agent_id>', 'error'
+                    elif base_cmd == 'info':
+                        if remote_session.interactive_mode and remote_session.current_agent:
+                            # Handle: info (in interactive mode - show current agent info)
+                            agent_id = remote_session.current_agent
+                            try:
+                                agent = self.agent_manager.get_agent(agent_id)
+                                if not agent:
+                                    result, status = f"Agent {agent_id} not found", 'error'
+                                else:
+                                    agent_dict = agent.to_dict()
+
+                                    # Return raw agent data as JSON instead of formatted table
+                                    agent_info = {
+                                        'id': agent_dict['id'],
+                                        'ip_address': agent_dict['ip_address'],
+                                        'hostname': agent_dict['hostname'],
+                                        'os_info': agent_dict['os_info'],
+                                        'user': agent_dict['user'],
+                                        'listener_id': agent_dict['listener_id'],
+                                        'first_seen': agent_dict['first_seen'],
+                                        'last_seen': agent_dict['last_seen'],
+                                        'status': agent_dict['status'],
+                                        'pending_tasks': agent_dict['pending_tasks'],
+                                        'interactive_mode': 'Active' if agent_dict.get('interactive_mode') else 'Inactive'
+                                    }
+
+                                    if remote_session.agent_manager.is_agent_locked_interactively(agent_id):
+                                        lock_info = remote_session.agent_manager.get_interactive_lock_info(agent_id)
+                                        if lock_info:
+                                            agent_info['interactive_lock'] = f"EXCLUSIVE - Held by operator: {lock_info['operator']}"
+                                        else:
+                                            agent_info['interactive_lock'] = "EXCLUSIVE - Locked"
+                                    else:
+                                        agent_info['interactive_lock'] = "Available for access"
+
+                                    result, status = {"agent_info": agent_info}, 'success'
+                            except Exception as e:
+                                result, status = f"Error getting agent info: {str(e)}", 'error'
+                        else:
+                            result, status = "Not in interactive mode or no current agent. Use 'agent interact <agent_id>' first.", 'error'
                     elif base_cmd == 'help':
                         result = help.get_help_display()
                         status = 'success'
@@ -5897,6 +5941,49 @@ DB Inactive:       {stats['db_inactive_agents']}
             elif base_cmd == 'help':
                 result = help.get_help_display()
                 status = 'success'
+            elif base_cmd == 'info':
+                if len(command_parts) < 2:
+                    result, status = "Usage: info <agent_id> (not in interactive mode)", 'error'
+                else:
+                    # Handle: info <agent_id> (not in interactive mode)
+                    agent_id = command_parts[1]
+                    try:
+                        agent = self.agent_manager.get_agent(agent_id)
+                        if not agent:
+                            result = f"Agent {agent_id} not found", 'error'
+                            status = 'error'
+                        else:
+                            agent_dict = agent.to_dict()
+
+                            # Return raw agent data as JSON instead of formatted table
+                            agent_info = {
+                                'id': agent_dict['id'],
+                                'ip_address': agent_dict['ip_address'],
+                                'hostname': agent_dict['hostname'],
+                                'os_info': agent_dict['os_info'],
+                                'user': agent_dict['user'],
+                                'listener_id': agent_dict['listener_id'],
+                                'first_seen': agent_dict['first_seen'],
+                                'last_seen': agent_dict['last_seen'],
+                                'status': agent_dict['status'],
+                                'pending_tasks': agent_dict['pending_tasks'],
+                                'interactive_mode': 'Active' if agent_dict.get('interactive_mode') else 'Inactive'
+                            }
+
+                            if remote_session.agent_manager.is_agent_locked_interactively(agent_id):
+                                lock_info = remote_session.agent_manager.get_interactive_lock_info(agent_id)
+                                if lock_info:
+                                    agent_info['interactive_lock'] = f"EXCLUSIVE - Held by operator: {lock_info['operator']}"
+                                else:
+                                    agent_info['interactive_lock'] = "EXCLUSIVE - Locked"
+                            else:
+                                agent_info['interactive_lock'] = "Available for access"
+
+                            result = {"agent_info": agent_info}
+                            status = 'success'
+                    except Exception as e:
+                        result = f"Error getting agent info: {str(e)}", 'error'
+                        status = 'error'
             elif base_cmd == 'status':
                 stats = self.agent_manager.get_agent_stats()
                 output = f"""
