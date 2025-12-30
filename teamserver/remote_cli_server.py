@@ -2947,12 +2947,45 @@ class RemoteCLIServer:
             return f"Listener '{listener_name}' not found", 'error'
 
         try:
-            from agents.payload_generator import PayloadGenerator
+            # Get profile config for the listener
+            profile = self.db.get_profile_by_name(listener['profile_name'])
+            if not profile:
+                profile = self.db.get_profile_by_name('default')
+            profile_config = profile.get('config', {}) if profile else {}
 
-            payload_generator = PayloadGenerator(self.config, self.db)
+            # Handle redirector configuration
+            redirector_config = profile_config.get('redirector', {})
 
-            # Determine platform for trinity
-            if payload_type == 'trinity':
+            # Import the appropriate payload generator based on payload type
+            if payload_type == 'morpheus':
+                from agents.morpheus_payload_generator import MorpheusPayloadGenerator
+                payload_generator = MorpheusPayloadGenerator(self.config, self.db)
+
+                # Determine platform for trinity (not used for morpheus)
+                platform = 'windows'  # Default for morpheus
+
+                generated_result = payload_generator.generate_payload(
+                    listener['id'],
+                    obfuscate=options['obfuscate'],
+                    disable_sandbox=options['disable_sandbox'],
+                    use_redirector=options['redirector'],
+                    use_failover=options['use_failover'],
+                    kill_date=profile_config.get('kill_date', '2025-12-31T23:59:59Z'),
+                    working_hours=profile_config.get('working_hours', {
+                        "start_hour": 9,
+                        "end_hour": 17,
+                        "timezone": "UTC",
+                        "days": [1, 2, 3, 4, 5]  # Monday to Friday
+                    }),
+                    redirector_host=redirector_config.get('redirector_host', '0.0.0.0'),
+                    redirector_port=redirector_config.get('redirector_port', 80),
+                    failover_urls=profile_config.get('failover_urls', []) if options['use_failover'] else []
+                )
+            elif payload_type == 'trinity':
+                from agents.trinity_payload_generator import TrinityPayloadGenerator
+                payload_generator = TrinityPayloadGenerator(self.config, self.db)
+
+                # Determine platform for trinity
                 if options['linux']:
                     platform = 'linux'
                 elif options['windows']:
@@ -2960,25 +2993,35 @@ class RemoteCLIServer:
                 else:
                     # Default to windows for backward compatibility
                     platform = 'windows'
-            else:
-                platform = 'windows'  # Default for other payload types
 
-            generated_result = payload_generator.generate_payload(
-                listener['id'],
-                payload_type,
-                obfuscate=options['obfuscate'],
-                disable_sandbox=options['disable_sandbox'],
-                platform=platform,
-                use_redirector=options['redirector'],
-                use_failover=options['use_failover'],
-                include_bof=options['include_bof'],
-                include_assembly=options['include_assembly'],
-                include_pe=options['include_pe'],
-                include_execute_pe=options['include_execute_pe'],
-                include_shellcode=options['include_shellcode'],
-                include_reverse_proxy=options['include_reverse_proxy'],
-                include_sandbox=options['include_sandbox']
-            )
+                generated_result = payload_generator.generate_payload(
+                    listener['id'],
+                    obfuscate=options['obfuscate'],
+                    disable_sandbox=options['disable_sandbox'],
+                    platform=platform,
+                    use_redirector=options['redirector'],
+                    use_failover=options['use_failover'],
+                    include_bof=options['include_bof'],
+                    include_assembly=options['include_assembly'],
+                    include_pe=options['include_pe'],
+                    include_execute_pe=options['include_execute_pe'],
+                    include_shellcode=options['include_shellcode'],
+                    include_reverse_proxy=options['include_reverse_proxy'],
+                    include_sandbox=options['include_sandbox'],
+                    kill_date=profile_config.get('kill_date', '2025-12-31T23:59:59Z'),
+                    working_hours=profile_config.get('working_hours', {
+                        "start_hour": 9,
+                        "end_hour": 17,
+                        "timezone": "UTC",
+                        "days": [1, 2, 3, 4, 5]  # Monday to Friday
+                    }),
+                    redirector_host=redirector_config.get('redirector_host', '0.0.0.0'),
+                    redirector_port=redirector_config.get('redirector_port', 80),
+                    failover_urls=profile_config.get('failover_urls', []) if options['use_failover'] else [],
+                    profile_headers=profile_config.get('headers', {'User-Agent': 'Trinity C2 Agent'})
+                )
+            else:
+                raise ValueError(f"Unsupported payload type: {payload_type}")
 
             if payload_type == 'trinity':
                 output_path = generated_result
@@ -3015,9 +3058,97 @@ class RemoteCLIServer:
                             if result.returncode == 0:
                                 compile_success = True
                             else:
+                                # Regenerate payload using the appropriate generator
+                                # Get profile config for the listener
+                                profile = self.db.get_profile_by_name(listener['profile_name'])
+                                if not profile:
+                                    profile = self.db.get_profile_by_name('default')
+                                profile_config = profile.get('config', {}) if profile else {}
+
+                                # Handle redirector configuration
+                                redirector_config = profile_config.get('redirector', {})
+
+                                if payload_type == 'morpheus':
+                                    generated_result = payload_generator.generate_payload(
+                                        listener['id'],
+                                        obfuscate=options['obfuscate'],
+                                        disable_sandbox=options['disable_sandbox'],
+                                        use_redirector=options['redirector'],
+                                        use_failover=options['use_failover'],
+                                        kill_date=profile_config.get('kill_date', '2025-12-31T23:59:59Z'),
+                                        working_hours=profile_config.get('working_hours', {
+                                            "start_hour": 9,
+                                            "end_hour": 17,
+                                            "timezone": "UTC",
+                                            "days": [1, 2, 3, 4, 5]  # Monday to Friday
+                                        }),
+                                        redirector_host=redirector_config.get('redirector_host', '0.0.0.0'),
+                                        redirector_port=redirector_config.get('redirector_port', 80),
+                                        failover_urls=profile_config.get('failover_urls', []) if options['use_failover'] else []
+                                    )
+                                elif payload_type == 'trinity':
+                                    generated_result = payload_generator.generate_payload(
+                                        listener['id'],
+                                        obfuscate=options['obfuscate'],
+                                        disable_sandbox=options['disable_sandbox'],
+                                        platform=platform,
+                                        use_redirector=options['redirector'],
+                                        use_failover=options['use_failover'],
+                                        include_bof=options['include_bof'],
+                                        include_assembly=options['include_assembly'],
+                                        include_pe=options['include_pe'],
+                                        include_execute_pe=options['include_execute_pe'],
+                                        include_shellcode=options['include_shellcode'],
+                                        include_reverse_proxy=options['include_reverse_proxy'],
+                                        include_sandbox=options['include_sandbox'],
+                                        kill_date=profile_config.get('kill_date', '2025-12-31T23:59:59Z'),
+                                        working_hours=profile_config.get('working_hours', {
+                                            "start_hour": 9,
+                                            "end_hour": 17,
+                                            "timezone": "UTC",
+                                            "days": [1, 2, 3, 4, 5]  # Monday to Friday
+                                        }),
+                                        redirector_host=redirector_config.get('redirector_host', '0.0.0.0'),
+                                        redirector_port=redirector_config.get('redirector_port', 80),
+                                        failover_urls=profile_config.get('failover_urls', []) if options['use_failover'] else [],
+                                        profile_headers=profile_config.get('headers', {'User-Agent': 'Trinity C2 Agent'})
+                                    )
+                                payload_code = generated_result
+                                with open(temp_file_path, 'w') as temp_file:
+                                    temp_file.write(payload_code)
+                                attempts += 1
+                        except subprocess.TimeoutExpired:
+                            # Regenerate payload using the appropriate generator
+                            # Get profile config for the listener
+                            profile = self.db.get_profile_by_name(listener['profile_name'])
+                            if not profile:
+                                profile = self.db.get_profile_by_name('default')
+                            profile_config = profile.get('config', {}) if profile else {}
+
+                            # Handle redirector configuration
+                            redirector_config = profile_config.get('redirector', {})
+
+                            if payload_type == 'morpheus':
                                 generated_result = payload_generator.generate_payload(
                                     listener['id'],
-                                    payload_type,
+                                    obfuscate=options['obfuscate'],
+                                    disable_sandbox=options['disable_sandbox'],
+                                    use_redirector=options['redirector'],
+                                    use_failover=options['use_failover'],
+                                    kill_date=profile_config.get('kill_date', '2025-12-31T23:59:59Z'),
+                                    working_hours=profile_config.get('working_hours', {
+                                        "start_hour": 9,
+                                        "end_hour": 17,
+                                        "timezone": "UTC",
+                                        "days": [1, 2, 3, 4, 5]  # Monday to Friday
+                                    }),
+                                    redirector_host=redirector_config.get('redirector_host', '0.0.0.0'),
+                                    redirector_port=redirector_config.get('redirector_port', 80),
+                                    failover_urls=profile_config.get('failover_urls', []) if options['use_failover'] else []
+                                )
+                            elif payload_type == 'trinity':
+                                generated_result = payload_generator.generate_payload(
+                                    listener['id'],
                                     obfuscate=options['obfuscate'],
                                     disable_sandbox=options['disable_sandbox'],
                                     platform=platform,
@@ -3029,29 +3160,19 @@ class RemoteCLIServer:
                                     include_execute_pe=options['include_execute_pe'],
                                     include_shellcode=options['include_shellcode'],
                                     include_reverse_proxy=options['include_reverse_proxy'],
-                                    include_sandbox=options['include_sandbox']
+                                    include_sandbox=options['include_sandbox'],
+                                    kill_date=profile_config.get('kill_date', '2025-12-31T23:59:59Z'),
+                                    working_hours=profile_config.get('working_hours', {
+                                        "start_hour": 9,
+                                        "end_hour": 17,
+                                        "timezone": "UTC",
+                                        "days": [1, 2, 3, 4, 5]  # Monday to Friday
+                                    }),
+                                    redirector_host=redirector_config.get('redirector_host', '0.0.0.0'),
+                                    redirector_port=redirector_config.get('redirector_port', 80),
+                                    failover_urls=profile_config.get('failover_urls', []) if options['use_failover'] else [],
+                                    profile_headers=profile_config.get('headers', {'User-Agent': 'Trinity C2 Agent'})
                                 )
-                                payload_code = generated_result
-                                with open(temp_file_path, 'w') as temp_file:
-                                    temp_file.write(payload_code)
-                                attempts += 1
-                        except subprocess.TimeoutExpired:
-                            generated_result = payload_generator.generate_payload(
-                                listener['id'],
-                                payload_type,
-                                obfuscate=options['obfuscate'],
-                                disable_sandbox=options['disable_sandbox'],
-                                platform=platform,
-                                use_redirector=options['redirector'],
-                                use_failover=options['use_failover'],
-                                include_bof=options['include_bof'],
-                                include_assembly=options['include_assembly'],
-                                include_pe=options['include_pe'],
-                                include_execute_pe=options['include_execute_pe'],
-                                include_shellcode=options['include_shellcode'],
-                                include_reverse_proxy=options['include_reverse_proxy'],
-                                include_sandbox=options['include_sandbox']
-                            )
                             payload_code = generated_result
                             with open(temp_file_path, 'w') as temp_file:
                                 temp_file.write(payload_code)
