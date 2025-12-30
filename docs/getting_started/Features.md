@@ -41,9 +41,10 @@
 - Load and Execute BOFs in-memory
 - Load and Execute .NET assemblies in-memory
 - Execute arbitrary Windows executables (PE) in a sacrificial process with Process Hollowing
+- Execute arbitrary Windows executables (PE) in agent memory apace
 - Shellcode injection into sacrificial processes with NtQueueApcThread, NtCreateThreadEx, RtlCreateUserThread, CreateRemoteThread
 - C2 redirectors support
 - Multi-server failover deployment support
-- Seamless Payload staging 
+- Seamless Payload staging with custom endpoints
 
 
