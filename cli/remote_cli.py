@@ -219,7 +219,7 @@ class NeoC2RemoteCLI:
             'help', 'agent', 'listener', 'modules', 'run', 'pwsh', 'persist', 'pinject', 'peinject', 'execute-pe', 'encryption',
             'profile', 'protocol', 'stager', 'download', 'upload', 'interactive',
             'exit', 'quit', 'clear', 'status', 'task', 'result', 'save', 'addcmd',
-            'harvest', 'execute-bof', 'execute-assembly', 'cmd', 'socks'
+            'harvest', 'execute-bof', 'execute-assembly', 'cmd', 'socks', 'payload_upload', 'reporting', 'reverse_proxy', 'failover', 'event'
         ]
 
         # Add extension commands if available
@@ -1498,29 +1498,50 @@ DB Inactive:       {stats.get('db_inactive_agents', 0)}
                     self._handle_agent_unmonitor(command)
                     continue
                 elif command.lower().startswith('socks'):
-                    # Parse the command - format is always: socks <agent_id> [port]
+                    # Parse the command - format: socks [agent_id] [port] or socks [port] when in interactive mode
                     parts = command.strip().split()
 
                     if len(parts) < 2:
-                        print(f"{red('[-]')} Usage: socks <agent_id> [port]")
+                        print(f"{red('[-]')} Usage: socks <agent_id> [port] or socks [port] (in interactive mode)")
                         continue
 
-                    # First arg should be agent ID
-                    agent_id = parts[1]
+                    agent_id = None
                     local_socks_port = 1080  # Default local port
 
-                    # Check if there's a second arg for port
-                    if len(parts) > 2:
+                    # If in interactive mode and only one argument is provided, treat it as port
+                    if self.is_interactive_mode and self.current_agent and len(parts) == 2:
                         try:
-                            port_arg = int(parts[2])
+                            # Try to parse the argument as a port number
+                            port_arg = int(parts[1])
                             if 1 <= port_arg <= 65535:
                                 local_socks_port = port_arg
+                                agent_id = self.current_agent  # Use current agent
                             else:
                                 print(f"{red('[-]')} Port must be between 1 and 65535")
                                 continue
                         except ValueError:
-                            print(f"{red('[-]')} Invalid port number: {parts[2]}")
-                            continue
+                            # Not a valid port, treat as agent ID
+                            agent_id = parts[1]
+                    else:
+                        # Parse as: socks <agent_id> [port]
+                        agent_id = parts[1]
+
+                        # Check if there's a second arg for port
+                        if len(parts) > 2:
+                            try:
+                                port_arg = int(parts[2])
+                                if 1 <= port_arg <= 65535:
+                                    local_socks_port = port_arg
+                                else:
+                                    print(f"{red('[-]')} Port must be between 1 and 65535")
+                                    continue
+                            except ValueError:
+                                print(f"{red('[-]')} Invalid port number: {parts[2]}")
+                                continue
+
+                    if not agent_id:
+                        print(f"{red('[-]')} No agent specified. Use 'agent interact <agent_id>' first or specify agent ID explicitly.")
+                        continue
 
                     # Send command to start CLI SOCKS proxy on server
                     cli_socks_cmd = f"cli_socks_proxy start {agent_id} 1080"

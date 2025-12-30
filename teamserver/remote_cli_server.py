@@ -5472,10 +5472,10 @@ UPLOADED PAYLOAD STATUS:
     def _is_framework_command(self, base_cmd):
         framework_commands = {
             'agent', 'listener', 'modules', 'run', 'pwsh', 'persist', 'pinject', 'peinject', 'execute-pe', 'encryption',
-            'download', 'upload', 'stager', 'profile', 'payload', 'execute-bof', 'execute-assembly',
+            'download', 'upload', 'stager', 'profile', 'payload', 'payload_upload', 'execute-bof', 'execute-assembly',
             'interact', 'event', 'task', 'result', 'addcmd', 'back', 'exit',
             'quit', 'clear', 'help', 'status', 'save', 'protocol', 'interactive',
-            'taskchain', 'beacon', 'cmd', 'failover', 'info'
+            'taskchain', 'beacon', 'cmd', 'failover', 'info', 'reporting', 'reverse_proxy', 'socks', 'cli_socks_proxy'
         }
         return base_cmd.lower() in framework_commands
 
@@ -5533,8 +5533,13 @@ UPLOADED PAYLOAD STATUS:
                 'help': 'agents.list',  # Help command should be available to all roles with basic access
                 'cmd': 'agents.interact',  # cmd command requires agents.interact permission
                 'failover': 'agents.list',  # failover command requires agents.list permission
+                'payload_upload': 'agents.list',  # payload_upload command requires agents.list permission
+                'reporting': 'agents.list',  # reporting command requires agents.list permission
+                'reverse_proxy': 'agents.interact',  # reverse_proxy command requires agents.interact permission
+                'socks': 'agents.interact',  # socks command requires agents.interact permission
+                'cli_socks_proxy': 'agents.interact',  # cli_socks_proxy command requires agents.interact permission
             }
-            
+
             if base_cmd == 'info':
                 # The 'info' command should require agents.list permission (same as agent command)
                 required_permission = 'agents.list'
@@ -5997,6 +6002,357 @@ DB Inactive:       {stats['db_inactive_agents']}
                         result, status = self.handle_payload_command(command_parts, remote_session)
                     elif base_cmd == 'payload_upload':
                         result, status = self.handle_payload_upload_command(command_parts, remote_session)
+                    elif base_cmd == 'reporting':
+                        result, status = self.handle_reporting_command(command_parts, remote_session)
+                    elif base_cmd == 'event':
+                        if not self.audit_logger:
+                            result, status = "Audit logger not available", 'error'
+                        else:
+                            action = 'list'  # default action
+                            limit = 50  # default limit
+                            offset = 0  # default offset
+                            search_query = ''
+
+                            if len(command_parts) > 1:
+                                action = command_parts[1].lower()
+
+                            for i, part in enumerate(command_parts[2:], 2):
+                                if '=' in part:
+                                    key, value = part.split('=', 1)
+                                    if key == 'limit':
+                                        try:
+                                            limit = int(value)
+                                        except ValueError:
+                                            limit = 50
+                                    elif key == 'offset':
+                                        try:
+                                            offset = int(value)
+                                        except ValueError:
+                                            offset = 0
+                                elif action == 'search' and i == 2:  # First non-flag argument after search is the query
+                                    search_query = part
+
+                            try:
+                                if action == 'list':
+                                    logs = self.audit_logger.get_logs(limit=limit, offset=offset)
+                                    if logs:
+                                        # Return raw event data as JSON instead of formatted table
+                                        event_data = []
+                                        for log in logs:
+                                            timestamp = log['timestamp'][:19] if log['timestamp'] else 'N/A'
+                                            username = log['username']
+                                            action = log['action']
+                                            resource = f"{log['resource_type']}/{log['resource_id']}"
+                                            details = log['details'][:39] if log['details'] else 'N/A'
+
+                                            # Truncate fields if too long
+                                            if len(username) > 19:
+                                                username = username[:17] + ".."
+                                            if len(action) > 19:
+                                                action = action[:17] + ".."
+                                            if len(resource) > 29:
+                                                resource = resource[:27] + ".."
+
+                                            event_data.append({
+                                                'timestamp': timestamp,
+                                                'username': username,
+                                                'action': action,
+                                                'resource': resource,
+                                                'details': details
+                                            })
+
+                                        result, status = {"events": event_data, "limit": limit}, 'success'
+                                    else:
+                                        result, status = {"events": [], "limit": limit}, 'info'
+                                elif action == 'search':
+                                    if not search_query:
+                                        result, status = {"error": help.get_event_search_usage()}, 'error'
+                                    else:
+                                        logs = self.audit_logger.search_logs(query=search_query, limit=limit, offset=offset)
+                                        if logs:
+                                            # Return raw search results as JSON instead of formatted output
+                                            search_results = []
+                                            for log in logs:
+                                                search_results.append({
+                                                    'timestamp': log['timestamp'],
+                                                    'username': log['username'],
+                                                    'action': log['action'],
+                                                    'resource_type': log['resource_type'],
+                                                    'resource_id': log['resource_id'],
+                                                    'details': log['details']
+                                                })
+                                            result, status = {"search_results": search_results, "query": search_query, "limit": limit}, 'success'
+                                        else:
+                                            result, status = {"search_results": [], "query": search_query, "limit": limit}, 'info'
+                                elif action == 'stats':
+                                    stats = self.audit_logger.get_log_stats()
+                                    # Return raw stats as JSON instead of formatted output
+                                    result, status = {
+                                        "stats": {
+                                            "total_logs": stats.get('total_logs', 0),
+                                            "recent_24h": stats.get('recent_24h', 0),
+                                            "by_action": dict(list(stats.get('by_action', {}).items())[:10])  # Show top 10
+                                        }
+                                    }, 'success'
+                                elif action in ['monitor', 'stop_monitor']:
+                                    if action == 'monitor':
+                                        result, status = "Real-time event monitoring: Use 'event' message type for live events. For command line, you can use 'event list' to get current events.", 'info'
+                                    else:
+                                        result, status = "Real-time event monitoring disabled.", 'info'
+                                else:
+                                    result, status = f"Unknown event action: {action}. Use: list, search, stats, monitor, stop_monitor", 'error'
+                            except Exception as e:
+                                result, status = f"Error retrieving events: {str(e)}", 'error'
+                    elif base_cmd == 'reverse_proxy':
+                        if len(command_parts) < 2:
+                            result = help.get_reverse_proxy_usage()
+                            status = 'error'
+                        else:
+                            action = command_parts[1].lower()
+                            agent_id = None
+                            port = 5555  # Default port
+
+                            # Look for agent_id in command parts
+                            for i, part in enumerate(command_parts[2:], 2):
+                                if not part.startswith('-') and '=' not in part:
+                                    if self.agent_manager.get_agent(part):  # Check if this looks like an agent ID
+                                        agent_id = part
+                                        # Check if there's a port specified after the agent ID
+                                        if i + 1 < len(command_parts):
+                                            try:
+                                                port = int(command_parts[i + 1])
+                                                if not (1 <= port <= 65535):
+                                                    result = f"Port must be between 1 and 65535, got: {port}"
+                                                    status = 'error'
+                                                    return {'output': result, 'status': status}
+                                            except ValueError:
+                                                pass  # Not a valid port number
+                                        break
+                                elif '=' in part:
+                                    key, value = part.split('=', 1)
+                                    if key == 'agent_id':
+                                        agent_id = value
+                                    elif key == 'port':
+                                        try:
+                                            port = int(value)
+                                            if not (1 <= port <= 65535):
+                                                result = f"Port must be between 1 and 65535, got: {port}"
+                                                status = 'error'
+                                                return {'output': result, 'status': status}
+                                        except ValueError:
+                                            result = f"Invalid port number: {value}"
+                                            status = 'error'
+                                            return {'output': result, 'status': status}
+
+                            # Automatically infer agent_id if not provided and in interactive mode
+                            if not agent_id and remote_session.interactive_mode and remote_session.current_agent:
+                                agent_id = remote_session.current_agent
+
+                            if not agent_id:
+                                result = "No agent specified and no current agent in interactive mode"
+                                status = 'error'
+                                return {'output': result, 'status': status}
+
+                            if action == 'start':
+                                if self.agent_manager.start_reverse_proxy(agent_id, port):
+                                    result = f"[+] Reverse proxy started for agent {agent_id} on port {port}"
+                                    status = 'success'
+                                else:
+                                    result = f"[-] Failed to start reverse proxy for agent {agent_id}"
+                                    status = 'error'
+                            elif action == 'stop':
+                                if self.agent_manager.stop_reverse_proxy(agent_id):
+                                    result = f"[+] Reverse proxy stopped for agent {agent_id}"
+                                    status = 'success'
+                                else:
+                                    result = f"[-] Failed to stop reverse proxy for agent {agent_id}"
+                                    status = 'error'
+                            else:
+                                result = f"Unknown reverse_proxy action: {action}. Use: start, stop"
+                                status = 'error'
+                    elif base_cmd == 'socks':
+                        if len(command_parts) < 2:
+                            result = help.get_cli_socks_proxy_usage()
+                            status = 'error'
+                        else:
+                            action = command_parts[1].lower()
+                            agent_id = None
+                            port = 1080  # Default CLI SOCKS port
+
+                            # Look for agent_id in command parts
+                            for i, part in enumerate(command_parts[2:], 2):
+                                if not part.startswith('-') and '=' not in part:
+                                    if self.agent_manager.get_agent(part):  # Check if this looks like an agent ID
+                                        agent_id = part
+                                        # Check if there's a port specified after the agent ID
+                                        if i + 1 < len(command_parts):
+                                            try:
+                                                port = int(command_parts[i + 1])
+                                                if not (1 <= port <= 65535):
+                                                    result = f"Port must be between 1 and 65535, got: {port}"
+                                                    status = 'error'
+                                                    return {'output': result, 'status': status}
+                                            except ValueError:
+                                                pass  # Not a valid port number
+                                        break
+                                elif '=' in part:
+                                    key, value = part.split('=', 1)
+                                    if key == 'agent_id':
+                                        agent_id = value
+                                    elif key == 'port':
+                                        try:
+                                            port = int(value)
+                                            if not (1 <= port <= 65535):
+                                                result = f"Port must be between 1 and 65535, got: {port}"
+                                                status = 'error'
+                                                return {'output': result, 'status': status}
+                                        except ValueError:
+                                            result = f"Invalid port number: {value}"
+                                            status = 'error'
+                                            return {'output': result, 'status': status}
+
+                            # Automatically infer agent_id if not provided and in interactive mode
+                            if not agent_id and remote_session.interactive_mode and remote_session.current_agent:
+                                agent_id = remote_session.current_agent
+
+                            if not agent_id:
+                                result = "No agent specified and no current agent in interactive mode"
+                                status = 'error'
+                                return {'output': result, 'status': status}
+
+                            if action == 'start':
+                                if self.agent_manager.start_cli_socks_proxy(agent_id, port):
+                                    result = f"[+] CLI SOCKS proxy started for agent {agent_id} on port {port}"
+                                    status = 'success'
+                                else:
+                                    result = f"[-] Failed to start CLI SOCKS proxy for agent {agent_id}"
+                                    status = 'error'
+                            elif action == 'stop':
+                                if self.agent_manager.stop_cli_socks_proxy(agent_id):
+                                    result = f"[+] CLI SOCKS proxy stopped for agent {agent_id}"
+                                    status = 'success'
+                                else:
+                                    result = f"[-] Failed to stop CLI SOCKS proxy for agent {agent_id}"
+                                    status = 'error'
+                            else:
+                                result = f"Unknown socks action: {action}. Use: start, stop"
+                                status = 'error'
+                    elif base_cmd == 'failover':
+                        if len(command_parts) < 2:
+                            result = help.get_failover_help()
+                            status = 'info'
+                            return {'output': result, 'status': status}
+
+                        action = command_parts[1].lower()
+
+                        if action == 'import-keys':
+                            if len(command_parts) < 3:
+                                result = help.get_failover_import_keys_usage()
+                                status = 'error'
+                            else:
+                                file_path = command_parts[2]
+                                try:
+                                    import_result = self.agent_manager.import_agent_keys(file_path)
+                                    if import_result['success']:
+                                        result = import_result['message']
+                                        status = 'success'
+                                    else:
+                                        result = f"Failed to import agent keys: {import_result['error']}"
+                                        status = 'error'
+                                except Exception as e:
+                                    result = f"Error importing agent keys: {str(e)}"
+                                    status = 'error'
+
+                        elif action == 'export-keys':
+                            if len(command_parts) < 3:
+                                result = help.get_failover_export_keys_usage()
+                                status = 'error'
+                            else:
+                                file_path = command_parts[2]
+                                agent_id = command_parts[3] if len(command_parts) > 3 else None
+
+                                try:
+                                    export_result = self.agent_manager.export_agent_keys(file_path, agent_id)
+                                    if export_result['success']:
+                                        result = export_result['message']
+                                        status = 'success'
+                                    else:
+                                        result = f"Failed to export agent keys: {export_result['error']}"
+                                        status = 'error'
+                                except Exception as e:
+                                    result = f"Error exporting agent keys: {str(e)}"
+                                    status = 'error'
+
+                        else:
+                            result = help.get_failover_unknown_action_usage()
+                            status = 'error'
+                    elif base_cmd == 'cli_socks_proxy':
+                        if len(command_parts) < 2:
+                            result = help.get_cli_socks_proxy_usage()
+                            status = 'error'
+                        else:
+                            action = command_parts[1].lower()
+                            agent_id = None
+                            port = 1080  # Default CLI SOCKS port
+
+                            # Look for agent_id in command parts
+                            for i, part in enumerate(command_parts[2:], 2):
+                                if not part.startswith('-') and '=' not in part:
+                                    if self.agent_manager.get_agent(part):  # Check if this looks like an agent ID
+                                        agent_id = part
+                                        # Check if there's a port specified after the agent ID
+                                        if i + 1 < len(command_parts):
+                                            try:
+                                                port = int(command_parts[i + 1])
+                                                if not (1 <= port <= 65535):
+                                                    result = f"Port must be between 1 and 65535, got: {port}"
+                                                    status = 'error'
+                                                    return {'output': result, 'status': status}
+                                            except ValueError:
+                                                pass  # Not a valid port number
+                                        break
+                                elif '=' in part:
+                                    key, value = part.split('=', 1)
+                                    if key == 'agent_id':
+                                        agent_id = value
+                                    elif key == 'port':
+                                        try:
+                                            port = int(value)
+                                            if not (1 <= port <= 65535):
+                                                result = f"Port must be between 1 and 65535, got: {port}"
+                                                status = 'error'
+                                                return {'output': result, 'status': status}
+                                        except ValueError:
+                                            result = f"Invalid port number: {value}"
+                                            status = 'error'
+                                            return {'output': result, 'status': status}
+
+                            # Automatically infer agent_id if not provided and in interactive mode
+                            if not agent_id and remote_session.interactive_mode and remote_session.current_agent:
+                                agent_id = remote_session.current_agent
+
+                            if not agent_id:
+                                result = "No agent specified and no current agent in interactive mode"
+                                status = 'error'
+                                return {'output': result, 'status': status}
+
+                            if action == 'start':
+                                if self.agent_manager.start_cli_socks_proxy(agent_id, port):
+                                    result = f"[+] CLI SOCKS proxy started for agent {agent_id} on port {port}"
+                                    status = 'success'
+                                else:
+                                    result = f"[-] Failed to start CLI SOCKS proxy for agent {agent_id}"
+                                    status = 'error'
+                            elif action == 'stop':
+                                if self.agent_manager.stop_cli_socks_proxy(agent_id):
+                                    result = f"[+] CLI SOCKS proxy stopped for agent {agent_id}"
+                                    status = 'success'
+                                else:
+                                    result = f"[-] Failed to stop CLI SOCKS proxy for agent {agent_id}"
+                                    status = 'error'
+                            else:
+                                result = f"Unknown cli_socks_proxy action: {action}. Use: start, stop"
+                                status = 'error'
                     elif base_cmd == 'execute-bof':
                         result, status = self.handle_inline_execute_command(command_parts, remote_session)
                     elif base_cmd == 'execute-assembly':
