@@ -393,15 +393,25 @@ def handle_agent_register_common():
                 jitter = profile_config.get('jitter', agent.jitter)
                 
                 agent_manager.db.execute('''
-                    UPDATE agents 
-                    SET status = 'active', hostname = ?, os_info = ?, user = ?, 
-                        ip_address = ? 
+                    UPDATE agents
+                    SET status = 'active', hostname = ?, os_info = ?, user = ?,
+                        ip_address = ?
                     WHERE id = ?
                 ''', (hostname, os_info, user, ip_address, agent_id))
-                
+
+                # Update the in-memory agent object as well
+                agent_in_memory = agent_manager.get_agent(agent_id)
+                if agent_in_memory:
+                    with agent_in_memory.lock:
+                        agent_in_memory.hostname = hostname
+                        agent_in_memory.os_info = os_info
+                        agent_in_memory.user = user
+                        agent_in_memory.ip_address = ip_address
+                        agent_in_memory.status = 'active'
+
                 agent_data = agent_manager.db.fetchone("SELECT secret_key FROM agents WHERE id = ?", (agent_id,))
                 secret_key = agent_data['secret_key'] if agent_data else None
-                
+
                 return jsonify({
                     'status': 'success',
                     'agent_id': agent_id,
@@ -423,13 +433,16 @@ def handle_agent_register_common():
                 agent_data = agent_manager.db.fetchone("SELECT secret_key FROM agents WHERE id = ?", (agent_id,))
                 secret_key = agent_data['secret_key'] if agent_data else None
                 
-                agent_manager.db.execute('''
-                    UPDATE agents 
-                    SET status = 'active', hostname = ?, os_info = ?, user = ?, 
-                        ip_address = ? 
-                    WHERE id = ?
-                ''', (hostname, os_info, user, ip_address, agent_id))
-                
+                # Update the in-memory agent object as well
+                agent_in_memory = agent_manager.get_agent(agent_id)
+                if agent_in_memory:
+                    with agent_in_memory.lock:
+                        agent_in_memory.hostname = hostname
+                        agent_in_memory.os_info = os_info
+                        agent_in_memory.user = user
+                        agent_in_memory.ip_address = ip_address
+                        agent_in_memory.status = 'active'
+
                 return jsonify({
                     'status': 'success',
                     'agent_id': registered_agent_id,
@@ -462,14 +475,24 @@ def handle_agent_register_common():
         
         logger.info(f"Agent registered: {registered_agent_id} with listener: {listener_id}")
         logger.debug(f"Using heartbeat: {heartbeat_interval}, jitter: {jitter}")
-        
+
         agent_manager.db.execute('''
-            UPDATE agents 
-            SET status = 'active', hostname = ?, os_info = ?, user = ?, 
-                ip_address = ? 
+            UPDATE agents
+            SET status = 'active', hostname = ?, os_info = ?, user = ?,
+                ip_address = ?
             WHERE id = ?
         ''', (hostname, os_info, user, ip_address, registered_agent_id))
-        
+
+        # Update the in-memory agent object as well
+        agent_in_memory = agent_manager.get_agent(registered_agent_id)
+        if agent_in_memory:
+            with agent_in_memory.lock:
+                agent_in_memory.hostname = hostname
+                agent_in_memory.os_info = os_info
+                agent_in_memory.user = user
+                agent_in_memory.ip_address = ip_address
+                agent_in_memory.status = 'active'
+
         return jsonify({
             'status': 'success',
             'agent_id': registered_agent_id,

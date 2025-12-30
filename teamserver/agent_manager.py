@@ -458,11 +458,17 @@ class AgentManager:
             # Update last_seen for existing agent
             with existing_agent.lock:
                 existing_agent.last_seen = datetime.now()
-                
+                existing_agent.status = 'active'  # Update status to active
+                existing_agent.hostname = hostname  # Update hostname
+                existing_agent.os_info = os_info   # Update os_info
+                existing_agent.user = user         # Update user
+                existing_agent.ip_address = ip_address  # Update IP address
+                existing_agent.listener_id = listener_id  # Update listener_id
+
                 # Update in database
-                self.db.execute('UPDATE agents SET ip_address = ?, hostname = ?, os_info = ?, user = ?, listener_id = ?, last_seen = ? WHERE id = ?',
-                               (ip_address, hostname, os_info, user, listener_id, existing_agent.last_seen, agent_id))
-                
+                self.db.execute('UPDATE agents SET ip_address = ?, hostname = ?, os_info = ?, user = ?, listener_id = ?, last_seen = ?, status = ? WHERE id = ?',
+                               (ip_address, hostname, os_info, user, listener_id, existing_agent.last_seen, 'active', agent_id))
+
                 # Log agent reconnection event
                 if self.audit_logger:
                     self.audit_logger.log_event(
@@ -494,6 +500,9 @@ class AgentManager:
         
         agent = AgentSession(agent_id, ip_address, hostname, os_info, user, listener_id)
 
+        # Set status to active for new agents
+        agent.status = 'active'
+
         with agent.lock:
             self.agents[agent_id] = agent
 
@@ -506,14 +515,14 @@ class AgentManager:
                     self.db.execute('''
                         UPDATE agents
                         SET ip_address = ?, hostname = ?, os_info = ?, user = ?, listener_id = ?,
-                            last_seen = ?, secret_key = ?
+                            last_seen = ?, secret_key = ?, status = ?
                         WHERE id = ?
-                    ''', (ip_address, hostname, os_info, user, listener_id, agent.last_seen, secret_key, agent_id))
+                    ''', (ip_address, hostname, os_info, user, listener_id, agent.last_seen, secret_key, 'active', agent_id))
                 else:
                     self.db.execute('''
-                        INSERT INTO agents (id, ip_address, hostname, os_info, user, listener_id, first_seen, last_seen, interactive_mode, secret_key)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (agent_id, ip_address, hostname, os_info, user, listener_id, agent.first_seen, agent.last_seen, 0, secret_key))
+                        INSERT INTO agents (id, ip_address, hostname, os_info, user, listener_id, first_seen, last_seen, interactive_mode, secret_key, status)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (agent_id, ip_address, hostname, os_info, user, listener_id, agent.first_seen, agent.last_seen, 0, secret_key, 'active'))
 
                 self.logger.info(f"Agent registered: {agent_id} from {ip_address}")
 
@@ -551,12 +560,13 @@ class AgentManager:
         if agent:
             with agent.lock:
                 agent.last_seen = datetime.now()
+                agent.status = 'active'  # Update status to active when agent checks in
                 if update_ip and agent.ip_address != update_ip:
                     agent.ip_address = update_ip
-                    self.db.execute('UPDATE agents SET last_seen = ?, ip_address = ? WHERE id = ?', (agent.last_seen, update_ip, agent_id))
+                    self.db.execute('UPDATE agents SET last_seen = ?, ip_address = ?, status = ? WHERE id = ?', (agent.last_seen, update_ip, 'active', agent_id))
                 else:
-                    self.db.execute('UPDATE agents SET last_seen = ? WHERE id = ?', (agent.last_seen, agent_id))
-                    
+                    self.db.execute('UPDATE agents SET last_seen = ?, status = ? WHERE id = ?', (agent.last_seen, 'active', agent_id))
+
                 if agent_id not in self.agent_secret_keys:
                     agent_data = self.db.execute(
                         "SELECT secret_key FROM agents WHERE id = ?", (agent_id,)
@@ -590,10 +600,10 @@ class AgentManager:
         
                 agent.first_seen = datetime.fromisoformat(agent_data['first_seen']) if isinstance(agent_data['first_seen'], str) else agent_data['first_seen']
                 agent.last_seen = datetime.now()
-                agent.status = agent_data['status']
+                agent.status = 'active'  # Update status to active when agent checks in
                 agent.checkin_interval = agent_data['checkin_interval']
                 agent.jitter = agent_data['jitter']
-            
+
                 # FIX: Use dictionary access instead of .get() for sqlite3.Row
                 agent.interactive_mode = bool(agent_data['interactive_mode']) if 'interactive_mode' in agent_data.keys() else False
         
@@ -621,9 +631,9 @@ class AgentManager:
                     self.agent_secret_keys[agent_id] = Fernet(secret_key.encode())
         
                 if update_ip:
-                    self.db.execute('UPDATE agents SET last_seen = ?, ip_address = ? WHERE id = ?', (agent.last_seen, update_ip, agent_id))
+                    self.db.execute('UPDATE agents SET last_seen = ?, ip_address = ?, status = ? WHERE id = ?', (agent.last_seen, update_ip, 'active', agent_id))
                 else:
-                    self.db.execute('UPDATE agents SET last_seen = ? WHERE id = ?', (agent.last_seen, agent_id))
+                    self.db.execute('UPDATE agents SET last_seen = ?, status = ? WHERE id = ?', (agent.last_seen, 'active', agent_id))
         
                 self.logger.debug(f"Loaded agent {agent_id[:8]}... from database")
                 return agent
@@ -1059,10 +1069,10 @@ class AgentManager:
             agent.interactive_task = None
             agent.interactive_result = None
             agent.interactive_event.clear()
-        
+
             # PERSIST TO DATABASE
             self.db.execute(
-                'UPDATE agents SET interactive_mode = ? WHERE id = ?', 
+                'UPDATE agents SET interactive_mode = ? WHERE id = ?',
                 (1, agent_id)  # 1 for True, 0 for False
             )
 
@@ -1090,13 +1100,13 @@ class AgentManager:
             return False
 
         with agent.lock:
-            agent.interactive_mode = False
             agent.interactive_task = None
             agent.interactive_result = None
             agent.interactive_event.set()  # Unblock any waiting commands
-        
+            agent.interactive_mode = False  # Update in-memory object
+
             self.db.execute(
-                'UPDATE agents SET interactive_mode = ? WHERE id = ?', 
+                'UPDATE agents SET interactive_mode = ? WHERE id = ?',
                 (0, agent_id)  # 1 for True, 0 for False
             )
 
