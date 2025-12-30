@@ -1,4 +1,4 @@
-# Neo C2 Framework - Communication Protocol Documentation
+# Neo C2 Framework - Communication Protocol 
 
 
 ## Communication Architecture
@@ -8,9 +8,9 @@ The Neo C2 Framework uses a web-based architecture where the C2 server exposes H
 ### Supported Protocols
 
 1. **HTTP/HTTPS** - Primary communication protocol
-2. **DNS** - Covert channel using DNS queries
-3. **ICMP** - Covert channel using ICMP packets
-4. **UDP** - Covert channel using UDP packets
+2. **DNS** - Covert channel using DNS queries (__under development_)
+3. **ICMP** - Covert channel using ICMP packets (__under development_)
+4. **UDP** - Covert channel using UDP packets (__under development_)
 
 ## Authentication Mechanisms
 
