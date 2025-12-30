@@ -94,18 +94,13 @@ def execute(options, session):
                 "error": f"Error decoding PowerShell script: {str(e)}"
             }
     else:
-        # The CLI should have already handled file lookup and sent base64 content
-        # If we get here, it means the CLI didn't properly handle the file lookup
         return {
             "success": False,
             "error": f"Invalid input format. CLI should send base64 encoded PowerShell script content, but received: {script_path[:50]}..."
         }
 
     if script_args:
-        # If there are arguments, we need to modify the command to include them
-        # For PowerShell encoded commands with arguments, we need a different approach
         if _is_base64(script_path):
-            # If it's already base64 encoded content, we need to re-encode with arguments
             try:
                 decoded_script = base64.b64decode(script_path).decode('utf-8')
                 full_script = f"& {{ {decoded_script} }} {script_args}"
@@ -117,6 +112,22 @@ def execute(options, session):
                     "success": False,
                     "error": f"Error processing PowerShell script with arguments: {str(e)}"
                 }
+
+    if _is_base64(script_path):
+        # If it's already base64 encoded content, use it directly
+        encoded_script = script_path
+    else:
+        if "-EncodedCommand" in command:
+            parts = command.split("-EncodedCommand")
+            if len(parts) > 1:
+                encoded_script = parts[1].strip()
+            else:
+                encoded_script = base64.b64encode(command.encode('utf-8')).decode('utf-8')
+        else:
+            encoded_script = base64.b64encode(command.encode('utf-8')).decode('utf-8')
+
+    # Prefix the base64 encoded script with 'pwsh ' to indicate it's a PowerShell script
+    prefixed_command = f"pwsh {encoded_script}"
 
     if not hasattr(session, 'agent_manager') or session.agent_manager is None:
         return {
@@ -130,19 +141,19 @@ def execute(options, session):
         return {
             "success": True,
             "output": f"[x] PowerShell script execution prepared for interactive mode",
-            "command": command
+            "command": prefixed_command
         }
     else:
         try:
             agent_manager = session.agent_manager
-            task_result = agent_manager.add_task(agent_id, command)
+            task_result = agent_manager.add_task(agent_id, prefixed_command)
             if task_result.get('success'):
                 task_id = task_result['task_id']
                 return {
                     "success": True,
                     "output": f"[x] PowerShell script execution task {task_id} queued for agent {agent_id}",
                     "task_id": task_id,
-                    "command": command
+                    "command": prefixed_command
                 }
             else:
                 return {

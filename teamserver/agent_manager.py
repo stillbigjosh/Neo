@@ -641,61 +641,6 @@ class AgentManager:
             self.logger.error(f"Error loading agent {agent_id}: {str(e)}")
         return None
     
-    def _is_script_command(self, command):
-        powershell_patterns = [
-            r'\$[a-zA-Z_]\w*',  # PowerShell variables
-            r'Set-ItemProperty',  # Registry operations
-            r'New-Object\s+-ComObject',  # COM object creation
-            r'Invoke-RestMethod',  # PowerShell web requests
-            r'Invoke-Expression',  # PowerShell execution
-            r'Get-Service',  # Windows service operations
-            r'New-ScheduledTask',  # Scheduled task operations
-            r'Copy-Item',  # File operations
-            r'Test-Path',  # Path checking
-            r'Get-Random',  # Random functions
-            r'Write-Output',  # Output functions
-            r'Add-Type',  # Type definitions
-            r'Start-Process',  # Process operations
-        ]
-        
-        bash_patterns = [
-            r'\${?\w+\}?',  # Shell variables
-            r'crontab',  # Cron operations
-            r'chmod',  # File permissions
-            r'launchctl',  # macOS launch services
-            r'systemctl',  # Linux system control
-            r'ps aux',  # Process listing
-            r'grep',  # Text filtering
-            r'cat\s+<<',  # Here documents
-            r'^#!/',  # Shebang lines
-        ]
-        
-        python_patterns = [
-            r'^import\s+\w+',  # Import statements at start of line
-            r'^from\s+\w+\s+import',  # From import statements at start of line
-            r'def\s+\w+\s*\(',  # Function definitions
-            r'class\s+\w+\s*:',  # Class definitions
-            r'if\s+__name__\s*==\s*[\'\"]__main__[\'\"]',  # Main guard
-            r'print\s*\(',  # Print function calls
-            r'if\s+.*:',  # If statements
-            r'for\s+.*:',  # For loops
-            r'while\s+.*:',  # While loops
-            r'with\s+.*:',  # With statements
-            r'try\s*:',  # Try blocks
-            r'[\'\"]\s*%\s*',  # String formatting
-            r'f[\'\"].*{.*}.*[\'\"]',  # f-strings
-        ]
-        
-        command_lower = command.lower()
-        for pattern in powershell_patterns + bash_patterns + python_patterns:
-            if re.search(pattern, command, re.IGNORECASE):
-                return True
-        
-        if ('{' in command and '}' in command and 
-            ('#' in command or '//' in command or '#' in command.split('\n')[0] if command.split('\n') else False)):
-            return True
-            
-        return False
 
     def add_task(self, agent_id, command):
         agent = self.get_agent(agent_id)
@@ -703,25 +648,19 @@ class AgentManager:
             self.logger.warning(f"Agent {agent_id} not found")
             return {'success': False, 'error': f"Agent {agent_id} not found"}
 
-        processed_command = command
-        if self._is_script_command(command):
-            encoded_script = base64.b64encode(command.encode('utf-8')).decode('utf-8')
-            processed_command = f"pwsh {encoded_script}"
-            self.logger.info(f"Detected script command, encoded as pwsh: {command[:50]}...")
-
         try:
             cursor = self.db.execute('''
                 INSERT INTO agent_tasks (agent_id, command, status, created_at, task_type)
                 VALUES (?, ?, ?, ?, ?)
-            ''', (agent_id, processed_command, 'pending', datetime.now(), 'queued'))
+            ''', (agent_id, command, 'pending', datetime.now(), 'queued'))
 
             new_task_id = cursor.lastrowid
-            self.logger.info(f"Task {new_task_id} added for agent {agent_id}: {processed_command[:50]}...")
+            self.logger.info(f"Task {new_task_id} added for agent {agent_id}: {command[:50]}...")
 
             with agent.lock:
                 agent.tasks.append({
                     'id': new_task_id,
-                    'command': processed_command,
+                    'command': command,
                     'status': 'pending',
                     'created_at': datetime.now()
                 })
@@ -734,7 +673,7 @@ class AgentManager:
                     resource_id=new_task_id,
                     details=json.dumps({
                         "agent_id": agent_id,
-                        "command": processed_command,
+                        "command": command,
                         "task_type": "queued"
                     }),
                     ip_address=agent.ip_address if agent else "unknown"
