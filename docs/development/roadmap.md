@@ -16,15 +16,16 @@
 - [x] Failover handler for managing primary and secondary C2s
 - [x] Socks5 support for reverse proxying
 - [x] NtQueueApcThread,NtCreateThreadEx,RtlCreateUserThread Shellcode injection into sacrificial process
+- [x] Load PE Reflectively via goffloader library
 
 
 ## Actively Under development
 - [ ] EDR Evasion modules
-- [ ] Reflective PE Loader
 - [ ] 2.0 Stable release
 
 ## To be implemented
 - [ ] Built-in modules for network reconnaissance and internal enumeration
+- [ ] P2P Agent Commnications
 - [ ] Support for additional communication protocols (DNS, ICMP)
 - [ ] File browser
 - [ ] Large powershell scripts broken down in chunks in-memory to bypass characater limit
