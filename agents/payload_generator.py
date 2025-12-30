@@ -214,8 +214,6 @@ class PayloadGenerator:
         headers = profile_config.get('headers', {'User-Agent': 'Python C2 Agent'})
         heartbeat = profile_config.get('heartbeat_interval', 60)
         jitter = profile_config.get('jitter', 0.2)
-        p2p_enabled = False  # P2P functionality has been removed
-        p2p_port = 8888  # Default port value for template compatibility
 
         class_name = poly.generate_random_name('Agent')
 
@@ -299,7 +297,6 @@ class PayloadGenerator:
         v_max_fail_count = poly.generate_random_name('max_fail_count_')
         v_in_failover_attempt = poly.generate_random_name('in_failover_attempt_')
 
-        v_coffloader_b64 = poly.generate_random_name('coffloader_b64_')
 
         # Reverse proxy variables
         v_reverse_proxy_active = poly.generate_random_name('reverse_proxy_active_')
@@ -427,7 +424,6 @@ class PayloadGenerator:
             working_hours_end_hour=working_hours.get('end_hour', 17),
             working_hours_timezone=working_hours.get('timezone', 'UTC'),
             working_hours_days=working_hours.get('days', [1, 2, 3, 4, 5]),  # Pass as actual list for template formatting
-            v_coffloader_b64="",
             sandbox_check_enabled=not disable_sandbox,  # Set to False if sandbox is disabled
             dead_code_2=dead_code_2,
             dead_code_3=dead_code_3,
@@ -435,8 +431,6 @@ class PayloadGenerator:
             c2_url=c2_url,
             agent_id=agent_id,
             listener_id_for_registration=listener_id_for_registration,
-            p2p_enabled=p2p_enabled,
-            p2p_port=p2p_port,
             secret_key=secret_key,
             redirector_host=redirector_host,
             redirector_port=redirector_port,
