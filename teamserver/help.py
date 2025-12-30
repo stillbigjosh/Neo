@@ -43,7 +43,7 @@ OPERATIONS & TACTICS:
 
 CLIENT:
   download    - Download logs from C2 server
-  extenders   - List available extensions (BOFs & Assemblies)
+  extender    - List available extensions (BOFs & Assemblies)
   socks       - Start a local socks5 proxy chain
 
 ENCRYPTION & SECURITY:
