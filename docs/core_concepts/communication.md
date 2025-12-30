@@ -3,7 +3,7 @@
 
 ## Communication Architecture
 
-The Neo C2 Framework uses a web-based architecture where the C2 server exposes HTTP endpoints that agents communicate with. The communication system is designed to be stealthy and evasive, using disguised endpoint names and supporting multiple protocols for resilience.
+The Neo C2 Framework uses a web-based architecture where the C2 server exposes HTTP endpoints that agents communicate with. The communication system is designed to be stealthy and evasive, using disguised endpoint names and multiple protocols under active development for resilience.
 
 ### Supported Protocols
 
@@ -201,9 +201,9 @@ Profiles can define custom endpoints in the configuration:
 The ProtocolManager class handles multiple communication protocols:
 
 1. **HTTP Protocol**: Primary and Standard HTTP/HTTPS communication with user-agent rotation
-2. **DNS Protocol**: Covert channel using DNS queries with base64-encoded data __(under devlopment)_
-3. **ICMP Protocol**: Covert channel using ICMP packets with encrypted payloads __(under devlopment)_
-4. **UDP Protocol**: Covert channel using UDP packets with encrypted payloads __(under devlopment)_
+2. **DNS Protocol**: Covert channel using DNS queries with base64-encoded data _(under development)_
+3. **ICMP Protocol**: Covert channel using ICMP packets with encrypted payloads _(under development)_
+4. **UDP Protocol**: Covert channel using UDP packets with encrypted payloads _(under development)_
 
 
 ## Failover and Resilience
