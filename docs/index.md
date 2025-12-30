@@ -45,7 +45,12 @@ A modular server-client architecture post-exploitation framework built for colla
 
 ### Development & Customization
 
+*   [**Module Development**](development/creating_modules.md): Creating custom modules for the framework
 *   [**Roadmap**](development/roadmap.md): See what's coming next for the project
+
+
+
+
 
 ---
 
