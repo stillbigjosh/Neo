@@ -19,7 +19,9 @@ A modular server-client architecture post-exploitation framework built for colla
 ### Core Concepts
 
 *   [**Agents & Stagers**](core_concepts/agents_and_stagers_guide.md): Manage agents and stagers within your environment
-*   [**Profiles & Listeners**](usage_guide/profiles_and_listeners.md): Configure communication profiles and HTTPS listeners
+*   [**Profiles & Listeners**](core_concepts/profiles_and_listeners.md): Configure communication profiles and HTTPS listeners
+*   [**Communication**](core_concepts/communication.md): How the communication architecture works
+
 
 ### Usage Guide
 
@@ -38,10 +40,6 @@ A modular server-client architecture post-exploitation framework built for colla
 *   [**Multiplayer**](advanced_features/multiplayer.md): Collaboration and shared usage
 *   [**Task Orchestration**](advanced_features/taskorchestration.md): Automated task chaining
 *   [**Reporting**](advanced_features/reporting.md): Generating and viewing reports
-
-### System Architecture
-
-*   [**Communication**](development/communication.md): Communication protocol 
 
 ### Development & Customization
 
