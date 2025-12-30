@@ -1266,23 +1266,32 @@ DB Inactive:       {stats.get('db_inactive_agents', 0)}
                     print("Exclusive access - other operators locked out")
                     print(f"{'=' * 80}")
                 elif 'agent_info' in message:
-                    # Format agent info as before
+                    # Format agent info as a table
                     agent_info = message.get('agent_info', {})
-                    print(f"\nAgent Information:")
-                    print("=" * 80)
-                    print(f"ID: {agent_info.get('id', '')}")
-                    print(f"IP Address: {agent_info.get('ip_address', '')}")
-                    print(f"Hostname: {agent_info.get('hostname', '')}")
-                    print(f"OS: {agent_info.get('os_info', '')}")
-                    print(f"User: {agent_info.get('user', '')}")
-                    print(f"Listener ID: {agent_info.get('listener_id', '')}")
-                    print(f"First Seen: {agent_info.get('first_seen', '')}")
-                    print(f"Last Seen: {agent_info.get('last_seen', '')}")
-                    print(f"Status: {agent_info.get('status', '')}")
-                    print(f"Pending Tasks: {agent_info.get('pending_tasks', '')}")
+                    print("\nAgent Information:")
+                    print("-" * 188)
+                    print(f"{'ID':<38} {'IP Address':<15} {'Hostname':<20} {'OS':<15} {'User':<15} {'Listener ID':<38} {'Status':<12} {'Last Seen':<19}")
+                    print("-" * 188)
+
+                    agent_id = agent_info.get('id', '')
+                    ip_address = agent_info.get('ip_address', '')
+                    hostname = agent_info.get('hostname', '')
+                    os_info = agent_info.get('os_info', '')
+                    user = agent_info.get('user', '')
+                    listener_id = agent_info.get('listener_id', '')
+                    status = agent_info.get('status', '')
+                    last_seen = agent_info.get('last_seen', '')
+
+                    print(f"{agent_id:<38} {ip_address:<15} {hostname:<20} {os_info:<15} {user:<15} {listener_id:<38} {status:<12} {last_seen:<19}")
+
+                    # Print additional information in a separate section
+                    print("\nAdditional Information:")
+                    print("-" * 80)
+                    print(f"First Seen:      {agent_info.get('first_seen', '')}")
+                    print(f"Pending Tasks:   {agent_info.get('pending_tasks', '')}")
                     print(f"Interactive Mode: {agent_info.get('interactive_mode', '')}")
                     print(f"Interactive Lock: {agent_info.get('interactive_lock', '')}")
-                    print("=" * 80)
+                    print("-" * 80)
                 else:
                     # For other JSON responses, print the message part if available
                     if 'message' in message:
@@ -1442,6 +1451,45 @@ DB Inactive:       {stats.get('db_inactive_agents', 0)}
                     continue
                 elif command.lower() == 'help':
                     self._show_help()
+                    continue
+                elif command.lower() == 'info':
+                    # Handle 'info' command in interactive mode - show info for current agent
+                    if self.is_interactive_mode and self.current_agent:
+                        info_command = f"agent info {self.current_agent}"
+                        response = self.send_command(info_command)
+
+                        if response:
+                            if response.get('success') is False:
+                                self.print_result(f"Error: {response.get('error', 'Unknown error')}", 'error')
+                            else:
+                                result = response.get('result', 'No result')
+                                status = response.get('status', 'info')
+                                self.print_result(result, status)
+                        else:
+                            self.print_result("No response from server", 'error')
+                    else:
+                        # If not in interactive mode, show usage
+                        print(f"{yellow('[*]')} Usage: 'info' can only be used in interactive mode. Use 'agent info <agent_id>' to get info for a specific agent.")
+                    continue
+                elif command.lower().startswith('info '):
+                    # Handle 'info <agent_id>' command
+                    parts = command.split(' ', 1)
+                    if len(parts) == 2:
+                        agent_id = parts[1]
+                        info_command = f"agent info {agent_id}"
+                        response = self.send_command(info_command)
+
+                        if response:
+                            if response.get('success') is False:
+                                self.print_result(f"Error: {response.get('error', 'Unknown error')}", 'error')
+                            else:
+                                result = response.get('result', 'No result')
+                                status = response.get('status', 'info')
+                                self.print_result(result, status)
+                        else:
+                            self.print_result("No response from server", 'error')
+                    else:
+                        print(f"{yellow('[*]')} Usage: info <agent_id>")
                     continue
                 elif command.lower().startswith('agent monitor'):
                     self._handle_agent_monitor(command)
