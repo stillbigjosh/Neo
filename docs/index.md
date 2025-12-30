@@ -54,6 +54,4 @@ A modular server-client architecture post-exploitation framework built for colla
 
 ---
 
-[Features](getting_started/Features.md)
-
 If you have any issues, please reach out to @stillbigjosh
