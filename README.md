@@ -68,7 +68,9 @@ By downloading this software you are accepting the terms of use and the licensin
 ### Acknowledgments, Contributors & Involuntary Contributors
 - [@TrustedSec](https://github.com/trustedsec/COFFLoader) Awesome BOF collections
 - [@Praetorian](https://github.com/praetorian-inc) COFFloader implementation for Go-ecosystem
-- [@ropnop](https://github.com/ropnop) CLR library made executing .NET from Go 
+- [@ropnop](https://github.com/ropnop) CLR library made executing .NET from Go
+- [Sliver](https://github.com/BishopFox/sliver) This project was deeply inspired by Sliver
+- [Mythic](https://github.com/its-a-feature/Mythic) Trinity Agent Modular build was inspired by Mythic
 
 ### Support
 - **Bug Reports**: [Open an Issue](https://github.com/stillbigjosh/Neo/issues)
