@@ -213,19 +213,18 @@ class RemoteCLIServer:
                 return "Listener type and port are required.", 'error'
 
             try:
-                if listener_type.lower() != 'icmp':
-                    try:
-                        port = int(port)
-                        if not (1 <= port <= 65535):
-                            return "Port must be between 1 and 65535", 'error'
-                    except ValueError:
-                        return f"Invalid port number: {port}", 'error'
-                
+                try:
+                    port = int(port)
+                    if not (1 <= port <= 65535):
+                        return "Port must be between 1 and 65535", 'error'
+                except ValueError:
+                    return f"Invalid port number: {port}", 'error'
+
                 result = listener_manager.create_listener(
                     listener_type.lower(),
                     name=listener_name,
                     host=options.get('host', '0.0.0.0'),
-                    port=port if listener_type.lower() != 'icmp' else None,
+                    port=port,
                     profile_name=options.get('profile_name', 'default'),
                 )
                 

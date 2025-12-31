@@ -547,7 +547,7 @@ class HTTPListenerProcessManager:
                 name=name,
                 listener_type=listener_type,
                 host=kwargs.get('host', '0.0.0.0'),
-                port=kwargs.get('port'),  # Port can be None for ICMP
+                port=kwargs.get('port'),
                 profile_name=kwargs.get('profile_name', 'default'),
                 config=None  # Config is now handled by profiles
             )

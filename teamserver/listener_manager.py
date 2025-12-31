@@ -24,7 +24,7 @@ import threading
 import sqlite3
 from datetime import datetime
 from core.models import NeoC2DB
-from listeners.listener import TCPListener, DNSListener, PivotListener, UDPListener, ICMPListener, BaseListener
+from listeners.listener import TCPListener, BaseListener
 from listeners.http_listener_process import HTTPListenerProcessManager
 
 class ListenerManager:
@@ -50,7 +50,7 @@ class ListenerManager:
                 name=name,
                 listener_type=listener_type,
                 host=kwargs.get('host', '0.0.0.0'),
-                port=kwargs.get('port'), # Port can be None for ICMP
+                port=kwargs.get('port'),
                 profile_name=kwargs.get('profile_name', 'default'),
                 config=None
             )
@@ -85,8 +85,7 @@ class ListenerManager:
                 return {"success": True, "message": "Listener is already running."}
 
             listener_class_map = {
-                'tcp': TCPListener, 'smb': TCPListener,
-                'dns': DNSListener, 'udp': UDPListener, 'icmp': ICMPListener
+                'tcp': TCPListener, 'smb': TCPListener
             }
 
             if listener_type not in listener_class_map:
@@ -265,48 +264,3 @@ class ListenerManager:
             return {"success": False, "error": str(e)}
 
 
-class UDPListener(BaseListener):
-    def __init__(self, config, db, id, name, host='0.0.0.0', port=53, profile_name='default', use_https=False):
-        super().__init__(config, db, id, name, 'udp', host, port, profile_name, use_https)
-    
-    def run(self):
-        import socket
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.bind((self.host, self.port))
-        
-        while self.running:
-            try:
-                data, addr = sock.recvfrom(4096)
-                self.logger.info(f"UDP data from {addr}: {data}")
-                sock.sendto(b"OK", addr)
-            except Exception as e:
-                if self.running:  # Only log if we're supposed to be running
-                    self.logger.error(f"UDP listener error: {str(e)}")
-        
-        sock.close()
-
-
-class ICMPListener(BaseListener):
-    def __init__(self, config, db, id, name, host='0.0.0.0', port=None, profile_name='default', use_https=False):
-        actual_port = 0 if port is None else port
-        super().__init__(config, db, id, name, 'icmp', host, actual_port, profile_name, use_https)
-    
-    def run(self):
-        import socket
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
-            sock.bind((self.host, 0))
-            
-            while self.running:
-                try:
-                    data, addr = sock.recvfrom(4096)
-                    self.logger.info(f"ICMP data from {addr}: {len(data)} bytes")
-                except Exception as e:
-                    if self.running:
-                        self.logger.error(f"ICMP listener error: {str(e)}")
-            
-            sock.close()
-        except PermissionError:
-            self.logger.error("ICMP listener requires root privileges")
-        except Exception as e:
-            self.logger.error(f"ICMP listener error: {str(e)}")

@@ -34,7 +34,6 @@ import socket
 from cryptography.fernet import Fernet
 from core.config import NeoC2Config
 from core.models import NeoC2DB
-from dnslib import DNSRecord, DNSHeader, RR, QTYPE, RCODE
 from teamserver.agent_manager import AgentManager
 
 class NeoC2Listener:
@@ -266,65 +265,6 @@ class HTTPListener(BaseListener):
         while self.running:
             time.sleep(1)
 
-class DNSListener(BaseListener):
-    def __init__(self, config, db, id, name, host='0.0.0.0', port=53, profile_name='default', use_https=False):
-        super().__init__(config, db, id, name, 'dns', host, port, profile_name, use_https)
-    
-    def run(self):
-        try:
-            self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.server_socket.bind((self.host, self.port))
-            
-            while self.running:
-                try:
-                    self.server_socket.settimeout(1.0)  # Add timeout to check running status
-                    data, addr = self.server_socket.recvfrom(512)
-                    request = DNSRecord.parse(data)
-                    
-                    reply = DNSRecord(DNSHeader(id=request.header.id, qr=1, aa=1, ra=1), q=request.q)
-                    
-                    qname = str(request.q.qname)
-                    
-                    if qname.startswith('register.'):
-                        agent_id = qname.split('.')[1]
-                        self.agents[agent_id] = {'ip_address': addr[0]}
-                        self.tasks[agent_id] = queue.Queue()
-                        reply.add_answer(RR(qname, QTYPE.TXT, rdata="registered"))
-                        self.server_socket.sendto(reply.pack(), addr)
-                    
-                    elif qname.startswith('task.'):
-                        agent_id = qname.split('.')[1]
-                        if agent_id in self.agents and not self.tasks[agent_id].empty():
-                            task = self.tasks[agent_id].get()
-                            reply.add_answer(RR(qname, QTYPE.TXT, rdata=base64.b64encode(task.encode()).decode()))
-                        else:
-                            reply.add_answer(RR(qname, QTYPE.TXT, rdata=""))
-                        self.server_socket.sendto(reply.pack(), addr)
-                    
-                    elif qname.startswith('result.'):
-                        agent_id = qname.split('.')[1]
-                        result_data = qname.split('.')[2]
-                        if agent_id in self.agents:
-                            try:
-                                result = base64.b64decode(result_data).decode()
-                                self.results[agent_id] = result
-                            except:
-                                pass
-                        reply.add_answer(RR(qname, QTYPE.TXT, rdata="received"))
-                        self.server_socket.sendto(reply.pack(), addr)
-                    
-                except socket.timeout:
-                    continue  # Check if still running
-                except Exception as e:
-                    if self.running:
-                        self.logger.error(f"DNS listener error: {str(e)}")
-            
-        except Exception as e:
-            self.logger.error(f"DNS listener startup error: {str(e)}")
-        finally:
-            if self.server_socket:
-                self.server_socket.close()
 
 class TCPListener(BaseListener):
     def __init__(self, config, db, id, name, host='0.0.0.0', port=4444, profile_name='default', use_https=False):
@@ -370,71 +310,6 @@ class TCPListener(BaseListener):
     def process_request(self, request):
         return {"status": "success", "message": "Received"}
 
-class UDPListener(BaseListener):
-    def __init__(self, config, db, id, name, host='0.0.0.0', port=53, profile_name='default', use_https=False):
-        super().__init__(config, db, id, name, 'udp', host, port, profile_name, use_https)
-    
-    def run(self):
-        try:
-            self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.server_socket.bind((self.host, self.port))
-            
-            while self.running:
-                try:
-                    self.server_socket.settimeout(1.0)  # Add timeout to check running status
-                    data, addr = self.server_socket.recvfrom(4096)
-                    self.logger.info(f"UDP data from {addr}: {len(data)} bytes")
-                    self.server_socket.sendto(b"OK", addr)
-                except socket.timeout:
-                    continue  # Check if still running
-                except Exception as e:
-                    if self.running:
-                        self.logger.error(f"UDP listener error: {str(e)}")
-        
-        except Exception as e:
-            self.logger.error(f"UDP listener startup error: {str(e)}")
-        finally:
-            if self.server_socket:
-                self.server_socket.close()
 
-class ICMPListener(BaseListener):
-    def __init__(self, config, db, id, name, host='0.0.0.0', profile_name='default', use_https=False):
-        super().__init__(config, db, id, name, 'icmp', host, 0, profile_name, use_https)
-    
-    def run(self):
-        try:
-            self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
-            self.server_socket.bind((self.host, 0))
-            
-            while self.running:
-                try:
-                    self.server_socket.settimeout(1.0)  # Add timeout to check running status
-                    data, addr = self.server_socket.recvfrom(4096)
-                    self.logger.info(f"ICMP data from {addr}: {len(data)} bytes")
-                except socket.timeout:
-                    continue  # Check if still running
-                except Exception as e:
-                    if self.running:
-                        self.logger.error(f"ICMP listener error: {str(e)}")
-        
-        except PermissionError:
-            self.logger.error("ICMP listener requires root privileges")
-        except Exception as e:
-            self.logger.error(f"ICMP listener startup error: {str(e)}")
-        finally:
-            if self.server_socket:
-                self.server_socket.close()
 
-class PivotListener(BaseListener):
-    def __init__(self, config, db, id, name, agent_id, local_port=None, remote_host=None, remote_port=None, profile_name='default', use_https=False):
-        super().__init__(config, db, id, name, 'pivot', '0.0.0.0', local_port, profile_name, use_https)
-        self.agent_id = agent_id
-        self.remote_host = remote_host
-        self.remote_port = remote_port
-    
-    def run(self):
-        self.logger.info(f"Pivot listener started for agent {self.agent_id}")
-        while self.running:
-            threading.Event().wait(1)  # Basic implementation for now
 
