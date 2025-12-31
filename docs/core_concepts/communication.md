@@ -194,17 +194,6 @@ Profiles can define custom endpoints in the configuration:
 - Communication includes proper error handling for failed decryption
 - Fallback to unencrypted communication if encryption fails (with logging)
 
-## Protocol Management
-
-### Protocol Manager Features
-
-The ProtocolManager class handles multiple communication protocols:
-
-1. **HTTP Protocol**: Primary and Standard HTTP/HTTPS communication with user-agent rotation
-2. **DNS Protocol**: Covert channel using DNS queries with base64-encoded data _(under development)_
-3. **ICMP Protocol**: Covert channel using ICMP packets with encrypted payloads _(under development)_
-4. **UDP Protocol**: Covert channel using UDP packets with encrypted payloads _(under development)_
-
 
 ## Failover and Resilience
 
@@ -316,7 +305,6 @@ The framework includes a catch-all handler that:
 
 ### Evasion Techniques
 
-- Multiple protocol support for resilience
 - Jitter and randomized timing
-- Disguised endpoint names
+- Custom endpoint names
 - Sandbox and debugger detection
