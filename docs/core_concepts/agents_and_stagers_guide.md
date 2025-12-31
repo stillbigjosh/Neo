@@ -54,6 +54,7 @@ The agent supports the following modular features that can be selectively includ
    - Process monitoring, network tools detection, debugger checks
    - Automatically runs during registration
 
+
 ### Feature Flags
 
 The Trinity Agent supports feature exclusion flags to reduce payload size, complexity and detection risk:
@@ -131,6 +132,10 @@ The modular approach conditionally includes external dependencies based on selec
 - **Assembly**: github.com/Ne0nd0g/go-clr
 - **All other functionality** uses Go's standard library and Windows syscalls
 
+### Import Obfuscation 
+
+This encrypts DLL imports and Windows API functions strings to evade static analysis and signature-based detection, which typically inspect the Import Address Table (IAT). During runtime, a XOR decryption routine is used to reconstruct the correct names. The secret key used for this operation is a simple XOR key with the value 0x42 (66 in decimal) at default. This key is defined in the Go agent template, and used in the runtime deobfuscation where each byte of the obfuscated string is XORed with the key to get the original strings. To override this default key, Use `--obfuscate` flag during payload generation, it randomizes this key and obfuscated bytes to make each agent unique.
+  
 ### Security Considerations
 
 - **Polymorphic Engine**: Function and variable names are randomized for each payload
@@ -145,6 +150,7 @@ Feature exclusion provides the following benefits:
 - **Faster compilation**: Less code and dependencies to process
 - **Reduced memory footprint**: Fewer loaded modules and functions
 - **Simpler execution**: Fewer checks and capabilities to process
+
 
 
 ## Morpheus
