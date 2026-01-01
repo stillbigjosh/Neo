@@ -49,6 +49,11 @@ def get_info():
                 "description": "Injection technique to use: apc, ntcreatethread, rtlcreateuser, createremote, auto (default: auto)",
                 "required": False,
                 "default": "auto"
+            },
+            "pid": {
+                "description": "Process ID to inject into (optional, if not provided will use default target processes)",
+                "required": False,
+                "default": None
             }
         },
         "notes": {
@@ -65,6 +70,7 @@ def execute(options, session):
     agent_id = options.get("agent_id")
     shellcode_input = options.get("shellcode")
     technique = options.get("technique", "auto").lower()
+    pid = options.get("pid")
 
     if not agent_id:
         return {
@@ -86,6 +92,21 @@ def execute(options, session):
             "error": f"Invalid technique: {technique}. Valid options: {', '.join(valid_techniques)}"
         }
 
+    # Validate pid if provided
+    if pid is not None:
+        try:
+            pid_int = int(pid)
+            if pid_int <= 0:
+                return {
+                    "success": False,
+                    "error": f"Invalid PID: {pid}. PID must be a positive integer."
+                }
+        except ValueError:
+            return {
+                "success": False,
+                "error": f"Invalid PID: {pid}. PID must be a positive integer."
+            }
+
     session.current_agent = agent_id
 
     # Check if shellcode_input is already base64 encoded content (indicates client-side file)
@@ -106,11 +127,18 @@ def execute(options, session):
             "error": f"Invalid input format. CLI should send base64 encoded shellcode content, but received: {shellcode_input[:50]}..."
         }
 
-    # Construct command with technique if not auto
-    if technique == "auto":
-        command = f"pinject {encoded_shellcode}"
+    # Construct command with technique and pid if provided
+    if pid is not None:
+        if technique == "auto":
+            command = f"pinject {pid} {encoded_shellcode}"
+        else:
+            command = f"pinject {technique} {pid} {encoded_shellcode}"
     else:
-        command = f"pinject {technique} {encoded_shellcode}"
+        # No PID provided, use original behavior
+        if technique == "auto":
+            command = f"pinject {encoded_shellcode}"
+        else:
+            command = f"pinject {technique} {encoded_shellcode}"
 
     # Check if this is being executed in interactive mode
     if hasattr(session, 'is_interactive_execution') and session.is_interactive_execution:

