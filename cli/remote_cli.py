@@ -1595,7 +1595,7 @@ DB Inactive:       {stats.get('db_inactive_agents', 0)}
                         print("Extension Commands Help:")
                         print("  extender list          - Show all available extension commands")
                         print("  extender info <name>   - Show detailed information about a specific extension")
-                        print("  extensions             - Alternative command for 'extender list'")
+                        print("  extensions             - Alternative command for 'extender'")
                         continue
                     elif len(command_parts) >= 2:
                         subcommand = command_parts[1].lower()
