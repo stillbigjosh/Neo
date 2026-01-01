@@ -44,6 +44,11 @@ def get_info():
             "pe_file": {
                 "description": "Path to the PE file to inject on client machine",
                 "required": True
+            },
+            "pid": {
+                "description": "Process ID to inject into (optional, if not provided will use default target processes)",
+                "required": False,
+                "default": None
             }
         },
         "notes": {
@@ -59,6 +64,7 @@ def get_info():
 def execute(options, session):
     agent_id = options.get("agent_id")
     pe_input = options.get("pe_file")
+    pid = options.get("pid")
 
     if not agent_id:
         return {
@@ -71,6 +77,21 @@ def execute(options, session):
             "success": False,
             "error": "PE file is required"
         }
+
+    # Validate pid if provided
+    if pid is not None:
+        try:
+            pid_int = int(pid)
+            if pid_int <= 0:
+                return {
+                    "success": False,
+                    "error": f"Invalid PID: {pid}. PID must be a positive integer."
+                }
+        except ValueError:
+            return {
+                "success": False,
+                "error": f"Invalid PID: {pid}. PID must be a positive integer."
+            }
 
     session.current_agent = agent_id
 
@@ -93,7 +114,11 @@ def execute(options, session):
             "error": f"Invalid input format. CLI should send base64 encoded PE content, but received: {pe_input[:50]}..."
         }
 
-    command = f"peinject {prefixed_encoded_pe}"
+    # Construct command with PID if provided
+    if pid is not None:
+        command = f"peinject {pid} {prefixed_encoded_pe}"
+    else:
+        command = f"peinject {prefixed_encoded_pe}"
 
     # Check if this is being executed in interactive mode
     if hasattr(session, 'is_interactive_execution') and session.is_interactive_execution:

@@ -52,7 +52,7 @@ Each operator maintains their own local extension modules:
 - **Search Directories**: `cli/extensions/assemblies/`, `cli/extensions/`
 - **File Extensions**: `.exe`, `.dll`
 
-#### PE Injection
+#### PE Execution & PEInjection
 - **Search Directories**: `cli/extensions/`, `cli/extensions/pe/`
 - **File Extensions**: `.exe`, `.dll`
 
@@ -295,7 +295,7 @@ This module interfaces with an agent and enables In-memory injection of an unman
 ```
 modules info peinject
 # In interactive mode, the agent ID is automatically inferred:
-peinject <payload_filename> [agent_id=<agent_id>] 
+peinject <payload_filename> [agent_id=<agent_id>] [pid=<pid>]
 
 # Examples:
 peinject payload.exe

