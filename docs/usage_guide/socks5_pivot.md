@@ -1,4 +1,4 @@
-# SOCKS5 Pivot Guide for Neo C2
+# SOCKS5 Reverse Proxy
 
 The reverse proxy functionality allows you to route traffic through compromised hosts using a SOCKS5 proxy. This guide explains how to use this feature for network pivoting.
 
