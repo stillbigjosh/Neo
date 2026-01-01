@@ -69,8 +69,8 @@ Command:     whoami
 Type:        BOF
 Name:        whoami
 Version:     0.0.0
-Author:      Neo C2 Team
-Repository:  https://github.com/Neo-C2/Neo
+Author:      @Trustedsec
+Repository:  https://github.com/trustedsec/CS-Situational-Awareness-BOF
 Help:        Display the current user context
 Usage:       whoami
 ==================================================
