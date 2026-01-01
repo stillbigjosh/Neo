@@ -4,7 +4,7 @@
 
 # The Neo C2 Framework 
 
-[![Version](https://img.shields.io/badge/Version-1.6.1-orange.svg)](https://github.com/stillbigjosh/Neo/releases)
+[![Version](https://img.shields.io/badge/Version-1.6.5-orange.svg)](https://github.com/stillbigjosh/Neo/releases)
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
 [![Golang](https://img.shields.io/badge/Go-1.2%2B-blue.svg)](https://www.go.dev/)
 [![License](https://img.shields.io/badge/License-GPL-green.svg)](LICENSE)
