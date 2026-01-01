@@ -20,6 +20,7 @@ along with Neo.  If not, see <http://www.gnu.org/licenses/>
 
 import os
 import re
+import json
 from pathlib import Path
 
 # Initialize color support for the extender
@@ -115,16 +116,21 @@ class CLIExtender:
         if not self.bof_dir.exists():
             print(f"[-] BOF directory does not exist: {self.bof_dir}")
             return
-        
+
         print(f"[*] Scanning BOF directory: {self.bof_dir}")
-        
+
         for file_path in self.bof_dir.glob("*.o"):
             command_name = self._extract_command_name(file_path.name)
             if command_name:
+                # Load JSON metadata if available - look for JSON file with the same base name as the command
+                json_file_path = file_path.parent / f"{command_name}.json"
+                metadata = self._load_json_metadata(json_file_path) if json_file_path.exists() else {}
+
                 self.command_registry[command_name] = {
                     'type': 'bof',
                     'file_path': str(file_path),
-                    'original_name': file_path.name
+                    'original_name': file_path.name,
+                    'metadata': metadata
                 }
                 #print(f"[+] Registered BOF command: {command_name} -> {file_path.name}")
     
@@ -132,26 +138,36 @@ class CLIExtender:
         if not self.assemblies_dir.exists():
             print(f"[-] Assemblies directory does not exist: {self.assemblies_dir}")
             return
-        
+
         print(f"[*] Scanning Assemblies directory: {self.assemblies_dir}")
-        
+
         for file_path in self.assemblies_dir.glob("*.exe"):
             command_name = self._extract_command_name(file_path.name)
             if command_name:
+                # Load JSON metadata if available - look for JSON file with the same base name as the command
+                json_file_path = file_path.parent / f"{command_name}.json"
+                metadata = self._load_json_metadata(json_file_path) if json_file_path.exists() else {}
+
                 self.command_registry[command_name] = {
                     'type': 'assembly',
                     'file_path': str(file_path),
-                    'original_name': file_path.name
+                    'original_name': file_path.name,
+                    'metadata': metadata
                 }
                 #print(f"[+] Registered Assembly command: {command_name} -> {file_path.name}")
-        
+
         for file_path in self.assemblies_dir.glob("*.dll"):
             command_name = self._extract_command_name(file_path.name)
             if command_name:
+                # Load JSON metadata if available - look for JSON file with the same base name as the command
+                json_file_path = file_path.parent / f"{command_name}.json"
+                metadata = self._load_json_metadata(json_file_path) if json_file_path.exists() else {}
+
                 self.command_registry[command_name] = {
                     'type': 'assembly',
                     'file_path': str(file_path),
-                    'original_name': file_path.name
+                    'original_name': file_path.name,
+                    'metadata': metadata
                 }
                 #print(f"[+] Registered Assembly command: {command_name} -> {file_path.name}")
 
@@ -165,37 +181,57 @@ class CLIExtender:
         for file_path in self.pe_dir.glob("*.exe"):
             command_name = self._extract_command_name(file_path.name)
             if command_name:
+                # Load JSON metadata if available - look for JSON file with the same base name as the command
+                json_file_path = file_path.parent / f"{command_name}.json"
+                metadata = self._load_json_metadata(json_file_path) if json_file_path.exists() else {}
+
                 self.command_registry[command_name] = {
                     'type': 'pe',
                     'file_path': str(file_path),
-                    'original_name': file_path.name
+                    'original_name': file_path.name,
+                    'metadata': metadata
                 }
                 #print(f"[+] Registered PE command: {command_name} -> {file_path.name}")
 
         for file_path in self.pe_dir.glob("*.dll"):
             command_name = self._extract_command_name(file_path.name)
             if command_name:
+                # Load JSON metadata if available - look for JSON file with the same base name as the command
+                json_file_path = file_path.parent / f"{command_name}.json"
+                metadata = self._load_json_metadata(json_file_path) if json_file_path.exists() else {}
+
                 self.command_registry[command_name] = {
                     'type': 'pe',
                     'file_path': str(file_path),
-                    'original_name': file_path.name
+                    'original_name': file_path.name,
+                    'metadata': metadata
                 }
                 #print(f"[+] Registered PE command: {command_name} -> {file_path.name}")
 
     def _extract_command_name(self, filename):
         # Remove .x64, .x86, .exe, .dll, .o extensions in order
         name = filename.lower()
-        
+
         # Remove common architecture indicators
         name = re.sub(r'\.(x64|x86|amd64|arm|arm64)\.', '.', name)
-        
+
         # Remove file extensions
         name = re.sub(r'\.(exe|dll|o)$', '', name)
-        
+
         # Return the command name if it's valid (not empty and contains only alphanumeric, underscore, hyphen)
         if name and re.match(r'^[a-z0-9_-]+$', name):
             return name
         return None
+
+    def _load_json_metadata(self, json_file_path):
+        """Load metadata from JSON file"""
+        try:
+            with open(json_file_path, 'r', encoding='utf-8') as f:
+                metadata = json.load(f)
+            return metadata
+        except Exception as e:
+            print(f"{red('[-]')} Error loading metadata from {json_file_path}: {str(e)}")
+            return {}
     
     def is_extension_command(self, command):
         command_parts = command.strip().split()
@@ -298,14 +334,65 @@ class CLIExtender:
         if not self.command_registry:
             print("[*] No extension commands available")
             return
-        
+
         print("Available Extension Commands:")
         print("-" * 60)
         print(f"{'Command':<20} {'Type':<10} {'File':<25}")
         print("-" * 60)
-        
+
         for cmd_name, info in sorted(self.command_registry.items()):
             print(f"{cmd_name:<20} {info['type']:<10} {info['original_name']:<25}")
-        
+
         print("-" * 60)
         print(f"Total: {len(self.command_registry)} extension commands")
+
+    def print_extension_list(self):
+        if not self.command_registry:
+            print("[*] No extension commands available")
+            return
+
+        print("Available Extension Commands:")
+        print("-" * 80)
+        print(f"{'Command':<20} {'Type':<10} {'File':<25} {'Description':<20}")
+        print("-" * 80)
+
+        for cmd_name, info in sorted(self.command_registry.items()):
+            description = info['metadata'].get('help', 'No description') if info['metadata'] else 'No description'
+            print(f"{cmd_name:<20} {info['type']:<10} {info['original_name']:<25} {description:<20}")
+
+        print("-" * 80)
+        print(f"Total: {len(self.command_registry)} extension commands")
+
+    def print_extension_info(self, command_name):
+        if not command_name:
+            print(f"{red('[-]')} No command name provided. Usage: extender info <command_name>")
+            return
+
+        command_name_lower = command_name.lower()
+        if command_name_lower not in self.command_registry:
+            print(f"{red('[-]')} Extension '{command_name}' not found")
+            return
+
+        info = self.command_registry[command_name_lower]
+        metadata = info['metadata']
+
+        print(f"\n{bright('Extension Information')}")
+        print("=" * 50)
+        print(f"Command:     {command_name_lower}")
+        print(f"Type:        {info['type'].upper()}")
+        print(f"Name:        {command_name_lower}")
+
+        if metadata:
+            print(f"Version:     {metadata.get('version', 'N/A')}")
+            print(f"Author:      {metadata.get('extension_author', metadata.get('original_author', 'N/A'))}")
+            print(f"Repository:  {metadata.get('repo_url', 'N/A')}")
+            print(f"Help:        {metadata.get('help', 'N/A')}")
+            print(f"Usage:       {metadata.get('usage', 'N/A')}")
+        else:
+            print(f"Version:     N/A")
+            print(f"Author:      N/A")
+            print(f"Repository:  N/A")
+            print(f"Help:        N/A")
+            print(f"Usage:       N/A")
+
+        print("=" * 50)

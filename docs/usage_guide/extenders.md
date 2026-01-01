@@ -41,13 +41,39 @@ NeoC2 (user@remote) > execute-bof cli/extensions/bof/whoami.x64.o
 ### List Available Extensions
 ```
 NeoC2 (user@remote) > extender
+Extension Commands Help:
+  extender list          - Show all available extension commands
+  extender info <name>   - Show detailed information about a specific extension
+  extensions             - Alternative command for 'extender list'
+```
+
+### List All Extensions
+```
+NeoC2 (user@remote) > extender list
 Available Extension Commands:
-------------------------------------------------------------
-Command              Type       File                     
-------------------------------------------------------------
-whoami               bof        whoami.x64.o             
-------------------------------------------------------------
+--------------------------------------------------------------------------------
+Command              Type       File                      Description
+--------------------------------------------------------------------------------
+whoami               bof        whoami.x64.o              Display the current user context
+--------------------------------------------------------------------------------
 Total: 1 extension commands
+```
+
+### Show Extension Information
+```
+NeoC2 (user@remote) > extender info whoami
+
+Extension Information
+==================================================
+Command:     whoami
+Type:        BOF
+Name:        whoami
+Version:     0.0.0
+Author:      Neo C2 Team
+Repository:  https://github.com/Neo-C2/Neo
+Help:        Display the current user context
+Usage:       whoami
+==================================================
 ```
 
 ## Supported File Types
@@ -79,6 +105,40 @@ Examples:
 - `mimikatz.x86.o` → `mimikatz`  
 - `SharpHound.exe` → `SharpHound`
 - `Seatbelt.dll` → `Seatbelt`
+
+## JSON Metadata Support
+
+Extensions can include optional JSON metadata files that provide detailed information about the extension. The JSON file should have the same base name as the extension file.
+
+### JSON File Location
+- `cli/extensions/bof/whoami.json` for `whoami.x64.o`
+- `cli/extensions/assemblies/mimikatz.json` for `mimikatz.exe`
+- `cli/extensions/pe/procdump.json` for `procdump.exe`
+
+### JSON File Format
+```json
+{
+  "name": "whoami",
+  "version": "0.0.0",
+  "extension_author": "Neo C2 Framework",
+  "original_author": "@Trustedsec",
+  "repo_url": "https://github.com/trustedsec/CS-Situational-Awareness-BOF",
+  "help": "Display the current user context",
+  "usage": "whoami"
+}
+```
+
+### Metadata Fields
+- `name`: The name of the extension
+- `version`: Version of the extension
+- `extension_author`: Author of the extension wrapper
+- `original_author`: Original author of the tool
+- `repo_url`: Repository URL for the extension
+- `help`: Brief description of what the extension does
+- `usage`: Usage information for the extension
+
+### Optional Metadata
+The JSON metadata files are completely optional. Extensions without JSON files will still work normally, but will show "N/A" for metadata fields when using `extender info <name>`.
 
 ## Integration
 

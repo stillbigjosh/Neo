@@ -1586,12 +1586,38 @@ DB Inactive:       {stats.get('db_inactive_agents', 0)}
                         error_msg = socks_stop_response.get('result', 'Unknown error') if socks_stop_response else 'Failed to stop server CLI SOCKS proxy'
                         print(f"{red('[-]')} Failed to stop server CLI SOCKS proxy: {error_msg}")
                     continue
-                elif command.lower() == 'extender' or command.lower() == 'extensions':
-                    # Show available extension commands
-                    if self.extender:
-                        self.extender.print_available_commands()
-                    else:
-                        print(f"{red('[-]')} CLI extender is not available or failed to initialize")
+                elif command.lower().startswith('extender') or command.lower().startswith('extensions'):
+                    # Handle extender commands: extender, extender list, extender info <name>
+                    command_parts = command.strip().split()
+
+                    if len(command_parts) == 1:
+                        # Just 'extender' command - show usage help
+                        print("Extension Commands Help:")
+                        print("  extender list          - Show all available extension commands")
+                        print("  extender info <name>   - Show detailed information about a specific extension")
+                        print("  extensions             - Alternative command for 'extender list'")
+                        continue
+                    elif len(command_parts) >= 2:
+                        subcommand = command_parts[1].lower()
+
+                        if subcommand == 'list' or command.lower() == 'extensions':
+                            # Show available extension commands
+                            if self.extender:
+                                self.extender.print_extension_list()
+                            else:
+                                print(f"{red('[-]')} CLI extender is not available or failed to initialize")
+                        elif subcommand == 'info' and len(command_parts) >= 3:
+                            # Show info for specific extension
+                            if self.extender:
+                                extension_name = command_parts[2]
+                                self.extender.print_extension_info(extension_name)
+                            else:
+                                print(f"{red('[-]')} CLI extender is not available or failed to initialize")
+                        else:
+                            print(f"{red('[-]')} Unknown extender subcommand: {subcommand}")
+                            print("Available extender commands:")
+                            print("  extender list          - Show all available extension commands")
+                            print("  extender info <name>   - Show detailed information about a specific extension")
                     continue
 
                 response = self.send_command(command)
@@ -1657,11 +1683,15 @@ DB Inactive:       {stats.get('db_inactive_agents', 0)}
                     # Append extension commands info
                     if self.extender:
                         result += f"\n\nExtension Commands:"
-                        result += f"\n  extender / extensions - Show all available extension commands"
+                        result += f"\n  extender list          - Show all available extension commands"
+                        result += f"\n  extender info <name>   - Show detailed information about a specific extension"
+                        result += f"\n  extensions             - Alternative command for 'extender list'"
                         result += f"\n  Extension commands like 'whoami' will automatically be converted to 'execute-bof whoami.x64.o'"
                     else:
                         result += f"\n\nExtension Commands:"
-                        result += f"\n  extender / extensions - Show all available extension commands"
+                        result += f"\n  extender list          - Show all available extension commands"
+                        result += f"\n  extender info <name>   - Show detailed information about a specific extension"
+                        result += f"\n  extensions             - Alternative command for 'extender list'"
                         result += f"\n  (Extension system not available)"
 
                 self.print_result(result, status)

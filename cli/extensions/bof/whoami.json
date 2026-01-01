@@ -1,0 +1,9 @@
+{
+  "name": "whoami",
+  "version": "0.0.0",
+  "extension_author": "Neo C2 Framework",
+  "original_author": "@Trustedsec",
+  "repo_url": "https://github.com/trustedsec/CS-Situational-Awareness-BOF",
+  "help": "Display the current user context",
+  "usage": "whoami"
+}
