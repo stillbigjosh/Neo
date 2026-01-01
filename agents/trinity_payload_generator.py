@@ -369,7 +369,7 @@ class TrinityPayloadGenerator:
                 if include_assembly:
                     import_lines.append('\t"github.com/Ne0nd0g/go-clr"')
 
-                if include_pe and include_execute_pe:
+                if include_execute_pe:
                     import_lines.append('\t"github.com/praetorian-inc/goffloader/src/pe"')
 
                 import_lines.append(")")
@@ -924,6 +924,15 @@ class TrinityPayloadGenerator:
 
                 if result.returncode != 0:
                     raise Exception(f"Failed to get go-clr dependency: {result.stderr}")
+
+            # Get goffloader PE dependency for PE execution if included
+            if include_execute_pe:
+                result = subprocess.run([
+                    'go', 'get', 'github.com/praetorian-inc/goffloader/src/pe'
+                ], capture_output=True, text=True, cwd=temp_dir, env=go_env)
+
+                if result.returncode != 0:
+                    raise Exception(f"Failed to get goffloader pe dependency: {result.stderr}")
 
             # No additional dependencies needed for the enhanced shellcode injection
             # since we're using native Windows API calls that are already available through syscall
