@@ -119,6 +119,7 @@ class CLIExtender:
 
         print(f"[*] Scanning BOF directory: {self.bof_dir}")
 
+        # Scan root directory for .o files
         for file_path in self.bof_dir.glob("*.o"):
             command_name = self._extract_command_name(file_path.name)
             if command_name:
@@ -133,6 +134,23 @@ class CLIExtender:
                     'metadata': metadata
                 }
                 #print(f"[+] Registered BOF command: {command_name} -> {file_path.name}")
+
+        # Recursively scan subdirectories for .o files
+        for file_path in self.bof_dir.rglob("*.o"):
+            if file_path.parent != self.bof_dir:  # Skip files in root (already processed above)
+                command_name = self._extract_command_name(file_path.name)
+                if command_name:
+                    # Load JSON metadata if available - look for JSON file with the same base name as the command
+                    json_file_path = file_path.parent / f"{command_name}.json"
+                    metadata = self._load_json_metadata(json_file_path) if json_file_path.exists() else {}
+
+                    self.command_registry[command_name] = {
+                        'type': 'bof',
+                        'file_path': str(file_path),
+                        'original_name': file_path.name,
+                        'metadata': metadata
+                    }
+                    #print(f"[+] Registered BOF command: {command_name} -> {file_path.name}")
     
     def _register_assembly_files(self):
         if not self.assemblies_dir.exists():
@@ -141,6 +159,7 @@ class CLIExtender:
 
         print(f"[*] Scanning Assemblies directory: {self.assemblies_dir}")
 
+        # Scan root directory for .exe files
         for file_path in self.assemblies_dir.glob("*.exe"):
             command_name = self._extract_command_name(file_path.name)
             if command_name:
@@ -156,6 +175,7 @@ class CLIExtender:
                 }
                 #print(f"[+] Registered Assembly command: {command_name} -> {file_path.name}")
 
+        # Scan root directory for .dll files
         for file_path in self.assemblies_dir.glob("*.dll"):
             command_name = self._extract_command_name(file_path.name)
             if command_name:
@@ -171,6 +191,40 @@ class CLIExtender:
                 }
                 #print(f"[+] Registered Assembly command: {command_name} -> {file_path.name}")
 
+        # Recursively scan subdirectories for .exe files
+        for file_path in self.assemblies_dir.rglob("*.exe"):
+            if file_path.parent != self.assemblies_dir:  # Skip files in root (already processed above)
+                command_name = self._extract_command_name(file_path.name)
+                if command_name:
+                    # Load JSON metadata if available - look for JSON file with the same base name as the command
+                    json_file_path = file_path.parent / f"{command_name}.json"
+                    metadata = self._load_json_metadata(json_file_path) if json_file_path.exists() else {}
+
+                    self.command_registry[command_name] = {
+                        'type': 'assembly',
+                        'file_path': str(file_path),
+                        'original_name': file_path.name,
+                        'metadata': metadata
+                    }
+                    #print(f"[+] Registered Assembly command: {command_name} -> {file_path.name}")
+
+        # Recursively scan subdirectories for .dll files
+        for file_path in self.assemblies_dir.rglob("*.dll"):
+            if file_path.parent != self.assemblies_dir:  # Skip files in root (already processed above)
+                command_name = self._extract_command_name(file_path.name)
+                if command_name:
+                    # Load JSON metadata if available - look for JSON file with the same base name as the command
+                    json_file_path = file_path.parent / f"{command_name}.json"
+                    metadata = self._load_json_metadata(json_file_path) if json_file_path.exists() else {}
+
+                    self.command_registry[command_name] = {
+                        'type': 'assembly',
+                        'file_path': str(file_path),
+                        'original_name': file_path.name,
+                        'metadata': metadata
+                    }
+                    #print(f"[+] Registered Assembly command: {command_name} -> {file_path.name}")
+
     def _register_pe_files(self):
         if not self.pe_dir.exists():
             print(f"[-] PE directory does not exist: {self.pe_dir}")
@@ -178,6 +232,7 @@ class CLIExtender:
 
         print(f"[*] Scanning PE directory: {self.pe_dir}")
 
+        # Scan root directory for .exe files
         for file_path in self.pe_dir.glob("*.exe"):
             command_name = self._extract_command_name(file_path.name)
             if command_name:
@@ -193,6 +248,7 @@ class CLIExtender:
                 }
                 #print(f"[+] Registered PE command: {command_name} -> {file_path.name}")
 
+        # Scan root directory for .dll files
         for file_path in self.pe_dir.glob("*.dll"):
             command_name = self._extract_command_name(file_path.name)
             if command_name:
@@ -207,6 +263,40 @@ class CLIExtender:
                     'metadata': metadata
                 }
                 #print(f"[+] Registered PE command: {command_name} -> {file_path.name}")
+
+        # Recursively scan subdirectories for .exe files
+        for file_path in self.pe_dir.rglob("*.exe"):
+            if file_path.parent != self.pe_dir:  # Skip files in root (already processed above)
+                command_name = self._extract_command_name(file_path.name)
+                if command_name:
+                    # Load JSON metadata if available - look for JSON file with the same base name as the command
+                    json_file_path = file_path.parent / f"{command_name}.json"
+                    metadata = self._load_json_metadata(json_file_path) if json_file_path.exists() else {}
+
+                    self.command_registry[command_name] = {
+                        'type': 'pe',
+                        'file_path': str(file_path),
+                        'original_name': file_path.name,
+                        'metadata': metadata
+                    }
+                    #print(f"[+] Registered PE command: {command_name} -> {file_path.name}")
+
+        # Recursively scan subdirectories for .dll files
+        for file_path in self.pe_dir.rglob("*.dll"):
+            if file_path.parent != self.pe_dir:  # Skip files in root (already processed above)
+                command_name = self._extract_command_name(file_path.name)
+                if command_name:
+                    # Load JSON metadata if available - look for JSON file with the same base name as the command
+                    json_file_path = file_path.parent / f"{command_name}.json"
+                    metadata = self._load_json_metadata(json_file_path) if json_file_path.exists() else {}
+
+                    self.command_registry[command_name] = {
+                        'type': 'pe',
+                        'file_path': str(file_path),
+                        'original_name': file_path.name,
+                        'metadata': metadata
+                    }
+                    #print(f"[+] Registered PE command: {command_name} -> {file_path.name}")
 
     def _extract_command_name(self, filename):
         # Remove .x64, .x86, .exe, .dll, .o extensions in order
@@ -260,42 +350,10 @@ class CLIExtender:
         import os
         import base64
 
-        # Define search paths similar to _handle_extension_command
-        if extension_info['type'] == 'bof':
-            search_paths = [
-                file_path,  # Direct path from registry
-                os.path.join('cli', 'extensions', 'bof', os.path.basename(file_path)),
-                os.path.join('cli', 'extensions', os.path.basename(file_path)),
-                os.path.join(os.getcwd(), file_path),
-                os.path.join(os.getcwd(), os.path.basename(file_path))
-            ]
-        elif extension_info['type'] == 'assembly':
-            search_paths = [
-                file_path,  # Direct path from registry
-                os.path.join('cli', 'extensions', 'assemblies', os.path.basename(file_path)),
-                os.path.join('cli', 'extensions', os.path.basename(file_path)),
-                os.path.join(os.getcwd(), file_path),
-                os.path.join(os.getcwd(), os.path.basename(file_path))
-            ]
-        elif extension_info['type'] == 'pe':
-            search_paths = [
-                file_path,  # Direct path from registry
-                os.path.join('cli', 'extensions', 'pe', os.path.basename(file_path)),
-                os.path.join('cli', 'extensions', os.path.basename(file_path)),
-                os.path.join(os.getcwd(), file_path),
-                os.path.join(os.getcwd(), os.path.basename(file_path))
-            ]
-        else:
-            return None
+        # The file path is already the full path from the registry, so we can use it directly
+        actual_file_path = file_path
 
-        # Find the actual file
-        actual_file_path = None
-        for path in search_paths:
-            if os.path.exists(path):
-                actual_file_path = path
-                break
-
-        if not actual_file_path:
+        if not os.path.exists(actual_file_path):
             print(f"{red('[-]')} Extension file not found: {file_path}")
             return None
 

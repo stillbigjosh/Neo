@@ -793,6 +793,13 @@ class NeoC2RemoteCLI:
                 os.path.join('cli', 'extensions', 'bof', os.path.basename(file_path)),
                 os.path.join('cli', 'extensions', os.path.basename(file_path)),
             ]
+            # Add subdirectory search paths for bof
+            bof_extensions_dir = os.path.join('cli', 'extensions', 'bof')
+            if os.path.exists(bof_extensions_dir):
+                for root, dirs, files in os.walk(bof_extensions_dir):
+                    for file in files:
+                        if file == os.path.basename(file_path):
+                            search_paths.append(os.path.join(root, file))
 
         elif cmd_name == 'execute-assembly':
             search_paths = [
@@ -803,6 +810,13 @@ class NeoC2RemoteCLI:
                 os.path.join('cli', 'extensions', 'assemblies', os.path.basename(file_path)),
                 os.path.join('cli', 'extensions', os.path.basename(file_path)),
             ]
+            # Add subdirectory search paths for assemblies
+            assemblies_extensions_dir = os.path.join('cli', 'extensions', 'assemblies')
+            if os.path.exists(assemblies_extensions_dir):
+                for root, dirs, files in os.walk(assemblies_extensions_dir):
+                    for file in files:
+                        if file == os.path.basename(file_path):
+                            search_paths.append(os.path.join(root, file))
 
         elif cmd_name == 'peinject':
             search_paths = [
@@ -813,6 +827,13 @@ class NeoC2RemoteCLI:
                 os.path.join('cli', 'extensions', os.path.basename(file_path)),
                 os.path.join('cli', 'extensions', 'pe', os.path.basename(file_path)),
             ]
+            # Add subdirectory search paths for pe
+            pe_extensions_dir = os.path.join('cli', 'extensions', 'pe')
+            if os.path.exists(pe_extensions_dir):
+                for root, dirs, files in os.walk(pe_extensions_dir):
+                    for file in files:
+                        if file == os.path.basename(file_path):
+                            search_paths.append(os.path.join(root, file))
         elif cmd_name == 'execute-pe':
             search_paths = [
                 os.path.join('cli', 'extensions', 'pe', file_path),
@@ -822,6 +843,13 @@ class NeoC2RemoteCLI:
                 os.path.join('cli', 'extensions', 'pe', os.path.basename(file_path)),
                 os.path.join('cli', 'extensions', os.path.basename(file_path)),
             ]
+            # Add subdirectory search paths for pe
+            pe_extensions_dir = os.path.join('cli', 'extensions', 'pe')
+            if os.path.exists(pe_extensions_dir):
+                for root, dirs, files in os.walk(pe_extensions_dir):
+                    for file in files:
+                        if file == os.path.basename(file_path):
+                            search_paths.append(os.path.join(root, file))
 
         elif cmd_name == 'pwsh':
             # For pwsh, we look for PowerShell script files
@@ -833,6 +861,13 @@ class NeoC2RemoteCLI:
                 os.path.join('cli', 'extensions', 'powershell', os.path.basename(file_path)),
                 os.path.join('cli', 'extensions', os.path.basename(file_path)),
             ]
+            # Add subdirectory search paths for powershell
+            pwsh_extensions_dir = os.path.join('cli', 'extensions', 'powershell')
+            if os.path.exists(pwsh_extensions_dir):
+                for root, dirs, files in os.walk(pwsh_extensions_dir):
+                    for file in files:
+                        if file == os.path.basename(file_path):
+                            search_paths.append(os.path.join(root, file))
 
         elif cmd_name == 'pinject':
             # For pinject, we look for shellcode files in the extensions directory
@@ -844,6 +879,13 @@ class NeoC2RemoteCLI:
                 os.path.join('cli', 'extensions', os.path.basename(file_path)),
                 os.path.join('cli', 'extensions', 'shellcode', os.path.basename(file_path)),
             ]
+            # Add subdirectory search paths for shellcode
+            shellcode_extensions_dir = os.path.join('cli', 'extensions', 'shellcode')
+            if os.path.exists(shellcode_extensions_dir):
+                for root, dirs, files in os.walk(shellcode_extensions_dir):
+                    for file in files:
+                        if file == os.path.basename(file_path):
+                            search_paths.append(os.path.join(root, file))
         else:
             return None
 
