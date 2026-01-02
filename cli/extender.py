@@ -336,14 +336,16 @@ class CLIExtender:
             return
 
         print("Available Extension Commands:")
-        print("-" * 60)
-        print(f"{'Command':<20} {'Type':<10} {'File':<25}")
-        print("-" * 60)
+        print("-" * 80)
+        print(f"{'Command':<25} {'Type':<8} {'File':<35}")
+        print("-" * 80)
 
         for cmd_name, info in sorted(self.command_registry.items()):
-            print(f"{cmd_name:<20} {info['type']:<10} {info['original_name']:<25}")
+            # Truncate long filenames to fit in the column
+            truncated_filename = (info['original_name'][:33] + '..') if len(info['original_name']) > 35 else info['original_name']
+            print(f"{cmd_name:<25} {info['type']:<8} {truncated_filename:<35}")
 
-        print("-" * 60)
+        print("-" * 80)
         print(f"Total: {len(self.command_registry)} extension commands")
 
     def print_extension_list(self):
@@ -352,15 +354,20 @@ class CLIExtender:
             return
 
         print("Available Extension Commands:")
-        print("-" * 80)
-        print(f"{'Command':<20} {'Type':<10} {'File':<25} {'Description':<20}")
-        print("-" * 80)
+        # Increased width to accommodate longer names
+        print("-" * 120)
+        # Increased column widths: Command (25), Type (8), File (35), Description (40)
+        print(f"{'Command':<25} {'Type':<8} {'File':<35} {'Description':<40}")
+        print("-" * 120)
 
         for cmd_name, info in sorted(self.command_registry.items()):
             description = info['metadata'].get('help', 'No description') if info['metadata'] else 'No description'
-            print(f"{cmd_name:<20} {info['type']:<10} {info['original_name']:<25} {description:<20}")
+            # Truncate long filenames to fit in the column
+            truncated_filename = (info['original_name'][:33] + '..') if len(info['original_name']) > 35 else info['original_name']
+            truncated_description = (description[:38] + '..') if len(description) > 40 else description
+            print(f"{cmd_name:<25} {info['type']:<8} {truncated_filename:<35} {truncated_description:<40}")
 
-        print("-" * 80)
+        print("-" * 120)
         print(f"Total: {len(self.command_registry)} extension commands")
 
     def print_extension_info(self, command_name):
