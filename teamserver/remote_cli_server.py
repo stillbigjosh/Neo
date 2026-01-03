@@ -600,12 +600,25 @@ class RemoteCLIServer:
 
             options = {}
 
-            if '=' in command_parts[1]:
+            # Check if this is a key-value format or positional format
+            # Look for known parameter names to determine format
+            has_known_params = any('=' in part and part.split('=', 1)[0].lower() in
+                                 ['agent_id', 'shellcode', 'technique'] for part in command_parts[1:])
+
+            if has_known_params:
+                # Mixed format: process known parameters and look for positional shellcode
+                shellcode_found = False
                 for part in command_parts[1:]:
                     if '=' in part:
                         key, value = part.split('=', 1)
                         options[key] = value
+                    else:
+                        # This is likely the shellcode content (positional argument)
+                        if not shellcode_found and 'shellcode' not in options:
+                            options['shellcode'] = part
+                            shellcode_found = True
             else:
+                # Pure positional format: first argument after command is shellcode
                 shellcode_input = command_parts[1]
                 options['shellcode'] = shellcode_input
 
@@ -761,12 +774,25 @@ class RemoteCLIServer:
 
             options = {}
 
-            if '=' in command_parts[1]:
+            # Check if this is a key-value format or positional format
+            # Look for known parameter names to determine format
+            has_known_params = any('=' in part and part.split('=', 1)[0].lower() in
+                                 ['agent_id', 'script_path', 'arguments'] for part in command_parts[1:])
+
+            if has_known_params:
+                # Mixed format: process known parameters and look for positional script_path
+                script_path_found = False
                 for part in command_parts[1:]:
                     if '=' in part:
                         key, value = part.split('=', 1)
                         options[key] = value
+                    else:
+                        # This is likely the script_path content (positional argument)
+                        if not script_path_found and 'script_path' not in options:
+                            options['script_path'] = part
+                            script_path_found = True
             else:
+                # Pure positional format: first argument after command is script_path
                 script_path = command_parts[1]
                 options['script_path'] = script_path
 
@@ -1248,12 +1274,29 @@ class RemoteCLIServer:
 
             options = {}
 
-            if '=' in command_parts[1]:
+            # Check if this is a key-value format or positional format
+            # Look for known parameter names to determine format
+            has_known_params = any('=' in part and part.split('=', 1)[0].lower() in
+                                 ['agent_id', 'method', 'payload_path'] for part in command_parts[1:])
+
+            if has_known_params:
+                # Mixed format: process known parameters and look for positional method/payload_path
+                method_found = False
+                payload_found = False
                 for part in command_parts[1:]:
                     if '=' in part:
                         key, value = part.split('=', 1)
                         options[key] = value
+                    else:
+                        # This is likely the method or payload_path content (positional argument)
+                        if not method_found and 'method' not in options:
+                            options['method'] = part
+                            method_found = True
+                        elif not payload_found and 'payload_path' not in options and len(command_parts) > 2:
+                            options['payload_path'] = part
+                            payload_found = True
             else:
+                # Pure positional format: first argument after command is method, second is payload_path
                 method = command_parts[1]
                 options['method'] = method
 
@@ -1429,12 +1472,25 @@ class RemoteCLIServer:
 
             options = {}
 
-            if '=' in command_parts[1]:
+            # Check if this is a key-value format or positional format
+            # Look for known parameter names to determine format
+            has_known_params = any('=' in part and part.split('=', 1)[0].lower() in
+                                 ['agent_id', 'pe_file', 'technique'] for part in command_parts[1:])
+
+            if has_known_params:
+                # Mixed format: process known parameters and look for positional pe_file
+                pe_file_found = False
                 for part in command_parts[1:]:
                     if '=' in part:
                         key, value = part.split('=', 1)
                         options[key] = value
+                    else:
+                        # This is likely the PE file content (positional argument)
+                        if not pe_file_found and 'pe_file' not in options:
+                            options['pe_file'] = part
+                            pe_file_found = True
             else:
+                # Pure positional format: first argument after command is pe_file
                 pe_file_input = command_parts[1]
                 options['pe_file'] = pe_file_input
 
@@ -1606,12 +1662,28 @@ class RemoteCLIServer:
 
             options = {}
 
-            if '=' in command_parts[1]:
+            # Check if this is a key-value format or positional format
+            # Key-value format: execute-pe pe_file=<base64_content> [other_options...]
+            # Positional format: execute-pe <base64_content> [other_options...]
+
+            # Look for known parameter names to determine format
+            has_known_params = any('=' in part and part.split('=', 1)[0].lower() in
+                                 ['agent_id', 'arguments', 'pe_file', 'technique'] for part in command_parts[1:])
+
+            if has_known_params:
+                # Mixed format: process known parameters and look for positional PE file
+                pe_file_found = False
                 for part in command_parts[1:]:
                     if '=' in part:
                         key, value = part.split('=', 1)
                         options[key] = value
+                    else:
+                        # This is likely the PE file content (positional argument)
+                        if not pe_file_found and 'pe_file' not in options:
+                            options['pe_file'] = part
+                            pe_file_found = True
             else:
+                # Pure positional format: first argument after command is PE file
                 pe_file_input = command_parts[1]
                 options['pe_file'] = pe_file_input
 
@@ -5365,11 +5437,13 @@ UPLOADED PAYLOAD STATUS:
 
     def _process_message(self, message, session_id):
         msg_type = message.get('type', 'unknown')
-        
+
         if msg_type == 'auth':
             return self._handle_auth(message, session_id)
         elif msg_type == 'command':
             return self._handle_command(message, session_id)
+        elif msg_type == 'preflight_check':
+            return self._handle_preflight_check(message, session_id)
         elif msg_type == 'event':
             return self._handle_event_command(message, session_id)
         elif msg_type == 'disconnect':
@@ -7287,6 +7361,66 @@ DB Inactive:       {stats['db_inactive_agents']}
             import traceback
             traceback.print_exc()
             return {'success': False, 'error': f'Event command execution error: {str(e)}'}
+
+    def _handle_preflight_check(self, message, session_id):
+        """Handle pre-flight check for large payload commands"""
+        try:
+            session_info = self.active_sessions.get(session_id)
+            if not session_info or not session_info.get('authenticated'):
+                return {'success': False, 'error': 'Not authenticated'}
+
+            # Verify token
+            token = message.get('token')
+            token_info = self.auth_tokens.get(token)
+            if not token_info or token_info['session_id'] != session_id:
+                return {'success': False, 'error': 'Invalid or expired token'}
+
+            # Extract pre-flight check parameters
+            command_type = message.get('command_type')
+            payload_size = message.get('payload_size')
+            payload_hash = message.get('payload_hash')
+
+            if not command_type:
+                return {'success': False, 'error': 'Missing command_type in pre-flight check'}
+
+            if payload_size is None:
+                return {'success': False, 'error': 'Missing payload_size in pre-flight check'}
+
+            # Validate payload size is reasonable (e.g., less than 100MB)
+            max_payload_size = 100 * 1024 * 1024  # 100MB
+            if payload_size > max_payload_size:
+                return {'success': False, 'error': f'Payload size too large: {payload_size} bytes (max: {max_payload_size} bytes)'}
+
+            # Validate payload_size is a positive integer
+            try:
+                payload_size = int(payload_size)
+                if payload_size <= 0:
+                    return {'success': False, 'error': 'Payload size must be a positive integer'}
+            except (ValueError, TypeError):
+                return {'success': False, 'error': 'Payload size must be a valid integer'}
+
+            # Optional: Validate payload_hash format (SHA256 is 64 hex characters)
+            if payload_hash:
+                import re
+                if not re.match(r'^[a-fA-F0-9]{64}$', payload_hash):
+                    return {'success': False, 'error': 'Invalid payload hash format (expected SHA256 hex)'}
+
+            # Log the pre-flight check
+            self.logger.info(f"Pre-flight check passed for session {session_id[:8]}: {command_type}, size={payload_size} bytes")
+
+            # Return success response
+            return {
+                'success': True,
+                'message': f'Pre-flight check passed for {command_type} command with {payload_size} bytes payload',
+                'command_type': command_type,
+                'payload_size': payload_size
+            }
+
+        except Exception as e:
+            self.logger.error(f"Error handling pre-flight check: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return {'success': False, 'error': f'Pre-flight check error: {str(e)}'}
 
     def get_session_stats(self):
         active_sessions = len(self.active_sessions)

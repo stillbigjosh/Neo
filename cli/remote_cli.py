@@ -454,7 +454,7 @@ class NeoC2RemoteCLI:
             # Check if this is an extension command that needs client-side file lookup
             elif command_parts and command_parts[0].lower() in ['execute-bof', 'execute-assembly', 'peinject', 'execute-pe', 'pwsh', 'pinject']:
                 result = self._handle_extension_command(command)
-                if result and result != "FILE_NOT_FOUND_ON_CLIENT" and result != "NO_FILE_SPECIFIED":
+                if result and result != "FILE_NOT_FOUND_ON_CLIENT" and result != "NO_FILE_SPECIFIED" and result != "PREFLIGHT_CHECK_FAILED":
                     # File was found and processed successfully
                     command_data = {
                         'type': 'command',
@@ -466,6 +466,10 @@ class NeoC2RemoteCLI:
                     # File was specified but not found, error was already printed
                     # Return error response to prevent sending to server
                     return {'success': False, 'error': f'File not found locally: {command_parts[1]}'}
+                elif result == "PREFLIGHT_CHECK_FAILED":
+                    # Pre-flight check failed, error was already printed
+                    # Return error response to prevent sending to server
+                    return {'success': False, 'error': f'Pre-flight check failed for command: {command}'}
                 else:
                     # _handle_extension_command returned "NO_FILE_SPECIFIED", which means no filename was provided
                     # Send original command to server for usage info
@@ -739,6 +743,7 @@ class NeoC2RemoteCLI:
         import os
         import base64
         import re
+        import hashlib
 
         command_parts = command.strip().split()
         if not command_parts:
@@ -871,6 +876,10 @@ class NeoC2RemoteCLI:
                         file_content = f.read()
                     encoded_content = base64.b64encode(file_content).decode('utf-8')
 
+                # Calculate file size and hash for pre-flight check
+                file_size = len(file_content)
+                file_hash = hashlib.sha256(file_content).hexdigest()
+
                 # For peinject, no prefix needed - server handles the command prefixing
                 # The agent expects "peinject <base64_content>" format directly
 
@@ -893,6 +902,32 @@ class NeoC2RemoteCLI:
                         # This is a positional argument, skip the file path (first positional)
                         # since it's already been processed into encoded_content
                         continue
+
+                # Send pre-flight check to server for large payloads
+                if file_size > 10240:  # If payload is larger than 10KB, use pre-flight check
+                    preflight_command = {
+                        'type': 'preflight_check',
+                        'command_type': cmd_name,
+                        'payload_size': file_size,
+                        'payload_hash': file_hash,
+                        'token': self.auth_token,
+                        'session_id': self.session_id
+                    }
+
+                    try:
+                        self._send_data(preflight_command)
+                        preflight_response = self._receive_data()
+
+                        if not preflight_response or not preflight_response.get('success'):
+                            error_msg = preflight_response.get('error', 'Pre-flight check failed') if preflight_response else 'No response from server'
+                            print(f"{red('[-]')} Pre-flight check failed: {error_msg}")
+                            return "PREFLIGHT_CHECK_FAILED"
+
+                        print(f"{green('[+]')} Pre-flight check passed. Sending {file_size} bytes payload...")
+
+                    except Exception as e:
+                        print(f"{red('[-]')} Pre-flight check failed: {str(e)}")
+                        return "PREFLIGHT_CHECK_FAILED"
 
                 # Add technique parameter to the command if specified
                 if technique_arg:
