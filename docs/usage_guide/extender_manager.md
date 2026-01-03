@@ -91,7 +91,7 @@ The extension package manager uses a JSON configuration file located at `cli/ext
 
 ### Default Configuration
 
-The configuration is framework agnostic, any compatible extsnion library can be used e.g The Sliver Armory.
+The configuration is framework agnostic, any compatible extension library can be used e.g The Sliver Armory.
 
 ```json
 {
