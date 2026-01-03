@@ -98,8 +98,6 @@ pwsh my_script.ps1 agent_id=abc123-4567-8901-2345-67890abcdef1
 pwsh my_script.ps1 arguments="-param1 value1 -param2 value2"
 ```
 
-### Limitation
-Large PowerShell triggers a "missing script_path" server/client error. Use a smaller PowerShell .ps1 file that fits within the framework's constraint
 
 
 ## Execute-BOF
@@ -313,8 +311,6 @@ peinject payload.exe agent_id=abc123-4567-8901-2345-67890abcdef1
 8. Resumes the target process thread using ResumeThread, which begins execution of the injected PE
 
 
-### Limitation
-Large PE files triggers a "missing pe_file" server/client error. Use a smaller PE file that fits within the framework's constraint
 
 
 ## Persist
