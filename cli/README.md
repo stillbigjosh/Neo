@@ -18,7 +18,7 @@ Each operator's extensions remain local to their client. Multiplayers maintain t
 - **Search Directories**: `cli/extensions/assemblies/`, `cli/extensions/`
 - **File Extensions**: `.exe`, `.dll`
 
-#### PE Injection
+#### PE 
 - **Search Directories**: `cli/extensions/`, `cli/extensions/pe/`
 - **File Extensions**: `.exe`, `.dll`
 
@@ -26,7 +26,7 @@ Each operator's extensions remain local to their client. Multiplayers maintain t
 - **Search Directories**: `cli/extensions/powershell/`, `cli/extensions/`
 - **File Extensions**: `.ps1`, `.psm1`, `.psd1`
 
-#### Shellcode PInject
+#### Shellcode 
 - **Search Directories**: `cli/extensions/`, `cli/extensions/shellcode/`
 - **File Extensions**: `.b64`
 
