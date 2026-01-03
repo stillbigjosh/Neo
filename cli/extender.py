@@ -107,7 +107,7 @@ class CLIExtender:
             self.package_manager = None
 
     def _load_extensions(self):
-        print(f"[+] Loading extensions from {self.extensions_dir}")
+        #print(f"[+] Loading extensions from {self.extensions_dir}")
 
         # Register BOF files
         self._register_bof_files()
@@ -125,7 +125,7 @@ class CLIExtender:
             print(f"[-] BOF directory does not exist: {self.bof_dir}")
             return
 
-        print(f"[*] Scanning BOF directory: {self.bof_dir}")
+        #print(f"[*] Scanning BOF directory: {self.bof_dir}")
 
         # Scan both root and subdirectories for BOF files
         for file_path in self.bof_dir.rglob("*.o"):
@@ -148,7 +148,7 @@ class CLIExtender:
             print(f"[-] Assemblies directory does not exist: {self.assemblies_dir}")
             return
 
-        print(f"[*] Scanning Assemblies directory: {self.assemblies_dir}")
+        #print(f"[*] Scanning Assemblies directory: {self.assemblies_dir}")
 
         for file_path in self.assemblies_dir.rglob("*.exe"):
             command_name = self._extract_command_name(file_path.name)
@@ -185,7 +185,7 @@ class CLIExtender:
             print(f"[-] PE directory does not exist: {self.pe_dir}")
             return
 
-        print(f"[*] Scanning PE directory: {self.pe_dir}")
+        #print(f"[*] Scanning PE directory: {self.pe_dir}")
 
         for file_path in self.pe_dir.rglob("*.exe"):
             command_name = self._extract_command_name(file_path.name)
@@ -233,7 +233,6 @@ class CLIExtender:
         return None
 
     def _load_json_metadata(self, json_file_path):
-        """Load metadata from JSON file"""
         try:
             with open(json_file_path, 'r', encoding='utf-8') as f:
                 metadata = json.load(f)
