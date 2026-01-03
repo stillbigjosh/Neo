@@ -17,6 +17,7 @@
 - [x] Socks5 support for reverse proxying
 - [x] NtQueueApcThread,NtCreateThreadEx,RtlCreateUserThread Shellcode injection into sacrificial process
 - [x] Load PE Reflectively via goffloader library
+- [x] Extension Package Manager(Armory)
 
 
 ## Actively Under development
