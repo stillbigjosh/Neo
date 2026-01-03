@@ -765,16 +765,18 @@ class ExtensionPackageManager:
 
     def list_available_packages(self):
         print(f"{green('[+]')} Available packages:")
-        print("-" * 80)
-        print(f"{'Name':<20} {'Version':<10} {'Type':<10} {'Description':<35}")
-        print("-" * 80)
+        print("-" * 120)
+        print(f"{'Name':<30} {'Version':<15} {'Type':<10} {'Description':<50}")
+        print("-" * 120)
 
         packages = self._get_available_packages()
         for pkg in packages:
-            description = pkg.description[:32] + "..." if len(pkg.description) > 32 else pkg.description
-            print(f"{pkg.name:<20} {pkg.version:<10} {pkg.file_type.upper():<10} {description:<35}")
+            description = pkg.description[:47] + "..." if len(pkg.description) > 47 else pkg.description
+            # Only display type if it's not 'unknown', otherwise show empty
+            display_type = pkg.file_type.upper() if pkg.file_type.lower() != 'unknown' else ''
+            print(f"{pkg.name:<30} {pkg.version:<15} {display_type:<10} {description:<50}")
 
-        print("-" * 80)
+        print("-" * 120)
         print(f"Total: {len(packages)} packages available")
 
     def list_installed_packages(self):
@@ -1227,18 +1229,20 @@ class ExtensionPackageManager:
 
     def search_packages(self, search_term: str):
         print(f"{green('[+]')} Searching for packages containing: {search_term}")
-        print("-" * 80)
-        print(f"{'Name':<20} {'Version':<10} {'Type':<10} {'Description':<35}")
-        print("-" * 80)
+        print("-" * 120)
+        print(f"{'Name':<30} {'Version':<15} {'Type':<10} {'Description':<50}")
+        print("-" * 120)
 
         packages = self._get_available_packages()
         matches = [pkg for pkg in packages if search_term.lower() in pkg.name.lower()]
 
         for pkg in matches:
-            description = pkg.description[:32] + "..." if len(pkg.description) > 32 else pkg.description
-            print(f"{pkg.name:<20} {pkg.version:<10} {pkg.file_type.upper():<10} {description:<35}")
+            description = pkg.description[:47] + "..." if len(pkg.description) > 47 else pkg.description
+            # Only display type if it's not 'unknown', otherwise show empty
+            display_type = pkg.file_type.upper() if pkg.file_type.lower() != 'unknown' else ''
+            print(f"{pkg.name:<30} {pkg.version:<15} {display_type:<10} {description:<50}")
 
-        print("-" * 80)
+        print("-" * 120)
         print(f"Found: {len(matches)} matching packages")
 
     def add_repository(self, name: str, url: str, public_key: str):

@@ -433,7 +433,14 @@ class CLIExtender:
             print(f"{red('[-]')} Extension package manager not available")
             return False
 
-        command_parts = command.strip().split()
+        # Use shlex to properly handle quoted arguments
+        import shlex
+        try:
+            command_parts = shlex.split(command.strip())
+        except ValueError as e:
+            print(f"{red('[-]')} Error parsing command: {str(e)}")
+            return False
+
         if len(command_parts) < 2:
             print(f"{green('[+]')} Extension Commands Help:")
             print(f"  extender install <name>    - Install an extension from the repository")
