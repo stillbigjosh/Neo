@@ -793,13 +793,6 @@ class NeoC2RemoteCLI:
                 os.path.join('cli', 'extensions', 'bof', os.path.basename(file_path)),
                 os.path.join('cli', 'extensions', os.path.basename(file_path)),
             ]
-            # Add subdirectory search paths for bof
-            bof_extensions_dir = os.path.join('cli', 'extensions', 'bof')
-            if os.path.exists(bof_extensions_dir):
-                for root, dirs, files in os.walk(bof_extensions_dir):
-                    for file in files:
-                        if file == os.path.basename(file_path):
-                            search_paths.append(os.path.join(root, file))
 
         elif cmd_name == 'execute-assembly':
             search_paths = [
@@ -810,13 +803,6 @@ class NeoC2RemoteCLI:
                 os.path.join('cli', 'extensions', 'assemblies', os.path.basename(file_path)),
                 os.path.join('cli', 'extensions', os.path.basename(file_path)),
             ]
-            # Add subdirectory search paths for assemblies
-            assemblies_extensions_dir = os.path.join('cli', 'extensions', 'assemblies')
-            if os.path.exists(assemblies_extensions_dir):
-                for root, dirs, files in os.walk(assemblies_extensions_dir):
-                    for file in files:
-                        if file == os.path.basename(file_path):
-                            search_paths.append(os.path.join(root, file))
 
         elif cmd_name == 'peinject':
             search_paths = [
@@ -827,13 +813,6 @@ class NeoC2RemoteCLI:
                 os.path.join('cli', 'extensions', os.path.basename(file_path)),
                 os.path.join('cli', 'extensions', 'pe', os.path.basename(file_path)),
             ]
-            # Add subdirectory search paths for pe
-            pe_extensions_dir = os.path.join('cli', 'extensions', 'pe')
-            if os.path.exists(pe_extensions_dir):
-                for root, dirs, files in os.walk(pe_extensions_dir):
-                    for file in files:
-                        if file == os.path.basename(file_path):
-                            search_paths.append(os.path.join(root, file))
         elif cmd_name == 'execute-pe':
             search_paths = [
                 os.path.join('cli', 'extensions', 'pe', file_path),
@@ -843,13 +822,6 @@ class NeoC2RemoteCLI:
                 os.path.join('cli', 'extensions', 'pe', os.path.basename(file_path)),
                 os.path.join('cli', 'extensions', os.path.basename(file_path)),
             ]
-            # Add subdirectory search paths for pe
-            pe_extensions_dir = os.path.join('cli', 'extensions', 'pe')
-            if os.path.exists(pe_extensions_dir):
-                for root, dirs, files in os.walk(pe_extensions_dir):
-                    for file in files:
-                        if file == os.path.basename(file_path):
-                            search_paths.append(os.path.join(root, file))
 
         elif cmd_name == 'pwsh':
             # For pwsh, we look for PowerShell script files
@@ -861,13 +833,6 @@ class NeoC2RemoteCLI:
                 os.path.join('cli', 'extensions', 'powershell', os.path.basename(file_path)),
                 os.path.join('cli', 'extensions', os.path.basename(file_path)),
             ]
-            # Add subdirectory search paths for powershell
-            pwsh_extensions_dir = os.path.join('cli', 'extensions', 'powershell')
-            if os.path.exists(pwsh_extensions_dir):
-                for root, dirs, files in os.walk(pwsh_extensions_dir):
-                    for file in files:
-                        if file == os.path.basename(file_path):
-                            search_paths.append(os.path.join(root, file))
 
         elif cmd_name == 'pinject':
             # For pinject, we look for shellcode files in the extensions directory
@@ -879,13 +844,6 @@ class NeoC2RemoteCLI:
                 os.path.join('cli', 'extensions', os.path.basename(file_path)),
                 os.path.join('cli', 'extensions', 'shellcode', os.path.basename(file_path)),
             ]
-            # Add subdirectory search paths for shellcode
-            shellcode_extensions_dir = os.path.join('cli', 'extensions', 'shellcode')
-            if os.path.exists(shellcode_extensions_dir):
-                for root, dirs, files in os.walk(shellcode_extensions_dir):
-                    for file in files:
-                        if file == os.path.basename(file_path):
-                            search_paths.append(os.path.join(root, file))
         else:
             return None
 
@@ -1629,37 +1587,65 @@ DB Inactive:       {stats.get('db_inactive_agents', 0)}
                         print(f"{red('[-]')} Failed to stop server CLI SOCKS proxy: {error_msg}")
                     continue
                 elif command.lower().startswith('extender') or command.lower().startswith('extensions'):
-                    # Handle extender commands: extender, extender list, extender info <name>
+                    # Handle extender commands: extender, extender list, extender info <name>, etc.
                     command_parts = command.strip().split()
 
                     if len(command_parts) == 1:
                         # Just 'extender' command - show usage help
                         print("Extension Commands Help:")
-                        print("  extender list          - Show all available extension commands")
-                        print("  extender info <name>   - Show detailed information about a specific extension")
-                        print("  extensions             - Alternative command for 'extender'")
+                        print("  extender install <name>    - Install an extension from the repository")
+                        print("  extender list              - Show all installed extensions")
+                        print("  extender list available    - Show all available extensions")
+                        print("  extender search <term>     - Search for extensions in the repository")
+                        print("  extender uninstall <name>  - Uninstall an extension")
+                        print("  extender update <name>     - Update an extension")
+                        print("  extender add-repo <name> <url> <key>    - Add a repository")
+                        print("  extender remove-repo <name>             - Remove a repository")
+                        print("  extender info <name>       - Show detailed information about a specific extension")
+                        print("  extensions                 - Alternative command for 'extender'")
                         continue
                     elif len(command_parts) >= 2:
                         subcommand = command_parts[1].lower()
 
-                        if subcommand == 'list' or command.lower() == 'extensions':
-                            # Show available extension commands
-                            if self.extender:
-                                self.extender.print_extension_list()
-                            else:
-                                print(f"{red('[-]')} CLI extender is not available or failed to initialize")
-                        elif subcommand == 'info' and len(command_parts) >= 3:
-                            # Show info for specific extension
-                            if self.extender:
-                                extension_name = command_parts[2]
-                                self.extender.print_extension_info(extension_name)
-                            else:
-                                print(f"{red('[-]')} CLI extender is not available or failed to initialize")
+                        # Use the extender manager for complex commands
+                        if self.extender and hasattr(self.extender, 'handle_extender_command'):
+                            # Let the extender manager handle the command
+                            self.extender.handle_extender_command(command)
+                            continue
                         else:
-                            print(f"{red('[-]')} Unknown extender subcommand: {subcommand}")
-                            print("Available extender commands:")
-                            print("  extender list          - Show all available extension commands")
-                            print("  extender info <name>   - Show detailed information about a specific extension")
+                            # Fallback to basic commands if extender manager is not available
+                            if subcommand == 'list' or command.lower() == 'extensions':
+                                # Show available extension commands
+                                if self.extender:
+                                    if len(command_parts) > 2 and command_parts[2] == 'available':
+                                        # If 'extender list available' is called, try to use package manager
+                                        if hasattr(self.extender, 'package_manager') and self.extender.package_manager:
+                                            self.extender.package_manager.list_available_packages()
+                                        else:
+                                            print(f"{red('[-]')} Extension package manager not available")
+                                    else:
+                                        self.extender.print_extension_list()
+                                else:
+                                    print(f"{red('[-]')} CLI extender is not available or failed to initialize")
+                            elif subcommand == 'info' and len(command_parts) >= 3:
+                                # Show info for specific extension
+                                if self.extender:
+                                    extension_name = command_parts[2]
+                                    self.extender.print_extension_info(extension_name)
+                                else:
+                                    print(f"{red('[-]')} CLI extender is not available or failed to initialize")
+                            else:
+                                print(f"{red('[-]')} Unknown extender subcommand: {subcommand}")
+                                print("Available extender commands:")
+                                print("  extender install <name>    - Install an extension from the repository")
+                                print("  extender list              - Show all installed extensions")
+                                print("  extender list available    - Show all available extensions")
+                                print("  extender search <term>     - Search for extensions in the repository")
+                                print("  extender uninstall <name>  - Uninstall an extension")
+                                print("  extender update <name>     - Update an extension")
+                                print("  extender add-repo <name> <url> <key>    - Add a repository")
+                                print("  extender remove-repo <name>             - Remove a repository")
+                                print("  extender info <name>       - Show detailed information about a specific extension")
                     continue
 
                 response = self.send_command(command)

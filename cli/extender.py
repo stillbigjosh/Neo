@@ -84,7 +84,7 @@ def bright(text):
 
 
 class CLIExtender:
-    
+
     def __init__(self, cli_instance):
         self.cli = cli_instance
         self.extensions_dir = Path("cli/extensions")
@@ -97,9 +97,17 @@ class CLIExtender:
 
         # Load and register all available extensions
         self._load_extensions()
-    
+
+        # Initialize extension package manager
+        try:
+            from .extender_manager import ExtensionPackageManager
+            self.package_manager = ExtensionPackageManager(cli_instance)
+        except ImportError:
+            print(f"{yellow('[*]')} Extension package manager not available")
+            self.package_manager = None
+
     def _load_extensions(self):
-        print(f"[+] Loading extensions from {self.extensions_dir}")
+        #print(f"[+] Loading extensions from {self.extensions_dir}")
 
         # Register BOF files
         self._register_bof_files()
@@ -111,16 +119,16 @@ class CLIExtender:
         self._register_pe_files()
 
         print(f"[+] Registered {len(self.command_registry)} extension commands")
-    
+
     def _register_bof_files(self):
         if not self.bof_dir.exists():
             print(f"[-] BOF directory does not exist: {self.bof_dir}")
             return
 
-        print(f"[*] Scanning BOF directory: {self.bof_dir}")
+        #print(f"[*] Scanning BOF directory: {self.bof_dir}")
 
-        # Scan root directory for .o files
-        for file_path in self.bof_dir.glob("*.o"):
+        # Scan both root and subdirectories for BOF files
+        for file_path in self.bof_dir.rglob("*.o"):
             command_name = self._extract_command_name(file_path.name)
             if command_name:
                 # Load JSON metadata if available - look for JSON file with the same base name as the command
@@ -135,168 +143,79 @@ class CLIExtender:
                 }
                 #print(f"[+] Registered BOF command: {command_name} -> {file_path.name}")
 
-        # Recursively scan subdirectories for .o files
-        for file_path in self.bof_dir.rglob("*.o"):
-            if file_path.parent != self.bof_dir:  # Skip files in root (already processed above)
-                command_name = self._extract_command_name(file_path.name)
-                if command_name:
-                    # Load JSON metadata if available - look for JSON file with the same base name as the command
-                    json_file_path = file_path.parent / f"{command_name}.json"
-                    metadata = self._load_json_metadata(json_file_path) if json_file_path.exists() else {}
-
-                    self.command_registry[command_name] = {
-                        'type': 'bof',
-                        'file_path': str(file_path),
-                        'original_name': file_path.name,
-                        'metadata': metadata
-                    }
-                    #print(f"[+] Registered BOF command: {command_name} -> {file_path.name}")
-    
     def _register_assembly_files(self):
         if not self.assemblies_dir.exists():
             print(f"[-] Assemblies directory does not exist: {self.assemblies_dir}")
             return
 
-        print(f"[*] Scanning Assemblies directory: {self.assemblies_dir}")
+        #print(f"[*] Scanning Assemblies directory: {self.assemblies_dir}")
 
-        # Scan root directory for .exe files
-        for file_path in self.assemblies_dir.glob("*.exe"):
-            command_name = self._extract_command_name(file_path.name)
-            if command_name:
-                # Load JSON metadata if available - look for JSON file with the same base name as the command
-                json_file_path = file_path.parent / f"{command_name}.json"
-                metadata = self._load_json_metadata(json_file_path) if json_file_path.exists() else {}
-
-                self.command_registry[command_name] = {
-                    'type': 'assembly',
-                    'file_path': str(file_path),
-                    'original_name': file_path.name,
-                    'metadata': metadata
-                }
-                #print(f"[+] Registered Assembly command: {command_name} -> {file_path.name}")
-
-        # Scan root directory for .dll files
-        for file_path in self.assemblies_dir.glob("*.dll"):
-            command_name = self._extract_command_name(file_path.name)
-            if command_name:
-                # Load JSON metadata if available - look for JSON file with the same base name as the command
-                json_file_path = file_path.parent / f"{command_name}.json"
-                metadata = self._load_json_metadata(json_file_path) if json_file_path.exists() else {}
-
-                self.command_registry[command_name] = {
-                    'type': 'assembly',
-                    'file_path': str(file_path),
-                    'original_name': file_path.name,
-                    'metadata': metadata
-                }
-                #print(f"[+] Registered Assembly command: {command_name} -> {file_path.name}")
-
-        # Recursively scan subdirectories for .exe files
         for file_path in self.assemblies_dir.rglob("*.exe"):
-            if file_path.parent != self.assemblies_dir:  # Skip files in root (already processed above)
-                command_name = self._extract_command_name(file_path.name)
-                if command_name:
-                    # Load JSON metadata if available - look for JSON file with the same base name as the command
-                    json_file_path = file_path.parent / f"{command_name}.json"
-                    metadata = self._load_json_metadata(json_file_path) if json_file_path.exists() else {}
+            command_name = self._extract_command_name(file_path.name)
+            if command_name:
+                # Load JSON metadata if available - look for JSON file with the same base name as the command
+                json_file_path = file_path.parent / f"{command_name}.json"
+                metadata = self._load_json_metadata(json_file_path) if json_file_path.exists() else {}
 
-                    self.command_registry[command_name] = {
-                        'type': 'assembly',
-                        'file_path': str(file_path),
-                        'original_name': file_path.name,
-                        'metadata': metadata
-                    }
-                    #print(f"[+] Registered Assembly command: {command_name} -> {file_path.name}")
+                self.command_registry[command_name] = {
+                    'type': 'assembly',
+                    'file_path': str(file_path),
+                    'original_name': file_path.name,
+                    'metadata': metadata
+                }
+                #print(f"[+] Registered Assembly command: {command_name} -> {file_path.name}")
 
-        # Recursively scan subdirectories for .dll files
         for file_path in self.assemblies_dir.rglob("*.dll"):
-            if file_path.parent != self.assemblies_dir:  # Skip files in root (already processed above)
-                command_name = self._extract_command_name(file_path.name)
-                if command_name:
-                    # Load JSON metadata if available - look for JSON file with the same base name as the command
-                    json_file_path = file_path.parent / f"{command_name}.json"
-                    metadata = self._load_json_metadata(json_file_path) if json_file_path.exists() else {}
+            command_name = self._extract_command_name(file_path.name)
+            if command_name:
+                # Load JSON metadata if available - look for JSON file with the same base name as the command
+                json_file_path = file_path.parent / f"{command_name}.json"
+                metadata = self._load_json_metadata(json_file_path) if json_file_path.exists() else {}
 
-                    self.command_registry[command_name] = {
-                        'type': 'assembly',
-                        'file_path': str(file_path),
-                        'original_name': file_path.name,
-                        'metadata': metadata
-                    }
-                    #print(f"[+] Registered Assembly command: {command_name} -> {file_path.name}")
+                self.command_registry[command_name] = {
+                    'type': 'assembly',
+                    'file_path': str(file_path),
+                    'original_name': file_path.name,
+                    'metadata': metadata
+                }
+                #print(f"[+] Registered Assembly command: {command_name} -> {file_path.name}")
 
     def _register_pe_files(self):
         if not self.pe_dir.exists():
             print(f"[-] PE directory does not exist: {self.pe_dir}")
             return
 
-        print(f"[*] Scanning PE directory: {self.pe_dir}")
+        #print(f"[*] Scanning PE directory: {self.pe_dir}")
 
-        # Scan root directory for .exe files
-        for file_path in self.pe_dir.glob("*.exe"):
-            command_name = self._extract_command_name(file_path.name)
-            if command_name:
-                # Load JSON metadata if available - look for JSON file with the same base name as the command
-                json_file_path = file_path.parent / f"{command_name}.json"
-                metadata = self._load_json_metadata(json_file_path) if json_file_path.exists() else {}
-
-                self.command_registry[command_name] = {
-                    'type': 'pe',
-                    'file_path': str(file_path),
-                    'original_name': file_path.name,
-                    'metadata': metadata
-                }
-                #print(f"[+] Registered PE command: {command_name} -> {file_path.name}")
-
-        # Scan root directory for .dll files
-        for file_path in self.pe_dir.glob("*.dll"):
-            command_name = self._extract_command_name(file_path.name)
-            if command_name:
-                # Load JSON metadata if available - look for JSON file with the same base name as the command
-                json_file_path = file_path.parent / f"{command_name}.json"
-                metadata = self._load_json_metadata(json_file_path) if json_file_path.exists() else {}
-
-                self.command_registry[command_name] = {
-                    'type': 'pe',
-                    'file_path': str(file_path),
-                    'original_name': file_path.name,
-                    'metadata': metadata
-                }
-                #print(f"[+] Registered PE command: {command_name} -> {file_path.name}")
-
-        # Recursively scan subdirectories for .exe files
         for file_path in self.pe_dir.rglob("*.exe"):
-            if file_path.parent != self.pe_dir:  # Skip files in root (already processed above)
-                command_name = self._extract_command_name(file_path.name)
-                if command_name:
-                    # Load JSON metadata if available - look for JSON file with the same base name as the command
-                    json_file_path = file_path.parent / f"{command_name}.json"
-                    metadata = self._load_json_metadata(json_file_path) if json_file_path.exists() else {}
+            command_name = self._extract_command_name(file_path.name)
+            if command_name:
+                # Load JSON metadata if available - look for JSON file with the same base name as the command
+                json_file_path = file_path.parent / f"{command_name}.json"
+                metadata = self._load_json_metadata(json_file_path) if json_file_path.exists() else {}
 
-                    self.command_registry[command_name] = {
-                        'type': 'pe',
-                        'file_path': str(file_path),
-                        'original_name': file_path.name,
-                        'metadata': metadata
-                    }
-                    #print(f"[+] Registered PE command: {command_name} -> {file_path.name}")
+                self.command_registry[command_name] = {
+                    'type': 'pe',
+                    'file_path': str(file_path),
+                    'original_name': file_path.name,
+                    'metadata': metadata
+                }
+                #print(f"[+] Registered PE command: {command_name} -> {file_path.name}")
 
-        # Recursively scan subdirectories for .dll files
         for file_path in self.pe_dir.rglob("*.dll"):
-            if file_path.parent != self.pe_dir:  # Skip files in root (already processed above)
-                command_name = self._extract_command_name(file_path.name)
-                if command_name:
-                    # Load JSON metadata if available - look for JSON file with the same base name as the command
-                    json_file_path = file_path.parent / f"{command_name}.json"
-                    metadata = self._load_json_metadata(json_file_path) if json_file_path.exists() else {}
+            command_name = self._extract_command_name(file_path.name)
+            if command_name:
+                # Load JSON metadata if available - look for JSON file with the same base name as the command
+                json_file_path = file_path.parent / f"{command_name}.json"
+                metadata = self._load_json_metadata(json_file_path) if json_file_path.exists() else {}
 
-                    self.command_registry[command_name] = {
-                        'type': 'pe',
-                        'file_path': str(file_path),
-                        'original_name': file_path.name,
-                        'metadata': metadata
-                    }
-                    #print(f"[+] Registered PE command: {command_name} -> {file_path.name}")
+                self.command_registry[command_name] = {
+                    'type': 'pe',
+                    'file_path': str(file_path),
+                    'original_name': file_path.name,
+                    'metadata': metadata
+                }
+                #print(f"[+] Registered PE command: {command_name} -> {file_path.name}")
 
     def _extract_command_name(self, filename):
         # Remove .x64, .x86, .exe, .dll, .o extensions in order
@@ -314,7 +233,6 @@ class CLIExtender:
         return None
 
     def _load_json_metadata(self, json_file_path):
-        """Load metadata from JSON file"""
         try:
             with open(json_file_path, 'r', encoding='utf-8') as f:
                 metadata = json.load(f)
@@ -322,15 +240,15 @@ class CLIExtender:
         except Exception as e:
             print(f"{red('[-]')} Error loading metadata from {json_file_path}: {str(e)}")
             return {}
-    
+
     def is_extension_command(self, command):
         command_parts = command.strip().split()
         if not command_parts:
             return False
-        
+
         command_name = command_parts[0].lower()
         return command_name in self.command_registry
-    
+
     def handle_extension_command(self, command):
         command_parts = command.strip().split()
         if not command_parts:
@@ -350,10 +268,58 @@ class CLIExtender:
         import os
         import base64
 
-        # The file path is already the full path from the registry, so we can use it directly
-        actual_file_path = file_path
+        # Define search paths similar to _handle_extension_command
+        # Since files are now organized in package subdirectories, we need to check those too
+        if extension_info['type'] == 'bof':
+            search_paths = [
+                file_path,  # Direct path from registry
+                os.path.join('cli', 'extensions', 'bof', os.path.basename(file_path)),
+                os.path.join('cli', 'extensions', os.path.basename(file_path)),
+                os.path.join(os.getcwd(), file_path),
+                os.path.join(os.getcwd(), os.path.basename(file_path))
+            ]
+            # Add paths for package subdirectories
+            file_basename = os.path.basename(file_path)
+            for package_dir in Path('cli/extensions/bof').iterdir():
+                if package_dir.is_dir():
+                    search_paths.append(os.path.join(str(package_dir), file_basename))
+        elif extension_info['type'] == 'assembly':
+            search_paths = [
+                file_path,  # Direct path from registry
+                os.path.join('cli', 'extensions', 'assemblies', os.path.basename(file_path)),
+                os.path.join('cli', 'extensions', os.path.basename(file_path)),
+                os.path.join(os.getcwd(), file_path),
+                os.path.join(os.getcwd(), os.path.basename(file_path))
+            ]
+            # Add paths for package subdirectories
+            file_basename = os.path.basename(file_path)
+            for package_dir in Path('cli/extensions/assemblies').iterdir():
+                if package_dir.is_dir():
+                    search_paths.append(os.path.join(str(package_dir), file_basename))
+        elif extension_info['type'] == 'pe':
+            search_paths = [
+                file_path,  # Direct path from registry
+                os.path.join('cli', 'extensions', 'pe', os.path.basename(file_path)),
+                os.path.join('cli', 'extensions', os.path.basename(file_path)),
+                os.path.join(os.getcwd(), file_path),
+                os.path.join(os.getcwd(), os.path.basename(file_path))
+            ]
+            # Add paths for package subdirectories
+            file_basename = os.path.basename(file_path)
+            for package_dir in Path('cli/extensions/pe').iterdir():
+                if package_dir.is_dir():
+                    search_paths.append(os.path.join(str(package_dir), file_basename))
+        else:
+            return None
 
-        if not os.path.exists(actual_file_path):
+        # Find the actual file
+        actual_file_path = None
+        for path in search_paths:
+            if os.path.exists(path):
+                actual_file_path = path
+                break
+
+        if not actual_file_path:
             print(f"{red('[-]')} Extension file not found: {file_path}")
             return None
 
@@ -381,29 +347,32 @@ class CLIExtender:
             execute_cmd += " " + " ".join(command_parts[1:])
 
         return execute_cmd
-    
+
     def get_available_commands(self):
-        return list(self.command_registry.keys())
-    
+        # Include package manager commands if available
+        commands = list(self.command_registry.keys())
+        if self.package_manager:
+            # Add extension management commands
+            commands.extend(['extender', 'extensions'])
+        return commands
+
     def get_command_info(self, command_name):
         return self.command_registry.get(command_name.lower())
-    
+
     def print_available_commands(self):
         if not self.command_registry:
             print("[*] No extension commands available")
             return
 
         print("Available Extension Commands:")
-        print("-" * 80)
-        print(f"{'Command':<25} {'Type':<8} {'File':<35}")
-        print("-" * 80)
+        print("-" * 60)
+        print(f"{'Command':<20} {'Type':<10} {'File':<25}")
+        print("-" * 60)
 
         for cmd_name, info in sorted(self.command_registry.items()):
-            # Truncate long filenames to fit in the column
-            truncated_filename = (info['original_name'][:33] + '..') if len(info['original_name']) > 35 else info['original_name']
-            print(f"{cmd_name:<25} {info['type']:<8} {truncated_filename:<35}")
+            print(f"{cmd_name:<20} {info['type']:<10} {info['original_name']:<25}")
 
-        print("-" * 80)
+        print("-" * 60)
         print(f"Total: {len(self.command_registry)} extension commands")
 
     def print_extension_list(self):
@@ -412,20 +381,15 @@ class CLIExtender:
             return
 
         print("Available Extension Commands:")
-        # Increased width to accommodate longer names
-        print("-" * 120)
-        # Increased column widths: Command (25), Type (8), File (35), Description (40)
-        print(f"{'Command':<25} {'Type':<8} {'File':<35} {'Description':<40}")
-        print("-" * 120)
+        print("-" * 80)
+        print(f"{'Command':<20} {'Type':<10} {'File':<25} {'Description':<20}")
+        print("-" * 80)
 
         for cmd_name, info in sorted(self.command_registry.items()):
             description = info['metadata'].get('help', 'No description') if info['metadata'] else 'No description'
-            # Truncate long filenames to fit in the column
-            truncated_filename = (info['original_name'][:33] + '..') if len(info['original_name']) > 35 else info['original_name']
-            truncated_description = (description[:38] + '..') if len(description) > 40 else description
-            print(f"{cmd_name:<25} {info['type']:<8} {truncated_filename:<35} {truncated_description:<40}")
+            print(f"{cmd_name:<20} {info['type']:<10} {info['original_name']:<25} {description:<20}")
 
-        print("-" * 120)
+        print("-" * 80)
         print(f"Total: {len(self.command_registry)} extension commands")
 
     def print_extension_info(self, command_name):
@@ -461,3 +425,129 @@ class CLIExtender:
             print(f"Usage:       N/A")
 
         print("=" * 50)
+
+    def handle_extender_command(self, command):
+        """Handle extension management commands like install, list, etc."""
+        if not self.package_manager:
+            print(f"{red('[-]')} Extension package manager not available")
+            return False
+
+        # Use shlex to properly handle quoted arguments
+        import shlex
+        try:
+            command_parts = shlex.split(command.strip())
+        except ValueError as e:
+            print(f"{red('[-]')} Error parsing command: {str(e)}")
+            return False
+
+        if len(command_parts) < 2:
+            print(f"{green('[+]')} Extension Commands Help:")
+            print(f"  extender install <name>    - Install an extension from the repository")
+            print(f"  extender list              - Show all installed extensions")
+            print(f"  extender list available    - Show all available extensions")
+            print(f"  extender search <term>     - Search for extensions in the repository")
+            print(f"  extender uninstall <name>  - Uninstall an extension")
+            print(f"  extender update <name>     - Update an extension")
+            print(f"  extender add-repo <name> <url> <key>    - Add a repository")
+            print(f"  extender remove-repo <name>             - Remove a repository")
+            print(f"  extender info <name>       - Show detailed information about a specific extension")
+            print(f"  extensions                 - Alternative command for 'extender'")
+            return True
+
+        subcommand = command_parts[1].lower()
+
+        if subcommand == "install":
+            if len(command_parts) < 3:
+                print(f"{red('[-]')} Package name required. Usage: extender install <package_name>")
+                return True
+            package_name = command_parts[2]
+            force = '--force' in command_parts or '-f' in command_parts
+            self.package_manager.install_package(package_name, force=force)
+            return True
+        elif subcommand == "list":
+            if len(command_parts) > 2 and command_parts[2] == "available":
+                self.package_manager.list_available_packages()
+            else:
+                self.package_manager.list_installed_packages()
+            return True
+        elif subcommand == "search":
+            if len(command_parts) < 3:
+                print(f"{red('[-]')} Search term required. Usage: extender search <search_term>")
+                return True
+            search_term = command_parts[2]
+            self.package_manager.search_packages(search_term)
+            return True
+        elif subcommand == "uninstall":
+            if len(command_parts) < 3:
+                print(f"{red('[-]')} Package name required. Usage: extender uninstall <package_name>")
+                return True
+            package_name = command_parts[2]
+            self.package_manager.uninstall_package(package_name)
+            return True
+        elif subcommand == "update":
+            if len(command_parts) < 3:
+                print(f"{red('[-]')} Package name required. Usage: extender update <package_name>")
+                return True
+            package_name = command_parts[2]
+            self.package_manager.update_package(package_name)
+            return True
+        elif subcommand in ["add-repo", "add_repository"]:
+            if len(command_parts) < 5:
+                print(f"{red('[-]')} Usage: extender add-repo <name> <url> <public_key>")
+                return True
+            name = command_parts[2]
+            url = command_parts[3]
+            public_key = command_parts[4]
+            self.package_manager.add_repository(name, url, public_key)
+            return True
+        elif subcommand in ["remove-repo", "remove_repository"]:
+            if len(command_parts) < 3:
+                print(f"{red('[-]')} Repository name required. Usage: extender remove-repo <name>")
+                return True
+            name = command_parts[2]
+            self.package_manager.remove_repository(name)
+            return True
+        elif subcommand == "info":
+            if len(command_parts) < 3:
+                print(f"{red('[-]')} Extension name required. Usage: extender info <extension_name>")
+                return True
+            extension_name = command_parts[2]
+            # Call the existing info method from the parent class
+            self.print_extension_info(extension_name)
+            return True
+        else:
+            print(f"{red('[-]')} Unknown extender subcommand: {subcommand}")
+            print(f"Available extender commands:")
+            print(f"  extender install <name>    - Install an extension from the repository")
+            print(f"  extender list              - Show all installed extensions")
+            print(f"  extender list available    - Show all available extensions")
+            print(f"  extender search <term>     - Search for extensions in the repository")
+            print(f"  extender uninstall <name>  - Uninstall an extension")
+            print(f"  extender update <name>     - Update an extension")
+            print(f"  extender add-repo <name> <url> <key>    - Add a repository")
+            print(f"  extender remove-repo <name>             - Remove a repository")
+            print(f"  extender info <name>       - Show detailed information about a specific extension")
+            return True
+
+    def handle_extensions_command(self, command):
+        """Handle extensions command as an alias to extender command"""
+        # Replace 'extensions' with 'extender' and process the same way
+        command_parts = command.strip().split()
+        if len(command_parts) == 1:
+            # If just 'extensions' is called, show help
+            print(f"{green('[+]')} Extension Commands Help:")
+            print(f"  extensions install <name>    - Install an extension from the repository")
+            print(f"  extensions list              - Show all installed extensions")
+            print(f"  extensions list available    - Show all available extensions")
+            print(f"  extensions search <term>     - Search for extensions in the repository")
+            print(f"  extensions uninstall <name>  - Uninstall an extension")
+            print(f"  extensions update <name>     - Update an extension")
+            print(f"  extensions add-repo <name> <url> <key>    - Add a repository")
+            print(f"  extensions remove-repo <name>             - Remove a repository")
+            print(f"  extensions info <name>       - Show detailed information about a specific extension")
+            print(f"  extender                     - Alternative command for 'extensions'")
+            return True
+        else:
+            # Replace 'extensions' with 'extender' and process the same way
+            command = command.replace('extensions', 'extender', 1)
+            return self.handle_extender_command(command)
