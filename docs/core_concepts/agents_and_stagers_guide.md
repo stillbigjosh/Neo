@@ -26,32 +26,48 @@ The Trinity Agent is built with a modular architecture that allows operators to 
 #### Advanced Feature Modules
 The agent supports the following modular features that can be selectively included:
 
-1. **BOF (Beacon Object File) Execution**
+1. **BOF (Beacon Object File) Execution**:
+   
    - Execute COFF files in memory
+     
    - Commands: `execute-bof <bof_filename> [arguments] [agent_id=<agent_id>]`
 
-2. **.NET Assembly Execution**
+2. **.NET Assembly Execution**:
+   
    - Execute .NET assemblies in memory
+     
    - Commands: `execute-assembly <assembly_filename> [agent_id=<agent_id>]`
 
-3. **Shellcode Injection**
+3. **Shellcode Injection**:
+   
    - Inject and execute shellcode in target processes
+     
    - Multiple injection techniques (NtQueueApcThread, NtCreateThreadEx, CreateRemoteThread, etc.)
+     
    - Commands: `pinject <b64_shellcode_filename> [agent_id=<agent_id>]`
 
-4. **PE Injection**
+4. **PE Injection**:
+   
    - Inject and execute PE files in target processes
+     
    - Process hollowing techniques
+     
    - Commands: `peinject <pe_filename> [agent_id=<agent_id>]`
 
-5. **Reverse Proxy (SOCKS5)**
+5. **Reverse Proxy (SOCKS5)**:
+   
    - Built-in SOCKS5 proxy functionality
+     
    - Provides pivoting capabilities
+     
    - Commands: `reverse_proxy_start`, `reverse_proxy_stop`
 
-6. **Enhanced Sandbox Detection**
+6. **Enhanced Sandbox Detection**:
+   
    - Advanced anti-analysis and evasion checks
+     
    - Process monitoring, network tools detection, debugger checks
+     
    - Automatically runs during registration
 
 
@@ -134,8 +150,8 @@ The modular approach conditionally includes external dependencies based on selec
 
 ### Import Obfuscation 
 
-This encrypts DLL imports and Windows API functions strings to evade static analysis and signature-based detection, which typically inspect the Import Address Table (IAT). During runtime, a XOR decryption routine is used to reconstruct the correct names. The secret key used for this operation is a simple XOR key with the value 0x42 (66 in decimal) at default. This key is defined in the Go agent template, and used in the runtime deobfuscation where each byte of the obfuscated string is XORed with the key to get the original strings. To override this default key, Use `--obfuscate` flag during payload generation, it randomizes this key and obfuscated bytes to make each agent unique.
-  
+This encrypts DLL imports and Windows API functions strings to evade static analysis and signature-based detection, which typically inspect the Import Address Table (IAT). During runtime, a XOR decryption routine is used to reconstruct the correct names. The secret key used for this operation is a simple XOR key with the value `0x42` (66 in decimal) at default. This key is defined in the Go agent template, and used in the runtime deobfuscation where each byte of the obfuscated string is XORed with the key to get the original strings. To override this default key, Use `--obfuscate` flag during payload generation, it randomizes this key and obfuscated bytes to make each agent unique.
+
 ### Security Considerations
 
 - **Polymorphic Engine**: Function and variable names are randomized for each payload
