@@ -93,6 +93,7 @@ Usage:       whoami
 - File pattern: `*.exe`, `*.dll`
 - Converted to: `execute-pe <file_path> [arguments]`
 
+
 ## Command Name Extraction
 
 The extender extracts command names from filenames by:
@@ -105,6 +106,8 @@ Examples:
 - `mimikatz.x86.o` → `mimikatz`  
 - `SharpHound.exe` → `SharpHound`
 - `Seatbelt.dll` → `Seatbelt`
+
+N.B: _Extensions of the same name and type in the same sub-folder would cause conflict during name extraction, e.g `whoami.x64.o` & `whoami.x86.o`. This will result in one of the two getting executed everytime `whoami` is run. Extensions that fall into this catgory can be run directly using its corresponding module `execute-bof whoami.x86.o`_ 
 
 ## JSON Metadata Support
 
