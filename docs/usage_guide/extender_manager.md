@@ -98,7 +98,7 @@ The configuration is framework agnostic, any compatible extension library can be
   "repositories": [
     {
       "name": "Neo-Extensions",
-      "url": "https://api.github.com/repos/sliverarmory/armory/releases",
+      "url": "https://api.github.com/repos/Neo-Extension/packages/releases",
       "public_key": "RWSBpxpRWDrD7Fe+VvRE3c2VEDC2NK80rlNCj+BX0gz44Xw07r6KQD9L"
     }
   ],
@@ -106,7 +106,6 @@ The configuration is framework agnostic, any compatible extension library can be
   "cache": {}
 }
 ```
-The default configuration would include the "Neo C2 Extension Library" that is still in development. However, right now operators can temporarily make use of Sliver Armory:
 
 ## Security Features
 
