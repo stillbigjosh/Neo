@@ -406,7 +406,7 @@ class ExtensionPackageManager:
 
     def _download_package(self, package_url: str) -> bytes:
         try:
-            print(f"{blue('[*]')} Downloading package from: {package_url}")
+            # print(f"{blue('[*]')} Downloading package from: {package_url}")  # Commented out to reduce verbosity
             response = requests.get(package_url, timeout=30)
             response.raise_for_status()
             return response.content
@@ -1084,7 +1084,7 @@ class ExtensionPackageManager:
                                 if package_name.lower() in asset_name and any(asset_name.endswith(ext) for ext in ['.zip', '.tar.gz', '.tgz']):
                                     download_url = asset.get("browser_download_url", "")
                                     if download_url:
-                                        print(f"{blue('[*]')} Found package asset: {asset.get('name', '')}")
+                                        # print(f"{blue('[*]')} Found package asset: {asset.get('name', '')}")  # Commented out to reduce verbosity
                                         return self._download_package(download_url)
 
                             # Look for assets that might contain the package name in a different format (excluding .minisig)
@@ -1113,7 +1113,7 @@ class ExtensionPackageManager:
                                     if var in asset_name and any(asset_name.endswith(ext) for ext in ['.zip', '.tar.gz', '.tgz']):
                                         download_url = asset.get("browser_download_url", "")
                                         if download_url:
-                                            print(f"{blue('[*]')} Found package asset: {asset.get('name', '')}")
+                                            # print(f"{blue('[*]')} Found package asset: {asset.get('name', '')}")  # Commented out to reduce verbosity
                                             return self._download_package(download_url)
 
                         # If no package-specific asset found or no package name provided,
@@ -1129,7 +1129,7 @@ class ExtensionPackageManager:
                                 # Found a potential package file, download it
                                 download_url = asset.get("browser_download_url", "")
                                 if download_url:
-                                    print(f"{blue('[*]')} Found package asset: {asset.get('name', '')}")
+                                    # print(f"{blue('[*]')} Found package asset: {asset.get('name', '')}")  # Commented out to reduce verbosity
                                     return self._download_package(download_url)
 
                     # If no zip asset found in releases, return None
@@ -1231,14 +1231,34 @@ class ExtensionPackageManager:
 
             package_dir.mkdir(exist_ok=True)
 
-            # Copy all files from extract_path to package directory
+            # Group files by command name to handle x64/x86 preference
+            command_files = {}
             for file_path in extract_path.rglob("*"):
-                if file_path.is_file():
-                    # Check if it's a supported file type
-                    if file_path.suffix in ['.o', '.exe', '.dll', '.bof']:
-                        target_file = package_dir / file_path.name
-                        shutil.copy2(file_path, target_file)
-                        print(f"{green('[+]')} Copied {file_path.name} to {package_dir}")
+                if file_path.is_file() and file_path.suffix in ['.o', '.exe', '.dll', '.bof']:
+                    # Extract command name from the file
+                    command_name = self._extract_package_name_from_filename(file_path.name)
+                    if command_name not in command_files:
+                        command_files[command_name] = []
+                    command_files[command_name].append(file_path)
+
+            # For each command, prefer x64 over other architectures
+            for command_name, files in command_files.items():
+                # Find x64 file if it exists
+                x64_file = None
+                other_files = []
+                for file_path in files:
+                    if '.x64.' in file_path.name.lower():
+                        x64_file = file_path
+                    else:
+                        other_files.append(file_path)
+
+                # If x64 file exists, only copy that; otherwise copy all other files
+                files_to_copy = [x64_file] if x64_file else other_files
+
+                for file_path in files_to_copy:
+                    target_file = package_dir / file_path.name
+                    shutil.copy2(file_path, target_file)
+                    print(f"{green('[+]')} Copied {file_path.name} to {package_dir}")
 
             return True
         except Exception as e:
