@@ -24,7 +24,7 @@
 - [ ] EDR Evasion modules
 - [ ] 2.0 Stable release
 - [ ] Integrate Donut for Trinity Shellcode generation
-- [ ] Dedicated Neo Extension Library
+
 
 ## To be implemented
 - [ ] Built-in modules for network reconnaissance and internal enumeration
