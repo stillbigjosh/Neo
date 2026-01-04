@@ -482,7 +482,7 @@ class ExtensionPackageManager:
 
     def _find_download_url_from_github_release(self, repo_api_url: str, package_name: str) -> tuple:
         try:
-            print(f"{blue('[*]')} Fetching GitHub releases from: {repo_api_url}")
+            #print(f"{blue('[*]')} Fetching GitHub releases from: {repo_api_url}")
             response = requests.get(repo_api_url, timeout=30)
             response.raise_for_status()
             releases = response.json()
