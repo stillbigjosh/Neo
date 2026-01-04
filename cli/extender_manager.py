@@ -510,35 +510,71 @@ class ExtensionPackageManager:
                             description = release.get("body", "")
                             return download_url, version, description
                 
-                # Look for assets that might contain the package name in a different format (excluding .minisig)
+                # If we found assets but none matched the package name exactly, try to find a more specific match
+                # Look for assets that contain the package name in their filename (with more flexible matching)
                 for asset in assets:
                     asset_name = asset.get("name", "").lower()
-                    
-                    # Skip .minisig files
-                    if asset_name.endswith('.minisig'):
-                        continue
-                    
-                    if any(name in asset_name for name in [package_name.lower(), package_name.lower().replace('-', ''), package_name.lower().replace('_', '')]):
-                        download_url = asset.get("browser_download_url", "")
-                        if download_url:
-                            version = release.get("tag_name", "unknown")
-                            description = release.get("body", "")
-                            return download_url, version, description
 
-                # If we found assets but none matched the package name, try the first valid zip asset (excluding .minisig)
-                for asset in assets:
-                    asset_name = asset.get("name", "").lower()
-                    
                     # Skip .minisig files
                     if asset_name.endswith('.minisig'):
                         continue
-                    
+
+                    # Look for assets that contain the package name with more flexible matching
+                    # but only if they are zip files
+                    package_variations = [
+                        package_name.lower(),
+                        package_name.lower().replace('-', ''),
+                        package_name.lower().replace('_', ''),
+                        package_name.lower().replace('-', '_'),
+                        package_name.lower().replace('_', '-')
+                    ]
+
+                    # Remove duplicates while preserving order
+                    unique_variations = []
+                    for var in package_variations:
+                        if var not in unique_variations:
+                            unique_variations.append(var)
+
+                    for var in unique_variations:
+                        if var in asset_name and any(asset_name.endswith(ext) for ext in ['.zip', '.tar.gz', '.tgz']):
+                            download_url = asset.get("browser_download_url", "")
+                            if download_url:
+                                version = release.get("tag_name", "unknown")
+                                description = release.get("body", "")
+                                return download_url, version, description
+
+                # If still no match found, try to find assets that start with or end with the package name
+                for asset in assets:
+                    asset_name = asset.get("name", "").lower()
+
+                    # Skip .minisig files
+                    if asset_name.endswith('.minisig'):
+                        continue
+
+                    # Check if asset is a zip file and the name starts or ends with package name
                     if any(asset_name.endswith(ext) for ext in ['.zip', '.tar.gz', '.tgz']):
-                        download_url = asset.get("browser_download_url", "")
-                        if download_url:
-                            version = release.get("tag_name", "unknown")
-                            description = release.get("body", "")
-                            return download_url, version, description
+                        # Check if the asset name starts with or ends with the package name
+                        asset_base_name = asset_name
+                        for ext in ['.zip', '.tar.gz', '.tgz']:
+                            if asset_base_name.endswith(ext):
+                                asset_base_name = asset_base_name[:-len(ext)]
+                                break
+
+                        # Remove common prefixes/suffixes that might be added by GitHub releases
+                        # like version numbers, "v" prefixes, etc.
+                        if (package_name.lower() in asset_base_name or
+                            asset_base_name.startswith(package_name.lower()) or
+                            asset_base_name.endswith(package_name.lower())):
+                            download_url = asset.get("browser_download_url", "")
+                            if download_url:
+                                version = release.get("tag_name", "unknown")
+                                description = release.get("body", "")
+                                return download_url, version, description
+
+                # As a last resort, if no specific match is found, return None to indicate failure
+                # instead of downloading the first available zip file
+                print(f"{yellow('[*]')} No specific asset found for package '{package_name}' in release")
+                return "", "unknown", ""
 
         except Exception as e:
             print(f"{yellow('[*]')} Error fetching GitHub releases: {e}")
@@ -601,22 +637,19 @@ class ExtensionPackageManager:
                                 for ext in extensions:
                                     name = ext.get("name", "")
                                     if package_name.lower() in name.lower() or name.lower() in package_name.lower():
-                                        # Get the download URL dynamically - look for any field containing 'url'
-                                        download_url = self._find_url_field(ext)
-                                        if not download_url:
-                                            # Fallback to common field names
-                                            download_url = ext.get("download_url", "")
-                                            if not download_url:
-                                                download_url = ext.get("url", "")
-                                            if not download_url:
-                                                download_url = ext.get("uri", "")
+                                        # Check if there's a repo_url to get more specific assets
+                                        repo_url = ext.get("repo_url", "")
+                                        download_url = ""
 
-                                        # If download_url is still empty, try to convert repo_url to API URL and find assets
-                                        if not download_url and ext.get("repo_url", ""):
-                                            repo_api_url = self._convert_github_repo_to_api_url(ext.get("repo_url", ""))
+                                        if repo_url:
+                                            # If there's a repo_url, try to get the specific asset from the repo
+                                            # This ensures we get the right package even if the catalog has wrong direct URLs
+                                            repo_api_url = self._convert_github_repo_to_api_url(repo_url)
                                             if repo_api_url:
-                                                download_url, version, description = self._find_download_url_from_github_release(repo_api_url, name)
-                                                if download_url:
+                                                repo_download_url, version, description = self._find_download_url_from_github_release(repo_api_url, name)
+                                                if repo_download_url:
+                                                    # Use the repo-based download URL to ensure proper package matching
+                                                    download_url = repo_download_url
                                                     # Update the version and description from GitHub release if not in the original data
                                                     if version != "unknown":
                                                         ext.setdefault("version", version)
@@ -624,22 +657,34 @@ class ExtensionPackageManager:
                                                         ext.setdefault("description", description)
                                                         ext.setdefault("help", description)
 
+                                        # Only fall back to direct URL fields if no repo_url exists or repo lookup failed
+                                        if not download_url:
+                                            # Get the download URL dynamically - look for any field containing 'url'
+                                            download_url = self._find_url_field(ext)
+                                            if not download_url:
+                                                # Fallback to common field names
+                                                download_url = ext.get("download_url", "")
+                                                if not download_url:
+                                                    download_url = ext.get("url", "")
+                                                if not download_url:
+                                                    download_url = ext.get("uri", "")
+
                                         # Get type and is_dotnet from the extension data
                                         ext_type = ext.get("type", "")
                                         is_dotnet = ext.get("is_dotnet", False)
 
                                         # Determine file type using the enhanced method
                                         file_type = self._determine_file_type(
-                                            name, 
-                                            download_url, 
-                                            is_dotnet, 
+                                            name,
+                                            download_url,
+                                            is_dotnet,
                                             ext_type
                                         )
 
                                         return ExtensionPackage(
                                             name=name,
                                             version=ext.get("version", release.get("tag_name", "unknown")),
-                                            description=ext.get("help", ext.get("description", "")),
+                                            description="",  # No descriptions from GitHub - only from operator JSON files
                                             repo_url=download_url,
                                             public_key=repo.get("public_key", ""),
                                             file_type=file_type,
@@ -710,23 +755,19 @@ class ExtensionPackageManager:
                                 for ext in extensions:
                                     name = ext.get("name", "")
                                     if name:
-                                        # Get the download URL dynamically - look for any field containing 'url'
-                                        download_url = self._find_url_field(ext)
-                                        if not download_url:
-                                            # Fallback to common field names
-                                            download_url = ext.get("download_url", "")
-                                            if not download_url:
-                                                download_url = ext.get("url", "")
-                                            if not download_url:
-                                                download_url = ext.get("uri", "")
+                                        # Check if there's a repo_url to get more specific assets
+                                        repo_url = ext.get("repo_url", "")
+                                        download_url = ""
 
-                                        # If download_url is still empty, try to convert repo_url to API URL and find assets
-                                        if not download_url and ext.get("repo_url", ""):
-                                            repo_api_url = self._convert_github_repo_to_api_url(ext.get("repo_url", ""))
+                                        if repo_url:
+                                            # If there's a repo_url, try to get the specific asset from the repo
+                                            # This ensures we get the right package even if the catalog has wrong direct URLs
+                                            repo_api_url = self._convert_github_repo_to_api_url(repo_url)
                                             if repo_api_url:
-                                                found_url, version, description = self._find_download_url_from_github_release(repo_api_url, name)
-                                                if found_url:
-                                                    download_url = found_url
+                                                repo_download_url, version, description = self._find_download_url_from_github_release(repo_api_url, name)
+                                                if repo_download_url:
+                                                    # Use the repo-based download URL to ensure proper package matching
+                                                    download_url = repo_download_url
                                                     # Update the version and description from GitHub release if not in the original data
                                                     if version != "unknown":
                                                         ext.setdefault("version", version)
@@ -734,22 +775,34 @@ class ExtensionPackageManager:
                                                         ext.setdefault("description", description)
                                                         ext.setdefault("help", description)
 
+                                        # Only fall back to direct URL fields if no repo_url exists or repo lookup failed
+                                        if not download_url:
+                                            # Get the download URL dynamically - look for any field containing 'url'
+                                            download_url = self._find_url_field(ext)
+                                            if not download_url:
+                                                # Fallback to common field names
+                                                download_url = ext.get("download_url", "")
+                                                if not download_url:
+                                                    download_url = ext.get("url", "")
+                                                if not download_url:
+                                                    download_url = ext.get("uri", "")
+
                                         # Get type and is_dotnet from the extension data
                                         ext_type = ext.get("type", "")
                                         is_dotnet = ext.get("is_dotnet", False)
 
                                         # Determine file type using the enhanced method
                                         file_type = self._determine_file_type(
-                                            name, 
-                                            download_url, 
-                                            is_dotnet, 
+                                            name,
+                                            download_url,
+                                            is_dotnet,
                                             ext_type
                                         )
 
                                         package = ExtensionPackage(
                                             name=name,
                                             version=ext.get("version", release.get("tag_name", "unknown")),
-                                            description=ext.get("help", ext.get("description", "")),
+                                            description="",  # No descriptions from GitHub - only from operator JSON files
                                             repo_url=download_url,
                                             public_key=repo.get("public_key", ""),
                                             file_type=file_type,
@@ -913,7 +966,7 @@ class ExtensionPackageManager:
                 return False
 
             # Check if the repo_url is a GitHub repository URL and needs to be resolved to a release asset
-            package_data = self._resolve_and_download_package(pkg_info.repo_url)
+            package_data = self._resolve_and_download_package(pkg_info.repo_url, pkg_info.name)
             if package_data is None:
                 print(f"{red('[-]')} Failed to download package from '{pkg_info.repo_url}'")
                 return False
@@ -959,13 +1012,14 @@ class ExtensionPackageManager:
                                         break
 
                         # Update installed packages in config
+                        # The description will be updated when the operator creates the JSON file
                         self.config["installed_packages"][pkg_info.name] = {
                             "version": pkg_info.version,
                             "type": actual_file_type,
                             "repo_url": pkg_info.repo_url,
                             "installed_at": str(self.extensions_dir),
                             "signature_verified": bool(signature_data),
-                            "description": pkg_info.description,
+                            "description": pkg_info.description,  # This will be overridden when operator creates JSON
                             "is_dotnet": pkg_info.is_dotnet
                         }
                         self._save_config()
@@ -981,7 +1035,7 @@ class ExtensionPackageManager:
             print(f"{red('[-]')} Error installing package: {e}")
             return False
 
-    def _resolve_and_download_package(self, repo_url: str) -> Optional[bytes]:
+    def _resolve_and_download_package(self, repo_url: str, package_name: str = "") -> Optional[bytes]:
         # Check if it's a GitHub repository URL
         if "github.com" in repo_url and "/releases" in repo_url:
             # This might be a GitHub releases page URL, try to get the latest release assets
@@ -1004,14 +1058,62 @@ class ExtensionPackageManager:
                             continue
 
                         assets = release.get("assets", [])
-                        # Look for zip files or other extension packages (excluding .minisig files)
+
+                        # First, look for zip files that match the package name (if provided)
+                        if package_name:
+                            # Look for assets that match the package name and are zip files
+                            for asset in assets:
+                                asset_name = asset.get("name", "").lower()
+
+                                # Skip .minisig files
+                                if asset_name.endswith('.minisig'):
+                                    continue
+
+                                # Look for assets that match the package name and are zip files
+                                if package_name.lower() in asset_name and any(asset_name.endswith(ext) for ext in ['.zip', '.tar.gz', '.tgz']):
+                                    download_url = asset.get("browser_download_url", "")
+                                    if download_url:
+                                        print(f"{blue('[*]')} Found package asset: {asset.get('name', '')}")
+                                        return self._download_package(download_url)
+
+                            # Look for assets that might contain the package name in a different format (excluding .minisig)
+                            for asset in assets:
+                                asset_name = asset.get("name", "").lower()
+
+                                # Skip .minisig files
+                                if asset_name.endswith('.minisig'):
+                                    continue
+
+                                package_variations = [
+                                    package_name.lower(),
+                                    package_name.lower().replace('-', ''),
+                                    package_name.lower().replace('_', ''),
+                                    package_name.lower().replace('-', '_'),
+                                    package_name.lower().replace('_', '-')
+                                ]
+
+                                # Remove duplicates while preserving order
+                                unique_variations = []
+                                for var in package_variations:
+                                    if var not in unique_variations:
+                                        unique_variations.append(var)
+
+                                for var in unique_variations:
+                                    if var in asset_name and any(asset_name.endswith(ext) for ext in ['.zip', '.tar.gz', '.tgz']):
+                                        download_url = asset.get("browser_download_url", "")
+                                        if download_url:
+                                            print(f"{blue('[*]')} Found package asset: {asset.get('name', '')}")
+                                            return self._download_package(download_url)
+
+                        # If no package-specific asset found or no package name provided,
+                        # fall back to looking for any zip asset
                         for asset in assets:
                             asset_name = asset.get("name", "").lower()
-                            
+
                             # Skip .minisig files
                             if asset_name.endswith('.minisig'):
                                 continue
-                            
+
                             if any(asset_name.endswith(ext) for ext in ['.zip', '.tar.gz', '.tgz']):
                                 # Found a potential package file, download it
                                 download_url = asset.get("browser_download_url", "")
