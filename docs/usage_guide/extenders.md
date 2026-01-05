@@ -27,8 +27,8 @@ NeoC2 (user@remote) > whoami
 
 ### Extension Commands with Arguments
 ```
-NeoC2 (user@remote) > whoami -u
-[*] Converted extension command: 'whoami -u' -> 'execute-bof cli/extensions/bof/whoami.x64.o -u'
+NeoC2 (user@remote) > rubeus triage
+[*] Converted extension command: 'rubeus triage' -> 'execute-assembly cli/extensions/assemblies/Rubeus.exe triage'
 [+] Command sent to server...
 ```
 
