@@ -18,13 +18,13 @@
 - [x] NtQueueApcThread,NtCreateThreadEx,RtlCreateUserThread Shellcode injection into sacrificial process
 - [x] Load PE Reflectively via goffloader library
 - [x] Extension Package Manager(Armory)
+- [x] Integrate Donut for Trinity Shellcode generation 
 
 
 ## Actively Under development
 - [ ] EDR Evasion modules
 - [ ] 2.0 Stable release
-- [ ] Integrate Donut for Trinity Shellcode generation
-
+- [ ] Shellcode stager
 
 ## To be implemented
 - [ ] Built-in modules for network reconnaissance and internal enumeration
