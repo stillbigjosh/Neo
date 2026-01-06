@@ -458,6 +458,7 @@ OPTIONS:
   • --windows            - Compile payload to Windows binary
   • --redirector         - Use redirector host and port from profile instead of C2 URL
   • --use-failover       - Embed failover C2 URLs from profile into agent
+  • --shellcode [format] - Convert compiled executable to shellcode (optional format: raw, hex, c, ruby, python, powershell, csharp)
   • --no-bof             - Exclude Beacon Object File (BOF) execution capability
   • --no-assembly        - Exclude .NET assembly execution capability
   • --no-execute-pe      - Exclude PE execution on agent memory space capability

