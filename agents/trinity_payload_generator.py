@@ -1050,10 +1050,22 @@ class TrinityPayloadGenerator:
                 os.remove(raw_output_path)
 
                 print(f"[+] Trinity agent converted to {shellcode_format} shellcode: {output_path}")
+
+                # Clean up the original exe file since we only wanted shellcode
+                if os.path.exists(exe_path):
+                    os.remove(exe_path)
+                    print(f"[+] Cleaned up original exe file: {exe_path}")
+
                 return output_path
             except subprocess.TimeoutExpired:
+                # Clean up the temporary raw file if it exists
+                if os.path.exists(raw_output_path):
+                    os.remove(raw_output_path)
                 raise Exception("go-donut conversion timed out")
             except Exception as e:
+                # Clean up the temporary raw file if it exists
+                if os.path.exists(raw_output_path):
+                    os.remove(raw_output_path)
                 raise Exception(f"Failed to convert to shellcode: {str(e)}")
         else:
             # For raw and base64, use go-donut directly
@@ -1073,6 +1085,12 @@ class TrinityPayloadGenerator:
                     raise Exception(f"go-donut conversion failed: {result.stderr}")
 
                 print(f"[+] Trinity agent converted to {shellcode_format} shellcode: {output_path}")
+
+                # Clean up the original exe file since we only wanted shellcode
+                if os.path.exists(exe_path):
+                    os.remove(exe_path)
+                    print(f"[+] Cleaned up original exe file: {exe_path}")
+
                 return output_path
             except subprocess.TimeoutExpired:
                 raise Exception("go-donut conversion timed out")
