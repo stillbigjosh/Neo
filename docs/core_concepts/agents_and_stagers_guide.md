@@ -1,4 +1,4 @@
-# NeoC2 Agents and Stagers Guide
+# Agents and Stagers Guide
 
 ## Table of Contents
 - [Trinity](#trinity)

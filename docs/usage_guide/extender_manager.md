@@ -1,4 +1,4 @@
-# Neo C2 Extension Package Manager
+# Extension Package Manager
 
 The Neo C2 Extension Package Manager allows operators to install, manage, and update third-party tools and extensions directly from the client-side. This system is inspired by Sliver's armory package manager and provides similar functionality for the Neo C2 framework.
 

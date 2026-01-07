@@ -1,4 +1,4 @@
-# NeoC2 Multiplayer System
+# Multiplayer System
 
 NeoC2 supports multiplayer functionality that allows multiple users to collaborate simultaneously. The system provides real-time updates, and coordinated access to agents with role-based access control (RBAC) to ensure proper permissions.
 
