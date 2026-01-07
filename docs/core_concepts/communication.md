@@ -1,42 +1,5 @@
 # Communication Protocol 
 
-```mermaid
-flowchart TD
-    A[Operator: CLI/Multiplayer] -->|"agent interact <agent_id>"| B[C2 Server]
-    
-    B -->|"1. Set interactive_mode=true"| C[Agent Manager]
-    C -->|"Update database & memory"| D[Agent Session]
-    C -->|"2. Create interactive task"| E[Task Database]
-    
-    F[Deployed Agent] -->|"3. Poll /api/agent/id/interactive"| G[Agent Comms API]
-    G -->|"Check interactive status"| C
-    C -->|"4. Return queued commands"| G
-    G -->|"Send command"| F
-    
-    F -->|"5. Execute on target"| H[Target System]
-    H -->|"Capture output"| F
-    
-    F -->|"6. POST result"| G
-    G -->|"7. Store result"| C
-    C -->|"Update task status"| E
-    C -->|"8. Real-time output"| A
-    
-    A -->|"exit command"| B
-    B -->|"Cleanup session"| C
-    C -->|"Set interactive_mode=false"| D
-
-    classDef operator fill:#4CAF50,color:#000
-    classDef server fill:#2196F3,color:#000
-    classDef agent fill:#FF9800,color:#000
-    classDef database fill:#795548,color:#fff
-    
-    class A operator
-    class B,C,G server
-    class F,H agent
-    class E database
-
-
-```
 
 ## Communication Architecture
 
