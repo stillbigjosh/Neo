@@ -1,4 +1,4 @@
-# NeoC2 Reporting System - CLI Guide
+# Reporting System 
 
 ## Table of Contents
 - [Overview](#overview)
