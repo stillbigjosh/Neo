@@ -1,4 +1,4 @@
-# NeoC2 Task Orchestration System
+# Task Orchestration System
 
 ## Overview
 NeoC2 Task Orchestration system allows operators to create and execute automated sequences of modules across agents. This feature enables multi-step operations to be executed as a single command, improving efficiency and reducing the manual overhead of executing sequences of related modules.
