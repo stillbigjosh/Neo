@@ -118,7 +118,7 @@ class TrinityPayloadGenerator:
         if not profile:
             profile = self.db.get_profile_by_name('default')
             if not profile:
-                raise ValueError(f"Profile '{listener['profile_name']}' not found and no default profile available.")
+                raise ValueError(f"Profile '{listener['profile_name']}' not found and no default profile available")
 
         profile_config = profile.get('config', {})
 
