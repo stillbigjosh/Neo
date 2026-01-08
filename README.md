@@ -24,6 +24,7 @@
 ---
 
 ### Features
+- **Scalability:** The server uses gunicorn with gevent for stability and performance under real-world traffic, unlike Flask development servers
 - **Multiplayer-mode:** Real-time collaboration between operators with Interactive session locking
 - **Proxy Awareness:** SOCKS5 reverse proxy functionality
 - **Task Orchestrator**: Chain modules for complex operations
