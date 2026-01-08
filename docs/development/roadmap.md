@@ -25,6 +25,9 @@
 - [ ] EDR Evasion modules
 - [ ] 2.0 Stable release
 - [ ] Shellcode stager
+- [ ] Local file as BOF argument
+- [ ] Extension Package Repository
+      
 
 ## To be implemented
 - [ ] Built-in modules for network reconnaissance and internal enumeration
