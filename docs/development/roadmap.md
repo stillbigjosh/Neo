@@ -31,8 +31,7 @@
 
 ## To be implemented
 - [ ] Built-in modules for network reconnaissance and internal enumeration
-- [ ] P2P Agent Commnications
-- [ ] Support for additional communication protocols (DNS, ICMP)
+- [ ] Support for additional communication channels
 - [ ] File browser
 - [ ] Large powershell scripts broken down in chunks in-memory to bypass characater limit
 - [ ] DNS over HTTPS
