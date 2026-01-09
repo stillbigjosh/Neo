@@ -847,8 +847,26 @@ class ExtensionPackageManager:
                         # Use the directory name to find the package in config
                         pkg_name = package_dir.name
                         # Try to get version and description from JSON file in the same directory
+                        # First look for command-specific JSON (e.g., createremotethread.json)
                         json_file_path = package_dir / f"{pkg_name}.json"
                         version, description = self._get_version_and_description_from_json(json_file_path)
+
+                        # If no command-specific JSON found, look for extension.json or any .json file in the directory
+                        if version == "N/A" and description == "N/A":
+                            # Look for extension.json specifically
+                            extension_json_path = package_dir / "extension.json"
+                            if extension_json_path.exists():
+                                version, description = self._get_version_and_description_from_json(extension_json_path)
+
+                            # If still not found, look for any other .json file
+                            if version == "N/A" and description == "N/A":
+                                for json_file in package_dir.glob("*.json"):
+                                    if json_file.name != f"{pkg_name}.json" and json_file.name != "extension.json":
+                                        version, description = self._get_version_and_description_from_json(json_file)
+                                        if version != "N/A" or description != "N/A":
+                                            break
+
+                        # Only if no JSON file provided valid info, then use config file
                         if version == "N/A":
                             # Fallback to config if not found in JSON
                             version = self.config["installed_packages"].get(pkg_name, {}).get("version", "N/A")
@@ -867,6 +885,22 @@ class ExtensionPackageManager:
                 # Try to get version and description from JSON file in the same directory
                 json_file_path = file_path.parent / f"{pkg_name}.json"
                 version, description = self._get_version_and_description_from_json(json_file_path)
+
+                # If no command-specific JSON found with valid content, look for extension.json or any .json file in the directory
+                if version == "N/A" and description == "N/A":
+                    # Look for extension.json specifically
+                    extension_json_path = file_path.parent / "extension.json"
+                    if extension_json_path.exists():
+                        version, description = self._get_version_and_description_from_json(extension_json_path)
+
+                    # If still not found, look for any other .json file
+                    if version == "N/A" and description == "N/A":
+                        for json_file in file_path.parent.glob("*.json"):
+                            if json_file.name != f"{pkg_name}.json" and json_file.name != "extension.json":
+                                version, description = self._get_version_and_description_from_json(json_file)
+                                if version != "N/A" or description != "N/A":
+                                    break
+
                 if version == "N/A":
                     # Fallback to config if not found in JSON
                     version = self.config["installed_packages"].get(pkg_name, {}).get("version", "N/A")
@@ -888,6 +922,22 @@ class ExtensionPackageManager:
                         # Try to get version and description from JSON file in the same directory
                         json_file_path = package_dir / f"{pkg_name}.json"
                         version, description = self._get_version_and_description_from_json(json_file_path)
+
+                        # If no command-specific JSON found with valid content, look for extension.json or any .json file in the directory
+                        if version == "N/A" and description == "N/A":
+                            # Look for extension.json specifically
+                            extension_json_path = package_dir / "extension.json"
+                            if extension_json_path.exists():
+                                version, description = self._get_version_and_description_from_json(extension_json_path)
+
+                            # If still not found, look for any other .json file
+                            if version == "N/A" and description == "N/A":
+                                for json_file in package_dir.glob("*.json"):
+                                    if json_file.name != f"{pkg_name}.json" and json_file.name != "extension.json":
+                                        version, description = self._get_version_and_description_from_json(json_file)
+                                        if version != "N/A" or description != "N/A":
+                                            break
+
                         if version == "N/A":
                             # Fallback to config if not found in JSON
                             version = self.config["installed_packages"].get(pkg_name, {}).get("version", "N/A")
@@ -905,6 +955,22 @@ class ExtensionPackageManager:
                 # Try to get version and description from JSON file in the same directory
                 json_file_path = file_path.parent / f"{pkg_name}.json"
                 version, description = self._get_version_and_description_from_json(json_file_path)
+
+                # If no command-specific JSON found with valid content, look for extension.json or any .json file in the directory
+                if version == "N/A" and description == "N/A":
+                    # Look for extension.json specifically
+                    extension_json_path = file_path.parent / "extension.json"
+                    if extension_json_path.exists():
+                        version, description = self._get_version_and_description_from_json(extension_json_path)
+
+                    # If still not found, look for any other .json file
+                    if version == "N/A" and description == "N/A":
+                        for json_file in file_path.parent.glob("*.json"):
+                            if json_file.name != f"{pkg_name}.json" and json_file.name != "extension.json":
+                                version, description = self._get_version_and_description_from_json(json_file)
+                                if version != "N/A" or description != "N/A":
+                                    break
+
                 if version == "N/A":
                     # Fallback to config if not found in JSON
                     version = self.config["installed_packages"].get(pkg_name, {}).get("version", "N/A")
@@ -926,6 +992,22 @@ class ExtensionPackageManager:
                         # Try to get version and description from JSON file in the same directory
                         json_file_path = package_dir / f"{pkg_name}.json"
                         version, description = self._get_version_and_description_from_json(json_file_path)
+
+                        # If no command-specific JSON found with valid content, look for extension.json or any .json file in the directory
+                        if version == "N/A" and description == "N/A":
+                            # Look for extension.json specifically
+                            extension_json_path = package_dir / "extension.json"
+                            if extension_json_path.exists():
+                                version, description = self._get_version_and_description_from_json(extension_json_path)
+
+                            # If still not found, look for any other .json file
+                            if version == "N/A" and description == "N/A":
+                                for json_file in package_dir.glob("*.json"):
+                                    if json_file.name != f"{pkg_name}.json" and json_file.name != "extension.json":
+                                        version, description = self._get_version_and_description_from_json(json_file)
+                                        if version != "N/A" or description != "N/A":
+                                            break
+
                         if version == "N/A":
                             # Fallback to config if not found in JSON
                             version = self.config["installed_packages"].get(pkg_name, {}).get("version", "N/A")
@@ -943,6 +1025,22 @@ class ExtensionPackageManager:
                 # Try to get version and description from JSON file in the same directory
                 json_file_path = file_path.parent / f"{pkg_name}.json"
                 version, description = self._get_version_and_description_from_json(json_file_path)
+
+                # If no command-specific JSON found with valid content, look for extension.json or any .json file in the directory
+                if version == "N/A" and description == "N/A":
+                    # Look for extension.json specifically
+                    extension_json_path = file_path.parent / "extension.json"
+                    if extension_json_path.exists():
+                        version, description = self._get_version_and_description_from_json(extension_json_path)
+
+                    # If still not found, look for any other .json file
+                    if version == "N/A" and description == "N/A":
+                        for json_file in file_path.parent.glob("*.json"):
+                            if json_file.name != f"{pkg_name}.json" and json_file.name != "extension.json":
+                                version, description = self._get_version_and_description_from_json(json_file)
+                                if version != "N/A" or description != "N/A":
+                                    break
+
                 if version == "N/A":
                     # Fallback to config if not found in JSON
                     version = self.config["installed_packages"].get(pkg_name, {}).get("version", "N/A")
@@ -1231,17 +1329,23 @@ class ExtensionPackageManager:
 
             package_dir.mkdir(exist_ok=True)
 
-            # Group files by command name to handle x64/x86 preference
+            # Group executable files by command name to handle x64/x86 preference
             command_files = {}
-            for file_path in extract_path.rglob("*"):
-                if file_path.is_file() and file_path.suffix in ['.o', '.exe', '.dll', '.bof']:
-                    # Extract command name from the file
-                    command_name = self._extract_package_name_from_filename(file_path.name)
-                    if command_name not in command_files:
-                        command_files[command_name] = []
-                    command_files[command_name].append(file_path)
+            json_files = []  # Store JSON files separately
 
-            # For each command, prefer x64 over other architectures
+            for file_path in extract_path.rglob("*"):
+                if file_path.is_file():
+                    if file_path.suffix in ['.o', '.exe', '.dll', '.bof']:
+                        # Extract command name from the file
+                        command_name = self._extract_package_name_from_filename(file_path.name)
+                        if command_name not in command_files:
+                            command_files[command_name] = []
+                        command_files[command_name].append(file_path)
+                    elif file_path.suffix == '.json':
+                        # Collect JSON files to copy separately
+                        json_files.append(file_path)
+
+            # For each command, prefer x64 over other architectures (maintain original logic)
             for command_name, files in command_files.items():
                 # Find x64 file if it exists
                 x64_file = None
@@ -1259,6 +1363,12 @@ class ExtensionPackageManager:
                     target_file = package_dir / file_path.name
                     shutil.copy2(file_path, target_file)
                     print(f"{green('[+]')} Copied {file_path.name} to {package_dir}")
+
+            # Copy all JSON files (this is the new functionality - preserve JSON files)
+            for json_file in json_files:
+                target_file = package_dir / json_file.name
+                shutil.copy2(json_file, target_file)
+                print(f"{green('[+]')} Copied {json_file.name} to {package_dir}")
 
             return True
         except Exception as e:
