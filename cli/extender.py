@@ -135,6 +135,10 @@ class CLIExtender:
                 json_file_path = file_path.parent / f"{command_name}.json"
                 metadata = self._load_json_metadata(json_file_path) if json_file_path.exists() else {}
 
+                # If no command-specific JSON found, look for extension.json or any .json file in the directory
+                if not metadata:
+                    metadata = self._load_json_metadata_from_any_file(file_path.parent)
+
                 self.command_registry[command_name] = {
                     'type': 'bof',
                     'file_path': str(file_path),
@@ -157,6 +161,10 @@ class CLIExtender:
                 json_file_path = file_path.parent / f"{command_name}.json"
                 metadata = self._load_json_metadata(json_file_path) if json_file_path.exists() else {}
 
+                # If no command-specific JSON found, look for extension.json or any .json file in the directory
+                if not metadata:
+                    metadata = self._load_json_metadata_from_any_file(file_path.parent)
+
                 self.command_registry[command_name] = {
                     'type': 'assembly',
                     'file_path': str(file_path),
@@ -171,6 +179,10 @@ class CLIExtender:
                 # Load JSON metadata if available - look for JSON file with the same base name as the command
                 json_file_path = file_path.parent / f"{command_name}.json"
                 metadata = self._load_json_metadata(json_file_path) if json_file_path.exists() else {}
+
+                # If no command-specific JSON found, look for extension.json or any .json file in the directory
+                if not metadata:
+                    metadata = self._load_json_metadata_from_any_file(file_path.parent)
 
                 self.command_registry[command_name] = {
                     'type': 'assembly',
@@ -194,6 +206,10 @@ class CLIExtender:
                 json_file_path = file_path.parent / f"{command_name}.json"
                 metadata = self._load_json_metadata(json_file_path) if json_file_path.exists() else {}
 
+                # If no command-specific JSON found, look for extension.json or any .json file in the directory
+                if not metadata:
+                    metadata = self._load_json_metadata_from_any_file(file_path.parent)
+
                 self.command_registry[command_name] = {
                     'type': 'pe',
                     'file_path': str(file_path),
@@ -208,6 +224,10 @@ class CLIExtender:
                 # Load JSON metadata if available - look for JSON file with the same base name as the command
                 json_file_path = file_path.parent / f"{command_name}.json"
                 metadata = self._load_json_metadata(json_file_path) if json_file_path.exists() else {}
+
+                # If no command-specific JSON found, look for extension.json or any .json file in the directory
+                if not metadata:
+                    metadata = self._load_json_metadata_from_any_file(file_path.parent)
 
                 self.command_registry[command_name] = {
                     'type': 'pe',
@@ -240,6 +260,29 @@ class CLIExtender:
         except Exception as e:
             print(f"{red('[-]')} Error loading metadata from {json_file_path}: {str(e)}")
             return {}
+
+    def _load_json_metadata_from_any_file(self, directory_path):
+        directory = Path(directory_path)
+
+        # First, look for extension.json specifically
+        extension_json_path = directory / "extension.json"
+        if extension_json_path.exists():
+            return self._load_json_metadata(extension_json_path)
+
+        # Then look for any .json file in the directory (excluding the command-specific one we already checked)
+        for json_file in directory.glob("*.json"):
+            # Skip if this is the command-specific JSON (already checked in _load_json_metadata)
+            # We'll just load the first available JSON file if extension.json doesn't exist
+            if json_file.name != "extension.json":
+                try:
+                    with open(json_file, 'r', encoding='utf-8') as f:
+                        metadata = json.load(f)
+                    return metadata
+                except Exception as e:
+                    print(f"{red('[-]')} Error loading metadata from {json_file}: {str(e)}")
+                    continue
+
+        return {}
 
     def is_extension_command(self, command):
         command_parts = command.strip().split()
