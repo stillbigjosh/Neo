@@ -188,7 +188,7 @@ This creates a secure distribution file containing agent IDs and their secret ke
 
 ### Load Profile to DB
 
-Load a config using the `profile` handler and base-command:
+Load a config from the remote client using the `profile` handle. CLI reads the json and transfer to the Server through established connection:
 
 ```bash
 profile add <config path>
