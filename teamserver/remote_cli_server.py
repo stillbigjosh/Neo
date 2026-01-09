@@ -49,7 +49,7 @@ from teamserver.audit_logger import AuditLogger
 
 from communication.encryption import EncryptionManager
 
-from agents.stager_interactive import handle_interactive_stager_command
+from agents.stager import handle_interactive_stager_command
 
 class TerminalSession:
     def __init__(self, session_id, user_id, username, agent_manager):
