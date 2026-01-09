@@ -5806,9 +5806,13 @@ DB Inactive:       {stats['db_inactive_agents']}
                                 # Return raw result data as JSON instead of formatted output
                                 result_data = []
                                 for res in results:
+                                    # Truncate command to avoid showing full base64 payload
+                                    command = res['command']
+                                    if len(command) > 30:
+                                        command = command[:30] + '...'
                                     result_data.append({
                                         'task_id': res['task_id'],
-                                        'command': res['command'],
+                                        'command': command,
                                         'created_at': res['created_at'],
                                         'completed_at': res['completed_at'],
                                         'result': res['result']
@@ -5841,12 +5845,16 @@ DB Inactive:       {stats['db_inactive_agents']}
                                 # Return raw result data as JSON instead of formatted output
                                 result_data = []
                                 for res in results:
+                                    # Truncate command to avoid showing full base64 payload
+                                    command = res['command']
+                                    if len(command) > 30:
+                                        command = command[:30] + '...'
                                     result_data.append({
                                         'task_id': res['task_id'],
                                         'agent_id': res['agent_id'],
                                         'hostname': res['hostname'],
                                         'user': res['user'],
-                                        'command': res['command'],
+                                        'command': command,
                                         'task_type': res['task_type'],
                                         'completed_at': res['completed_at'],
                                         'result': res['result']
@@ -5888,7 +5896,7 @@ DB Inactive:       {stats['db_inactive_agents']}
                                             'hostname': task_dict.get('hostname', 'N/A'),
                                             'user': task_dict.get('user', 'N/A'),
                                             'ip_address': task_dict.get('ip_address', 'N/A'),
-                                            'command': task_dict['command'],
+                                            'command': task_dict['command'][:30] + '...' if len(task_dict['command']) > 30 else task_dict['command'],
                                             'status': task_dict['status'],
                                             'task_type': task_dict.get('task_type', 'queued'),
                                             'created_at': task_dict['created_at'],
@@ -5947,9 +5955,13 @@ DB Inactive:       {stats['db_inactive_agents']}
                                 # Return raw result data as JSON instead of formatted output
                                 result_data = []
                                 for res in results:
+                                    # Truncate command to avoid showing full base64 payload
+                                    command = res['command']
+                                    if len(command) > 30:
+                                        command = command[:30] + '...'
                                     result_data.append({
                                         'task_id': res['task_id'],
-                                        'command': res['command'],
+                                        'command': command,
                                         'created_at': res['created_at'],
                                         'completed_at': res['completed_at'],
                                         'result': res['result']
