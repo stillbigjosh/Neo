@@ -30,17 +30,9 @@ class NeoC2Config:
         self.default_config = {
             "server": {
                 "host": os.environ.get('IP', '0.0.0.0'),  # Use IP environment variable or default
-                "port": 443,
+                "port": int(os.environ.get('MULTI', 7443)),
                 "ssl_cert": "server.crt",
                 "ssl_key": "server.key"
-            },
-            "database": {
-                "path": "neoc2.db"
-            },
-            "agents": {
-                "default_checkin": 30,
-                "default_jitter": 5,
-                "max_inactive_time": 300
             },
             "web": {
                 "enabled": True,
