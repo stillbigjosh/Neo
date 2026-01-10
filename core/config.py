@@ -21,6 +21,7 @@ along with Neo.  If not, see <http://www.gnu.org/licenses/>
 import os
 import json
 import argparse
+import secrets
 from pathlib import Path
 
 class NeoC2Config:
@@ -45,8 +46,8 @@ class NeoC2Config:
                 "enabled": True,
                 "port": int(os.environ.get('MULTI', 7443)),
                 "host": os.environ.get('IP', '0.0.0.0'),
-                "secret_key": "change_me_in_production",
-                "internal_api_token": "secret_internal_token_change_me"
+                "secret_key": self._generate_secret_key(),
+                "internal_api_token": self._generate_api_token()
             },
             "cli": {
                 "history_file": "~/.neoc2_history",
@@ -69,11 +70,23 @@ class NeoC2Config:
             try:
                 with open(self.config_file, "r") as f:
                     config = json.load(f)
-                    return self.merge_configs(self.default_config, config)
+
+                # Generate a new secret key if one doesn't exist or is empty/default
+                if not config.get('web', {}).get('secret_key') or config.get('web', {}).get('secret_key') == "change_me_in_production":
+                    config.setdefault('web', {})['secret_key'] = self._generate_secret_key()
+
+                # Generate a new API token if one doesn't exist or is the default
+                if not config.get('web', {}).get('internal_api_token') or config.get('web', {}).get('internal_api_token') == "secret_internal_token_change_me":
+                    config.setdefault('web', {})['internal_api_token'] = self._generate_api_token()
+
+                return self.merge_configs(self.default_config, config)
             except json.JSONDecodeError:
                 print(f"Error parsing config file {self.config_file}, using defaults")
                 return self.default_config
         else:
+            # Generate new security credentials for fresh installations
+            self.default_config['web']['secret_key'] = self._generate_secret_key()
+            self.default_config['web']['internal_api_token'] = self._generate_api_token()
             with open(self.config_file, "w") as f:
                 json.dump(self.default_config, f, indent=4)
             return self.default_config
@@ -90,7 +103,15 @@ class NeoC2Config:
     def save_config(self):
         with open(self.config_file, "w") as f:
             json.dump(self.config, f, indent=4)
-    
+
+    def _generate_secret_key(self):
+        """Generate a random secret key for Flask applications"""
+        return secrets.token_hex(32)
+
+    def _generate_api_token(self):
+        """Generate a random API token for internal communications"""
+        return secrets.token_urlsafe(32)
+
     def get(self, key, default=None):
         keys = key.split('.')
         value = self.config

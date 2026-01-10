@@ -77,7 +77,8 @@ class HTTPListenerProcess:
                 'profile_name': self.profile_name,
                 'use_https': self.use_https,
                 'web_interface_url': f"{ssl_protocol}://{self.config.get('web.host', '127.0.0.1')}:{self.config.get('web.port', 443)}",
-                'web_interface_token': self.config.get('web.internal_api_token', '')
+                'web_interface_token': self.config.get('web.internal_api_token', ''),
+                'flask_secret_key': self.config.get('web.secret_key', '')
             }
             
             config_path = f"/tmp/neoc2_http_listener_{self.id}_config.json"
@@ -110,7 +111,7 @@ with open(config_path, 'r') as f:
 
 # Initialize Flask app for this listener
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'neoc2-http-listener-secret-key-change-in-production'
+app.config['SECRET_KEY'] = config.get('flask_secret_key', '')
 
 # Set up logging for this listener
 log_dir = "logs"
