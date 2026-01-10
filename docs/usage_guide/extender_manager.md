@@ -218,6 +218,7 @@ When a `download_url` is identified as a GitHub repository URL:
 4. Downloads the first matching asset found
 5. Proceeds with normal extraction and installation
 
+
 ### JSON Metadata File Format
 When a corresponding JSON file is found in the archive (e.g., `whoami.json` for `whoami.x64.o`), it's stored in the same subdirectory as the extension and contains:
 ```json
@@ -262,13 +263,11 @@ extender update whoami
 extender uninstall whoami
 ```
 
-## Integration with Neo C2
 
-The extension package manager integrates seamlessly with the existing Neo C2 CLI:
+## Limitation
+The system has a preference for x64 extensions when matching x64 and x86 extensions are encountered post-extraction;
+e.g, `whoami.x86.o` and `whoami.x64.o`. To prevent system-breaking duplicates, only one of these would be installed im a folder 
 
-- Extension commands are automatically added to the command completion
-- Installed extensions become available as direct commands (e.g., `whoami` becomes available after installing the whoami BOF)
-- All existing functionality remains unchanged
 
 ## Troubleshooting
 

@@ -118,7 +118,7 @@ class CLIExtender:
         # Register PE files
         self._register_pe_files()
 
-        print(f"[+] Registered {len(self.command_registry)} extension commands")
+        print(f"{green('[+]')} Registered {len(self.command_registry)} extension commands")
 
     def _register_bof_files(self):
         if not self.bof_dir.exists():
