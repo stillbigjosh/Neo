@@ -57,7 +57,7 @@ This will install all dependencies in a python virtual environment. Generates an
    neoc2 status
    ```
    
-4. Post-installation, ensure you change the `secret_key` and `internal_api_token` values in `/opt/neoc2/config.json` from the default and run `neoc2 restart`. This secret_key is used by Flask as a secret key for signing sessions and other security-related functions. It's required for Flask's session management and CSRF protection mechanisms. The internal_api_token adds a layer of protection against external access to sensitive profile configurations needed by the internal services.
+4. A configuration file `/opt/neoc2/config.json` is created post-installation with randomly generated `secret_key` and `internal_api_token` values. The secret key is used by Flask for signing sessions and other security-related functions. It's required for Flask's session management and CSRF protection mechanisms. The internal_api_token adds a layer of protection against external access to sensitive profile configurations needed by the internal services.
 
 
 #### Service Management
