@@ -35,19 +35,16 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_RUN_FUNC}() {
 			continue
 		}
 
-		checkCount++
-
-		if checkCount%3 == 0 {
-			shouldBeInteractive, err := a.{AGENT_CHECK_INTERACTIVE_STATUS_FUNC}()
-			if err == nil {
-				if shouldBeInteractive && !a.{AGENT_INTERACTIVE_MODE_FIELD} {
-					a.{AGENT_INTERACTIVE_MODE_FIELD} = true
-				} else if !shouldBeInteractive && a.{AGENT_INTERACTIVE_MODE_FIELD} {
-					a.{AGENT_INTERACTIVE_MODE_FIELD} = false
-				}
-			} else {
-				_ = err // Use the error variable to avoid unused variable warning
+		// Check interactive status on every iteration to ensure immediate mode switching
+		shouldBeInteractive, err := a.{AGENT_CHECK_INTERACTIVE_STATUS_FUNC}()
+		if err == nil {
+			if shouldBeInteractive && !a.{AGENT_INTERACTIVE_MODE_FIELD} {
+				a.{AGENT_INTERACTIVE_MODE_FIELD} = true
+			} else if !shouldBeInteractive && a.{AGENT_INTERACTIVE_MODE_FIELD} {
+				a.{AGENT_INTERACTIVE_MODE_FIELD} = false
 			}
+		} else {
+			_ = err // Use the error variable to avoid unused variable warning
 		}
 
 		if !a.{AGENT_INTERACTIVE_MODE_FIELD} {
@@ -93,14 +90,31 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_RUN_FUNC}() {
 			}
 		}
 
-		baseSleep := float64(a.{AGENT_HEARTBEAT_INTERVAL_FIELD})
-		jitterFactor := (rand.Float64() - 0.5) * 2 * a.{AGENT_JITTER_FIELD}
-		sleepTime := baseSleep * (1 + jitterFactor)
-		if sleepTime < 5 {
-			sleepTime = 5
+		// Calculate sleep time based on mode
+		var sleepTime float64
+		if a.{AGENT_INTERACTIVE_MODE_FIELD} {
+			// Interactive mode: 2 seconds base with small variation, max 5 seconds
+			baseInteractive := 2.0
+			smallJitter := (rand.Float64() - 0.5) * 2 * 0.1  // Small jitter factor of 0.1 (±10%)
+			sleepTime = baseInteractive * (1 + smallJitter)
+			if sleepTime > 5.0 {
+				sleepTime = 5.0
+			}
+			if sleepTime < 1.0 {  // Ensure minimum reasonable sleep
+				sleepTime = 1.0
+			}
+		} else {
+			// Regular mode: Use profile config
+			baseSleep := float64(a.{AGENT_HEARTBEAT_INTERVAL_FIELD})
+			jitterFactor := (rand.Float64() - 0.5) * 2 * a.{AGENT_JITTER_FIELD}
+			sleepTime = baseSleep * (1 + jitterFactor)
+			if sleepTime < 5 {
+				sleepTime = 5
+			}
 		}
 
 		time.Sleep(time.Duration(sleepTime) * time.Second)
+		checkCount++
 	}
 }
 
