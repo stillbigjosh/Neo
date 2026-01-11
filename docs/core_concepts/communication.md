@@ -49,9 +49,7 @@ The Neo C2 Framework implements a robust authentication system using Fernet (sym
   "status": "success",
   "agent_id": "unique-agent-uuid",
   "message": "Agent registered successfully",
-  "secret_key": "fernet-encrypted-token",
-  "checkin_interval": 30,
-  "jitter": 5
+  "secret_key": "fernet-encrypted-token"
 }
 ```
 
