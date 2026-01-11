@@ -240,9 +240,7 @@ def handle_agent_register_common(from_port=None, listener_id=None):
                     'status': 'success',
                     'agent_id': agent_id,
                     'message': 'Check-in successful',
-                    'secret_key': secret_key,  # Include secret key in response
-                    'checkin_interval': heartbeat_interval,
-                    'jitter': jitter
+                    'secret_key': secret_key  # Include secret key in response
                 }), 200
             else:
                 registered_agent_id = agent_manager.register_agent(
@@ -268,9 +266,7 @@ def handle_agent_register_common(from_port=None, listener_id=None):
                     'status': 'success',
                     'agent_id': registered_agent_id,
                     'message': 'Agent registered successfully (pre-registered)',
-                    'secret_key': secret_key,
-                    'checkin_interval': profile_config.get('heartbeat_interval', 30),
-                    'jitter': profile_config.get('jitter', 5)
+                    'secret_key': secret_key
                 }), 201
         
         if not agent_id:
@@ -308,9 +304,7 @@ def handle_agent_register_common(from_port=None, listener_id=None):
             'status': 'success',
             'agent_id': registered_agent_id,
             'message': 'Agent registered successfully',
-            'secret_key': secret_key,  # Include secret key in response for encrypted communication
-            'checkin_interval': heartbeat_interval,
-            'jitter': jitter
+            'secret_key': secret_key  # Include secret key in response for encrypted communication
         }), 201
         
     except Exception as e:
