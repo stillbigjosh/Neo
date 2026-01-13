@@ -1,7 +1,7 @@
 {
   "repositories": [
     {
-      "name": "Neo-Extensions",
+      "name": "Sliverarmory",
       "url": "https://api.github.com/repos/sliverarmory/armory/releases",
       "public_key": "RWSBpxpRWDrD7Fe+VvRE3c2VEDC2NK80rlNCj+BX0gz44Xw07r6KQD9L"
     }
