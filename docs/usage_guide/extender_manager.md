@@ -187,12 +187,13 @@ The system dynamically finds any JSON file in releases that matches patterns lik
   ],
   "bundles": [
      {
-       "name": "bundle-name",
+        "name": "bundle-name",
         "packages": [
            "extension1_name",
            "extension2_name"
-         ]
+        ]
      }
+  ]
 }
 ```
 
