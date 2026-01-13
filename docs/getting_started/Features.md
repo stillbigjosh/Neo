@@ -2,8 +2,8 @@
 # Features
 
 ### Architecture
-- Teamserver: The remote client server and the various managers of the command-and-control. Uses gunicorn with gevent for stability and performance under real-world traffic
-- Flask based web application handles all agent's HTTP/S communication endpoints
+- Teamserver: The remote client server, various handlers and managers of the command-and-control. 
+- Flask web application stack: Handles all agent's HTTP/S communication endpoints
 - Listener stack: Runs as a separate processes from the Flask application, acting as internal redirectors, forwards traffic from agents to the web application
 - Remote Client: Separate from the C2 Server and can be operated from anywhere. CLI allows operators to connect to the C2 via the Multiplayer co-ordinator
 - Modular Payload Design: Customize the payload capability by including or excluding specific advanced features
@@ -46,5 +46,7 @@
 - C2 redirectors support
 - Multi-server failover deployment support
 - Seamless Payload staging with custom endpoints
+- The command-and-control uses gunicorn with gevent for stability and high-performance under real-world traffic
+
 
 

@@ -97,8 +97,8 @@ The configuration is framework agnostic, any compatible extension library can be
 {
   "repositories": [
     {
-      "name": "Neo-Extensions",
-      "url": "https://api.github.com/repos/Neo-Extension/packages/releases",
+      "name": "Sliverarmory",
+      "url": "https://api.github.com/repos/sliverarmory/armory/releases",
       "public_key": "RWSBpxpRWDrD7Fe+VvRE3c2VEDC2NK80rlNCj+BX0gz44Xw07r6KQD9L"
     }
   ],
@@ -184,6 +184,15 @@ The system dynamically finds any JSON file in releases that matches patterns lik
       "is_dotnet": true|false  // for .NET assemblies
     },
     ...
+  ],
+  "bundles": [
+     {
+        "name": "bundle-name",
+        "packages": [
+           "extension1_name",
+           "extension2_name"
+        ]
+     }
   ]
 }
 ```

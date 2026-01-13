@@ -485,7 +485,7 @@ class CLIExtender:
 
         if len(command_parts) < 2:
             print(f"{green('[+]')} Extension Commands Help:")
-            print(f"  extender install <name>    - Install an extension from the repository")
+            print(f"  extender install <name>    - Install an extension or bundle from the repository")
             print(f"  extender list              - Show all installed extensions")
             print(f"  extender list available    - Show all available extensions")
             print(f"  extender search <term>     - Search for extensions in the repository")
@@ -508,8 +508,13 @@ class CLIExtender:
             self.package_manager.install_package(package_name, force=force)
             return True
         elif subcommand == "list":
-            if len(command_parts) > 2 and command_parts[2] == "available":
-                self.package_manager.list_available_packages()
+            if len(command_parts) > 2:
+                if command_parts[2] == "available":
+                    self.package_manager.list_available_packages()
+                elif command_parts[2] == "bundles":
+                    self.package_manager.list_available_bundles()
+                else:
+                    print(f"{red('[-]')} Unknown list option: {command_parts[2]}. Available options: available, bundles")
             else:
                 self.package_manager.list_installed_packages()
             return True
@@ -561,9 +566,10 @@ class CLIExtender:
         else:
             print(f"{red('[-]')} Unknown extender subcommand: {subcommand}")
             print(f"Available extender commands:")
-            print(f"  extender install <name>    - Install an extension from the repository")
+            print(f"  extender install <name>    - Install an extension or bundle from the repository")
             print(f"  extender list              - Show all installed extensions")
             print(f"  extender list available    - Show all available extensions")
+            print(f"  extender list bundles      - Show all available bundles")
             print(f"  extender search <term>     - Search for extensions in the repository")
             print(f"  extender uninstall <name>  - Uninstall an extension")
             print(f"  extender update <name>     - Update an extension")
@@ -579,9 +585,10 @@ class CLIExtender:
         if len(command_parts) == 1:
             # If just 'extensions' is called, show help
             print(f"{green('[+]')} Extension Commands Help:")
-            print(f"  extensions install <name>    - Install an extension from the repository")
+            print(f"  extensions install <name>    - Install an extension or bundle from the repository")
             print(f"  extensions list              - Show all installed extensions")
             print(f"  extensions list available    - Show all available extensions")
+            print(f"  extensions list bundles      - Show all available bundles")
             print(f"  extensions search <term>     - Search for extensions in the repository")
             print(f"  extensions uninstall <name>  - Uninstall an extension")
             print(f"  extensions update <name>     - Update an extension")
