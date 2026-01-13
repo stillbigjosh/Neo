@@ -33,21 +33,7 @@ import time # Added for retry logic
 class DatabaseConfig:
     @staticmethod
     def get_db_path():
-        """Get the appropriate database path for the environment"""
-        if os.getenv('RAILWAY_ENVIRONMENT') or os.getenv('DOCKER_ENV'):
-            volume_path = os.getenv('DB_VOLUME_PATH', '/data')
-            db_path = os.path.join(volume_path, 'neoc2.db')
-
-            os.makedirs(volume_path, exist_ok=True)
-
-            try:
-                os.chmod(volume_path, 0o755)
-            except:
-                pass
-
-        else:
-            db_path = 'neoc2.db'
-
+        db_path = 'neoc2.db'
         return db_path
     
     @staticmethod

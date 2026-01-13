@@ -36,14 +36,12 @@
 - **Malleable profiles:** Customize agent behavior and communication patterns
 - **Sanbox & Debugger Detection**: Anti-analysis self-deletion 
 - **Payload staging** Seamless staging of payloads, files
-- **File Operations**: Upload and download files
 - **Redirector Support**: Manage external infrastructure pointing to internal listeners via profiles
 - **Failover deployment**: Agent embeds failover C2 servers
 - **Shellcode Injection**: Shellcode injection into sacrificial processes with NtQueueApcThread, NtCreateThreadEx, RtlCreateUserThread, CreateRemoteThread
 - **Unmanaged PE Execution**: Execute arbitrary Windows executables (PE) in a sacrificial process with Process Hollowing, or Complete PE execution in agent's memory space
 - **.NET Assembly Execution**: In-memory execution of .NET Assemblies
 - **BOF Execution**: Load and Execute Beacon Object Files 
-- **Reporting handler:** Easy post-operation report writing
 
 
 ## Installation:
