@@ -34,6 +34,9 @@ class NeoC2Config:
                 "ssl_cert": "server.crt",
                 "ssl_key": "server.key"
             },
+            "database": {
+                "path": "neoc2.db"
+            },
             "web": {
                 "enabled": True,
                 "port": int(os.environ.get('MULTI', 7443)),
