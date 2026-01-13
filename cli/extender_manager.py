@@ -625,6 +625,22 @@ class ExtensionPackageManager:
                                 catalog_response.raise_for_status()
                                 catalog_data = catalog_response.json()
 
+                                # Check if this is a bundle request
+                                bundles = catalog_data.get("bundles", [])
+                                for bundle in bundles:
+                                    bundle_name = bundle.get("name", "")
+                                    if bundle_name.lower() == package_name.lower():
+                                        # This is a bundle request - return a special ExtensionPackage to indicate it's a bundle
+                                        return ExtensionPackage(
+                                            name=bundle_name,
+                                            version="bundle",
+                                            description=f"Bundle containing: {', '.join(bundle.get('packages', []))}",
+                                            repo_url="bundle",
+                                            public_key=repo.get("public_key", ""),
+                                            file_type="bundle",
+                                            dependencies=bundle.get("packages", [])
+                                        )
+
                                 # Look for the specific package in the extensions list
                                 extensions = catalog_data.get("extensions", [])
                                 if not extensions:
@@ -746,6 +762,22 @@ class ExtensionPackageManager:
                                 catalog_response.raise_for_status()
                                 catalog_data = catalog_response.json()
 
+                                # Check for bundles in the catalog
+                                bundles = catalog_data.get("bundles", [])
+                                for bundle in bundles:
+                                    bundle_name = bundle.get("name", "")
+                                    if bundle_name:
+                                        bundle_package = ExtensionPackage(
+                                            name=bundle_name,
+                                            version="bundle",
+                                            description=f"Bundle containing: {', '.join(bundle.get('packages', []))}",
+                                            repo_url="bundle",
+                                            public_key=repo.get("public_key", ""),
+                                            file_type="bundle",
+                                            dependencies=bundle.get("packages", [])
+                                        )
+                                        packages.append(bundle_package)
+
                                 # Parse the extensions from the catalog JSON
                                 extensions = catalog_data.get("extensions", [])
                                 if not extensions:
@@ -811,6 +843,71 @@ class ExtensionPackageManager:
                 continue
 
         return packages
+
+    def list_available_bundles(self):
+        print(f"{green('[+]')} Available bundles:")
+        print("-" * 120)
+        print(f"{'Name':<30} {'Packages Count':<15} {'Contents':<70}")
+        print("-" * 120)
+
+        bundles_found = 0
+
+        for repo in self.config.get("repositories", []):
+            try:
+                # For GitHub releases API (like Sliver armory)
+                if "github.com" in repo["url"] or "api.github.com" in repo["url"]:
+                    releases_url = repo["url"]
+                    response = requests.get(releases_url, timeout=30)
+                    response.raise_for_status()
+
+                    releases = response.json()
+
+                    # Find the latest release with armory.json
+                    for release in releases:
+                        if release.get("prerelease", False) or release.get("draft", False):
+                            continue
+
+                        release_assets = release.get("assets", [])
+
+                        # Look for any JSON catalog file
+                        catalog_json_asset = None
+                        for asset in release_assets:
+                            asset_name = asset.get("name", "").lower()
+                            if asset_name.endswith('.json') and any(name in asset_name for name in ['armory', 'extensions', 'catalog', 'packages', 'repo', 'index', 'bundle']):
+                                catalog_json_asset = asset
+                                break
+
+                        if not catalog_json_asset:
+                            for asset in release_assets:
+                                if asset.get("name", "").lower().endswith('.json'):
+                                    catalog_json_asset = asset
+                                    break
+
+                        if catalog_json_asset:
+                            catalog_json_url = catalog_json_asset.get("browser_download_url", "")
+                            if catalog_json_url:
+                                catalog_response = requests.get(catalog_json_url, timeout=30)
+                                catalog_response.raise_for_status()
+                                catalog_data = catalog_response.json()
+
+                                # Display bundles from the catalog
+                                bundles = catalog_data.get("bundles", [])
+                                for bundle in bundles:
+                                    bundle_name = bundle.get("name", "")
+                                    bundle_packages = bundle.get("packages", [])
+                                    if bundle_name:
+                                        packages_str = ", ".join(bundle_packages[:3])  # Show first 3 packages
+                                        if len(bundle_packages) > 3:
+                                            packages_str += f" ... (+{len(bundle_packages) - 3} more)"
+                                        print(f"{bundle_name:<30} {len(bundle_packages):<15} {packages_str:<70}")
+                                        bundles_found += 1
+                                break  # Only process the first catalog JSON we find
+            except Exception as e:
+                print(f"{yellow('[*]')} Error fetching bundles from repository {repo['name']}: {e}")
+                continue
+
+        print("-" * 120)
+        print(f"Total: {bundles_found} bundles available")
 
     def list_available_packages(self):
         print(f"{green('[+]')} Available packages:")
@@ -1052,11 +1149,53 @@ class ExtensionPackageManager:
         print("-" * 120)
         print(f"Total: {installed_count} packages installed")
 
+    def install_bundle(self, bundle_name: str, force: bool = False):
+        print(f"{blue('[*]')} Installing bundle: {bundle_name}")
+
+        # Get bundle info
+        bundle_info = self._get_package_info_from_repo(bundle_name)
+        if not bundle_info or bundle_info.file_type != "bundle":
+            print(f"{red('[-]')} Bundle '{bundle_name}' not found in any repository")
+            return False
+
+        print(f"{green('[+]')} Found bundle: {bundle_info.name} containing {len(bundle_info.dependencies)} packages")
+
+        # Install each package in the bundle
+        installed_count = 0
+        failed_packages = []
+
+        for package_name in bundle_info.dependencies:
+            print(f"{blue('[*]')} Installing package: {package_name}")
+            success = self.install_package(package_name, force=force)
+            if success:
+                installed_count += 1
+            else:
+                failed_packages.append(package_name)
+                print(f"{red('[-]')} Failed to install package: {package_name}")
+
+        # Summary
+        print(f"\n{green('[+]')} Bundle installation complete:")
+        print(f"  - Successfully installed: {installed_count} packages")
+        if failed_packages:
+            print(f"  - Failed to install: {len(failed_packages)} packages")
+            print(f"  - Failed packages: {', '.join(failed_packages)}")
+        else:
+            print(f"  - All packages installed successfully!")
+
+        return len(failed_packages) == 0
+
     def install_package(self, package_name: str, force: bool = False):
         print(f"{blue('[*]')} Searching for package: {package_name}")
 
         # Get package info
         pkg_info = self._get_package_info_from_repo(package_name)
+
+        # Check if this is a bundle request first
+        if pkg_info and pkg_info.file_type == "bundle":
+            # This is actually a bundle, install it as such
+            return self.install_bundle(package_name, force=force)
+
+        # Get package info
         if not pkg_info:
             print(f"{red('[-]')} Package '{package_name}' not found in any repository")
             return False
