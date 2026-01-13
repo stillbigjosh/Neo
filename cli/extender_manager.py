@@ -1061,7 +1061,7 @@ class ExtensionPackageManager:
             print(f"{red('[-]')} Package '{package_name}' not found in any repository")
             return False
 
-        print(f"{green('[+]')} Found package: {pkg_info.name} v{pkg_info.version} ({pkg_info.file_type})")
+        #print(f"{green('[+]')} Found package: {pkg_info.name} v{pkg_info.version} ({pkg_info.file_type})")
 
         # Check if already installed
         if not force and self._is_package_installed(pkg_info):
@@ -1092,8 +1092,6 @@ class ExtensionPackageManager:
                     print(f"{red('[-]')} Package signature verification failed!")
                     return False
                 print(f"{green('[+]')} Package signature verified successfully")
-            else:
-                print(f"{yellow('[*]')} Skipping signature verification (signature or public key not available)")
 
             # Create temporary directory for extraction
             with tempfile.TemporaryDirectory() as temp_dir:
@@ -1362,13 +1360,13 @@ class ExtensionPackageManager:
                 for file_path in files_to_copy:
                     target_file = package_dir / file_path.name
                     shutil.copy2(file_path, target_file)
-                    print(f"{green('[+]')} Copied {file_path.name} to {package_dir}")
+                    #print(f"{green('[+]')} Copied {file_path.name} to {package_dir}")
 
             # Copy all JSON files (this is the new functionality - preserve JSON files)
             for json_file in json_files:
                 target_file = package_dir / json_file.name
                 shutil.copy2(json_file, target_file)
-                print(f"{green('[+]')} Copied {json_file.name} to {package_dir}")
+                #print(f"{green('[+]')} Copied {json_file.name} to {package_dir}")
 
             return True
         except Exception as e:
