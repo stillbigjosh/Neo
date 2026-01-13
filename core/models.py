@@ -35,7 +35,7 @@ class DatabaseConfig:
     def get_db_path():
         """Get the appropriate database path for the environment"""
         if os.getenv('RAILWAY_ENVIRONMENT') or os.getenv('DOCKER_ENV'):
-            volume_path = os.getenv('DB_VOLUME_PATH', '/data')
+            volume_path = '/data'
             db_path = os.path.join(volume_path, 'neoc2.db')
 
             os.makedirs(volume_path, exist_ok=True)
