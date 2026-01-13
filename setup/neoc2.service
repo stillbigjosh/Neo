@@ -1,5 +1,5 @@
 [Unit]
-Description=NeoC2 Command and Control Server
+Description=Neo Command and Control Framework Server
 After=network.target
 Wants=network.target
 
