@@ -1077,13 +1077,19 @@ class AgentManager:
             return None, "Agent not in interactive mode"
 
         try:
+            # Encrypt the command before storing it in the database (for consistency with regular tasks)
+            encrypted_command = self._encrypt_data(agent_id, command)
+            if encrypted_command is None:
+                self.logger.error(f"Failed to encrypt interactive task for agent {agent_id}")
+                return None, "Failed to encrypt command"
+
             cursor = self.db.execute('''
                 INSERT INTO agent_tasks (agent_id, command, status, created_at, task_type)
                 VALUES (?, ?, ?, ?, ?)
-            ''', (agent_id, command, 'pending', datetime.now(), 'interactive'))
-            
+            ''', (agent_id, encrypted_command, 'pending', datetime.now(), 'interactive'))
+
             task_id = cursor.lastrowid # Get the real, numeric ID from the database
-            self.logger.info(f"[+] Interactive task {task_id} written to DB")
+            self.logger.info(f"[+] Interactive task {task_id} written to DB (encrypted)")
 
         except Exception as e:
             self.logger.info(f"[-] Failed to write interactive task to DB: {e}")
@@ -1171,13 +1177,13 @@ class AgentManager:
                 
                 task = {
                     'id': task_data['id'],
-                    'command': task_data['command'],
+                    'command': task_data['command'],  # Keep encrypted for agent to decrypt
                     'created_at': task_data['created_at']
                 }
-            
+
                 with agent.lock:
                     agent.interactive_task = task
-            
+
                 self.logger.info(f"[+] Loaded interactive task from DB for agent {agent_id}: {task['command'][:50]}...")
                 return task
         except Exception as e:
