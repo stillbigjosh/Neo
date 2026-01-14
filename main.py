@@ -908,8 +908,6 @@ def main():
     parser.add_argument("--config", help="Configuration file path")
     parser.add_argument("--init-db", action="store_true", help="Initialize database and exit")
     parser.add_argument("--generate-ssl", action="store_true", help="Generate SSL certificates and exit")
-    parser.add_argument("--web-only", action="store_true", help="Run only web interface")
-    parser.add_argument("--cli-only", action="store_true", help="Run only CLI interface")
     parser.add_argument("--status", action="store_true", help="Show framework status")
     parser.add_argument("--stop", action="store_true", help="Stop running framework")
     args = parser.parse_args()
