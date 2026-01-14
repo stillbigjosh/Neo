@@ -318,7 +318,7 @@ if '{agent_id}' in interactive_uri:
         try:
             method = request.method
             logger.info(f"Interactive {method} request for agent {agent_id}")
-            
+
             import requests
             web_interface_url = config.get('web_interface_url', 'https://localhost:443')
             headers = {
@@ -326,17 +326,17 @@ if '{agent_id}' in interactive_uri:
                 "X-Forwarded-For": request.remote_addr,
                 "X-Real-IP": request.remote_addr
             }
-            
+
             if method == 'GET':
-                response = requests.get(f"{web_interface_url}/api/users/{agent_id}/settings", 
+                response = requests.get(f"{web_interface_url}/api/users/{agent_id}/settings",
                                        headers=headers,
                                        verify=False)
             else:  # POST
-                response = requests.post(f"{web_interface_url}/api/users/{agent_id}/settings", 
+                response = requests.post(f"{web_interface_url}/api/users/{agent_id}/settings",
                                        json=request.get_json(),
                                        headers=headers,
                                        verify=False)
-            
+
             if response.status_code == 200:
                 result = response.json()
                 return jsonify(result), 200
@@ -345,6 +345,37 @@ if '{agent_id}' in interactive_uri:
 
         except Exception as e:
             logger.error(f"Error in interactive communication: {str(e)}")
+            return jsonify({"status": "error", "message": "Internal error"}), 500
+
+# Interactive status endpoint
+interactive_status_uri = endpoints.get('interactive_status', '/api/users/<agent_id>/status')
+if '{agent_id}' in interactive_status_uri:
+    interactive_status_path = interactive_status_uri.replace('{agent_id}', '<agent_id>')
+    @app.route(interactive_status_path, methods=['GET'])
+    def handle_interactive_status(agent_id):
+        try:
+            logger.info(f"Interactive status request for agent {agent_id}")
+
+            import requests
+            web_interface_url = config.get('web_interface_url', 'https://localhost:443')
+            headers = {
+                "Content-Type": "application/json",
+                "X-Forwarded-For": request.remote_addr,
+                "X-Real-IP": request.remote_addr
+            }
+
+            response = requests.get(f"{web_interface_url}/api/users/{agent_id}/status",
+                                   headers=headers,
+                                   verify=False)
+
+            if response.status_code == 200:
+                result = response.json()
+                return jsonify(result), 200
+            else:
+                return jsonify({"status": "error", "message": "Interactive status check failed"}), 500
+
+        except Exception as e:
+            logger.error(f"Error in interactive status check: {str(e)}")
             return jsonify({"status": "error", "message": "Internal error"}), 500
 
 # Additional disguised endpoints based on profile
