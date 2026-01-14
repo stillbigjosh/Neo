@@ -45,8 +45,6 @@ Profiles define communication characteristics for agents:
     },
     "jitter": 0.2,
     "protocol": "https",
-    "p2p_enabled": false,
-    "p2p_port": 8888,
     "kill_date": "2027-12-31T23:59:59Z",
     "working_hours": {
       "start_hour": 0,
