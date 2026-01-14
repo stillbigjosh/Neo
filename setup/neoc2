@@ -19,7 +19,7 @@ find_neoc2_installation() {
     done
     
     for path in "${possible_paths[@]}"; do
-        if [[ -d "$path" && -f "$path/main.py" && -d "$path/.venv" ]]; then
+        if [[ -d "$path" && -f "$path/wsgi_framework.py" && -d "$path/.venv" ]]; then
             echo "$path"
             return 0
         fi
@@ -32,7 +32,7 @@ NEOC2_PATH=$(find_neoc2_installation)
 
 if [[ -z "$NEOC2_PATH" ]]; then
     echo "Error: Could not find NeoC2 installation."
-    echo "Expected to find main.py and .venv directory in the installation path."
+    echo "Expected to find wsgi_framework.py and .venv directory in the installation path."
     exit 1
 fi
 
@@ -61,7 +61,7 @@ if [[ "$1" == "status" ]]; then
         sudo systemctl status neoc2
     else
         echo "systemctl not available, checking for running Python processes..."
-        pgrep -f "c2_service.py\|main.py" || echo "No NeoC2 processes found"
+        pgrep -f "c2_service.py\|wsgi_framework.py" || echo "No NeoC2 processes found"
     fi
 elif [[ "$1" == "start" ]]; then
     if command -v systemctl &> /dev/null; then

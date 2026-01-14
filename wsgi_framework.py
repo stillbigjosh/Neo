@@ -59,9 +59,9 @@ class NeoC2Framework:
         self.startup_time = None
         
         self._initialize_managers()
-        
+
         self._initialize_multiplayer()
-        
+
         self._initialize_remote_cli()
     
     def _initialize_managers(self):
@@ -143,42 +143,59 @@ class NeoC2Framework:
     def _initialize_multiplayer(self):
         try:
             logger.info("Initializing multiplayer components...")
-            
+
             from teamserver.multiplayer_session_manager import MultiplayerSessionManager
             from teamserver.multiplayer_coordinator import MultiplayerCoordinator
             from teamserver.multiplayer_agent_manager import MultiplayerAgentManager
-            
+
             self.multiplayer_session_manager = MultiplayerSessionManager(self.db, self.web_app.socketio)
             self.multiplayer_coordinator = MultiplayerCoordinator(self.db, self.web_app.socketio)
-            
+
             self.multiplayer_coordinator.audit_logger = self.audit_logger
             self.multiplayer_session_manager.audit_logger = self.audit_logger
-            
+
             old_agent_manager = self.agent_manager
             self.agent_manager = MultiplayerAgentManager(
-                self.db, 
-                silent_mode=True, 
+                self.db,
+                silent_mode=True,
                 multiplayer_coordinator=self.multiplayer_coordinator
             )
-            
+
             for attr in ['agents', 'agent_tasks', 'agent_results', 'silent_mode', 'db', 'logger', 'interactive_result_callback']:
                 if hasattr(old_agent_manager, attr):
                     setattr(self.agent_manager, attr, getattr(old_agent_manager, attr))
-            
+
             self.multiplayer_session_manager.start()
             self.multiplayer_coordinator.start()
-            
+
             self.web_app.app.multiplayer_session_manager = self.multiplayer_session_manager
             self.web_app.app.multiplayer_coordinator = self.multiplayer_coordinator
             self.web_app.app.multiplayer_agent_manager = self.agent_manager
 
+            # Update remote CLI server with the new multiplayer agent manager
             if hasattr(self, 'remote_cli_server') and self.remote_cli_server:
                 self.remote_cli_server.agent_manager = self.agent_manager  # Update reference
+                # Unregister old callbacks if they exist
+                if hasattr(old_agent_manager, 'interactive_result_callback') and old_agent_manager.interactive_result_callback:
+                    try:
+                        old_agent_manager.register_interactive_result_callback(None)
+                    except:
+                        pass
+                if hasattr(old_agent_manager, 'agent_callback') and old_agent_manager.agent_callback:
+                    try:
+                        old_agent_manager.register_agent_callback(None)
+                    except:
+                        pass
+                # Register new callbacks
                 self.agent_manager.register_interactive_result_callback(self.remote_cli_server.broadcast_interactive_result)
                 self.agent_manager.register_agent_callback(self.remote_cli_server.broadcast_agent_update)
-            
+            else:
+                # If remote CLI server doesn't exist yet, it will be created later with the correct agent manager
+                # This shouldn't happen now since we changed the initialization order
+                logger.warning("Remote CLI server not found during multiplayer initialization")
+
             logger.info("Multiplayer components initialized successfully")
-            
+
         except Exception as e:
             logger.error(f"Error initializing multiplayer components: {str(e)}")
             import traceback
@@ -187,10 +204,10 @@ class NeoC2Framework:
     def _initialize_remote_cli(self):
         try:
             remote_cli_enabled = self.config.get('remote_cli.enabled', True)  # Default to enabled
-            
+
             if remote_cli_enabled:
                 logger.info("Initializing Remote CLI server...")
-                
+
                 from teamserver.remote_cli_server import RemoteCLIServer
                 self.remote_cli_server = RemoteCLIServer(
                     config=self.config,
@@ -200,16 +217,16 @@ class NeoC2Framework:
                     multiplayer_coordinator=self.multiplayer_coordinator,
                     audit_logger=self.audit_logger
                 )
-                
+
                 if self.remote_cli_server.start():
                     logger.info("Remote CLI server initialized and started successfully")
-                    
+
                     self.web_app.app.remote_cli_server = self.remote_cli_server
                 else:
                     logger.error("Failed to start Remote CLI server")
             else:
                 logger.info("Remote CLI server is disabled in configuration")
-                
+
         except Exception as e:
             logger.error(f"Error initializing remote CLI server: {str(e)}")
             import traceback
@@ -484,8 +501,8 @@ class NeoC2Framework:
                     with self.db.get_cursor() as cursor:
                         cursor.execute(
                             "INSERT INTO roles (id, name, description, permissions, created_at) VALUES (?, ?, ?, ?, ?)",
-                            (role["id"], role["name"], role["description"], 
-                             str(role["permissions"]), datetime.now())
+                            (role["id"], role["name"], role["description"],
+                             json.dumps(role["permissions"]), datetime.now())
                         )
                     logger.info(f"Created role '{role['name']}' with ID: {role['id'][:8]}...")
                 except Exception as e:
@@ -735,47 +752,137 @@ class NeoC2Framework:
     def stop(self):
         try:
             logger.info("Stopping framework components...")
-            
+
             if hasattr(self, 'audit_logger'):
                 self.audit_logger.stop()
-            
+
             if hasattr(self, 'agent_manager'):
                 self.agent_manager.stop()
-            
+
             if hasattr(self, 'remote_cli_server'):
                 logger.info("Stopping remote CLI server...")
                 self.remote_cli_server.stop()
-            
+
             if hasattr(self, 'session_manager'):
                 self.session_manager.stop()
-            
+
             if hasattr(self, 'endpoint_discovery'):
                 self.endpoint_discovery.stop()
-            
+
             if hasattr(self, 'db'):
                 self.db.close_connection()
-            
+
             logger.info("Framework stopped successfully")
             return True
-            
+
         except Exception as e:
             logger.error(f"Error stopping framework: {str(e)}")
             return False
 
+    def get_status(self):
+        return {
+            'running': self.running,
+            'startup_time': self.startup_time.isoformat() if self.startup_time else None,
+            'uptime': str(datetime.now() - self.startup_time) if self.startup_time else None,
+            'managers': {
+                'protocol_manager': hasattr(self, 'protocol_manager'),
+                'module_manager': hasattr(self, 'module_manager'),
+                'session_manager': hasattr(self, 'session_manager'),
+                'user_manager': hasattr(self, 'user_manager'),
+                'role_manager': hasattr(self, 'role_manager'),
+                'audit_logger': hasattr(self, 'audit_logger'),
+                'listener_manager': hasattr(self, 'listener_manager'),
+                'agent_manager': hasattr(self, 'agent_manager'),
+                'task_orchestrator': hasattr(self, 'task_orchestrator'),
+                'web_app': hasattr(self, 'web_app')
+            }
+        }
 
-framework = None
-try:
-    framework = NeoC2Framework()
-    framework.start()
-except Exception as e:
-    logger.error(f"Failed to initialize framework: {str(e)}")
-    import traceback
-    traceback.print_exc()
-    sys.exit(1)
 
-application = framework.web_app.app
+def main():
+    import argparse
 
+    parser = argparse.ArgumentParser(description="NeoC2 Framework")
+    parser.add_argument("--config", help="Configuration file path")
+    parser.add_argument("--init-db", action="store_true", help="Initialize database and exit")
+    parser.add_argument("--generate-ssl", action="store_true", help="Generate SSL certificates and exit")
+    parser.add_argument("--status", action="store_true", help="Show framework status")
+    parser.add_argument("--stop", action="store_true", help="Stop running framework")
+    args = parser.parse_args()
+
+    framework = NeoC2Framework(args.config)
+
+    if args.init_db:
+        logger.info("Database initialized")
+        return
+
+    if args.generate_ssl:
+        os.system("openssl req -x509 -newkey rsa:4096 -keyout server.key -out server.crt -days 365 -nodes -subj '/CN=localhost'")
+        logger.info("SSL certificates generated")
+        return
+
+    if args.status:
+        status = framework.get_status()
+        logger.info(f"Framework Status: {'Running' if status['running'] else 'Stopped'}")
+        if status['startup_time']:
+            logger.info(f"Startup Time: {status['startup_time']}")
+        if status['uptime']:
+            logger.info(f"Uptime: {status['uptime']}")
+        logger.info("Managers:")
+        for manager, enabled in status['managers'].items():
+            logger.info(f"  {manager}: {'✓' if enabled else '✗'}")
+        return
+
+    if args.stop:
+        framework.stop()
+        return
+
+    # For WSGI usage, just return the application
+    try:
+        framework.start()
+        application = framework.web_app.app
+        return application
+    except Exception as e:
+        logger.error(f"Failed to start framework: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+# For WSGI usage
+framework_instance = None
+application = None
+
+# Check if we're running in command-line mode (not in WSGI context)
+import sys
+import os
+
+# Check if we're being run directly as a script or called by gunicorn
 if __name__ == "__main__":
-    port = int(os.environ.get('MULTI', 7443))  # Use MULTI environment variable (default 7443)
-    host = os.environ.get('IP', '0.0.0.0')  # Use IP environment variable (default 0.0.0.0)
-    application.run(host=host, port=port, debug=False)
+    # Running as a script directly
+    if len(sys.argv) > 1:  # Command line arguments present
+        # If called with command line args, run main()
+        main()
+        # Exit after running command-line options
+        sys.exit(0)
+    else:
+        # For WSGI, create the framework instance and get the application
+        framework_instance = NeoC2Framework()
+        framework_instance.start()
+        application = framework_instance.web_app.app
+
+        port = int(os.environ.get('MULTI', 7443))  # Use MULTI environment variable (default 7443)
+        host = os.environ.get('IP', '0.0.0.0')  # Use IP environment variable (default 0.0.0.0)
+        if application:
+            application.run(host=host, port=port, debug=False)
+else:
+    # Running under WSGI/gunicorn - always create the application
+    try:
+        framework_instance = NeoC2Framework()
+        framework_instance.start()
+        application = framework_instance.web_app.app
+    except Exception as e:
+        logger.error(f"Failed to initialize framework: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+

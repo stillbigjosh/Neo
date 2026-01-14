@@ -10,7 +10,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.absolute()
 sys.path.insert(0, str(project_root))
 
-from main import NeoC2Framework
+from wsgi_framework import NeoC2Framework
 
 def setup_logging():
     logging.basicConfig(
@@ -42,13 +42,13 @@ def main():
     
     logger.info("Initializing NeoC2 Framework...")
     framework = NeoC2Framework(args.config)
-    
+
     if args.init_db:
         logger.info("Initializing database...")
         framework.db.init_db()
         logger.info("Database initialized")
         return
-    
+
     if args.generate_ssl:
         logger.info("Generating SSL certificates...")
         # Generate certificates in the project root directory (parent directory of setup)
@@ -58,15 +58,17 @@ def main():
             os.system(f"cd {parent_dir} && openssl req -x509 -newkey rsa:4096 -keyout server.key -out server.crt -days 365 -nodes -subj '/CN=localhost'")
             # Also copy to listeners directory
             import shutil
-            shutil.copy2(parent_dir / "server.key", parent_dir / "listeners" / "server.key")
-            shutil.copy2(parent_dir / "server.crt", parent_dir / "listeners" / "server.crt")
+            if (parent_dir / "server.key").exists() and (parent_dir / "listeners").exists():
+                shutil.copy2(parent_dir / "server.key", parent_dir / "listeners" / "server.key")
+                shutil.copy2(parent_dir / "server.crt", parent_dir / "listeners" / "server.crt")
         else:
             # We're running from project root
             os.system("openssl req -x509 -newkey rsa:4096 -keyout server.key -out server.crt -days 365 -nodes -subj '/CN=localhost'")
             # Also copy to listeners directory
             import shutil
-            shutil.copy2("server.key", "listeners/server.key")
-            shutil.copy2("server.crt", "listeners/server.crt")
+            if os.path.exists("server.key") and os.path.exists("listeners"):
+                shutil.copy2("server.key", "listeners/server.key")
+                shutil.copy2("server.crt", "listeners/server.crt")
         logger.info("SSL certificates generated and copied to listeners directory")
         return
     
