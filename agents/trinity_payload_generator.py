@@ -186,11 +186,15 @@ class TrinityPayloadGenerator:
             "days": [1, 2, 3, 4, 5]  # Monday to Friday
         })
 
+        # Extract heartbeat interval and jitter from profile config
+        heartbeat_interval = profile_config.get('heartbeat_interval', 30)  # Default to 30 seconds
+        jitter_value = profile_config.get('jitter', 0.2)  # Default to 0.2 (20%)
+
         return self._generate_go_agent(
-            agent_id, secret_key, c2_server_url, profile_config, obfuscate, disable_sandbox=disable_sandbox, platform=platform, use_redirector=use_redirector, redirector_host=redirector_host, redirector_port=redirector_port, use_failover=use_failover, failover_urls=failover_urls, profile_headers=profile_headers, include_bof=include_bof, include_assembly=include_assembly, include_pe=include_pe, include_execute_pe=include_execute_pe, include_shellcode=include_shellcode, include_reverse_proxy=include_reverse_proxy, include_sandbox=include_sandbox, shellcode_format=shellcode_format
+            agent_id, secret_key, c2_server_url, profile_config, obfuscate, disable_sandbox=disable_sandbox, platform=platform, use_redirector=use_redirector, redirector_host=redirector_host, redirector_port=redirector_port, use_failover=use_failover, failover_urls=failover_urls, profile_headers=profile_headers, include_bof=include_bof, include_assembly=include_assembly, include_pe=include_pe, include_execute_pe=include_execute_pe, include_shellcode=include_shellcode, include_reverse_proxy=include_reverse_proxy, include_sandbox=include_sandbox, shellcode_format=shellcode_format, heartbeat_interval=heartbeat_interval, jitter_value=jitter_value
         )
 
-    def _generate_go_agent(self, agent_id, secret_key, c2_url, profile_config, obfuscate=False, disable_sandbox=False, platform='windows', use_redirector=False, redirector_host='0.0.0.0', redirector_port=80, use_failover=False, failover_urls=None, profile_headers=None, include_bof=True, include_assembly=True, include_pe=True, include_execute_pe=True, include_shellcode=True, include_reverse_proxy=True, include_sandbox=True, shellcode_format=None):
+    def _generate_go_agent(self, agent_id, secret_key, c2_url, profile_config, obfuscate=False, disable_sandbox=False, platform='windows', use_redirector=False, redirector_host='0.0.0.0', redirector_port=80, use_failover=False, failover_urls=None, profile_headers=None, include_bof=True, include_assembly=True, include_pe=True, include_execute_pe=True, include_shellcode=True, include_reverse_proxy=True, include_sandbox=True, shellcode_format=None, heartbeat_interval=30, jitter_value=0.2):
         if failover_urls is None:
             failover_urls = []
         if profile_headers is None:
@@ -877,6 +881,10 @@ class TrinityPayloadGenerator:
         days_list = working_hours.get('days', [1, 2, 3, 4, 5])
         days_str = ', '.join(map(str, days_list))
         go_code = go_code.replace('{WORKING_HOURS_DAYS}', days_str)
+
+        # Replace heartbeat interval and jitter values from profile config
+        go_code = go_code.replace('{HEARTBEAT_INTERVAL}', str(heartbeat_interval))
+        go_code = go_code.replace('{JITTER_VALUE}', str(jitter_value))
 
         # Replace redirector placeholders
         go_code = go_code.replace('{REDIRECTOR_HOST}', redirector_host)

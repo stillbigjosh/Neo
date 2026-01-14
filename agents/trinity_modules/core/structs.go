@@ -53,8 +53,6 @@ type {TASK_RESULT_STRUCT_NAME} struct {
 type {API_RESPONSE_STRUCT_NAME} struct {
 	Status   string      `json:"status"`
 	Tasks    []{TASK_STRUCT_NAME}      `json:"tasks,omitempty"`
-	Interval int         `json:"checkin_interval,omitempty"`
-	Jitter   float64     `json:"jitter,omitempty"`
 	InteractiveMode bool `json:"interactive_mode,omitempty"`
 	Command  string      `json:"command,omitempty"`
 	TaskID   string      `json:"task_id,omitempty"`
