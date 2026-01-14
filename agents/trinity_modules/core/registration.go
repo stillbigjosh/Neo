@@ -27,12 +27,6 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_REGISTER_FUNC}() error {
 	}
 
 	if resp.Status == "success" {
-		if resp.Interval != 0 {
-			a.{AGENT_HEARTBEAT_INTERVAL_FIELD} = resp.Interval
-		}
-		if resp.Jitter != 0 {
-			a.{AGENT_JITTER_FIELD} = resp.Jitter
-		}
 		return nil
 	}
 
