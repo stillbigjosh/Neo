@@ -210,6 +210,12 @@ NeoC2 [INTERACTIVE:abc123] > [reverse_proxy_start, reverse_proxy_stop, cmd, pwsh
 payload morpheus web_app_default
 ```
 
+**Agent compiled to linux binary (with PyInstaller)**
+```
+payload morpheus web_app_default --linux
+```
+
+
 **Agent with disabled sandbox detection and anti-debuggers**
 ```
 payload morpheus web_app_default --disable-sandbox
