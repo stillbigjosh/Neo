@@ -55,5 +55,5 @@ type {API_RESPONSE_STRUCT_NAME} struct {
 	Tasks    []{TASK_STRUCT_NAME}      `json:"tasks,omitempty"`
 	InteractiveMode bool `json:"interactive_mode,omitempty"`
 	Command  string      `json:"command,omitempty"`
-	TaskID   string      `json:"task_id,omitempty"`
+	TaskID   interface{} `json:"task_id,omitempty"`  // Accept both string and number
 }
