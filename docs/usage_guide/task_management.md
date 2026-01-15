@@ -1,8 +1,10 @@
 # Task Management
 
-Tasks are commands executed on an active agent session. NeoC2 implements a sophisticated task management system that distinguishes between two primary execution modes: **Queued Tasks** and **Interactive Tasks**. 
-- Queued tasks are stored in the database and retrieved by agents during their regular polling cycles for asynchronous execution, allowing for reliable command delivery and result storage.
-- Interactive tasks, on the other hand, bypass the standard queue and communicate directly with agents in real-time when an operator is in an interactive session, providing immediate command execution and response feedback.
+Tasks are commands executed on an active agent session. NeoC2 implements a sophisticated task management system that distinguishes between two primary execution modes: **Queued Tasks** and **Interactive Tasks**:
+
+- Queued tasks are stored in the database and retrieved by agents via the regular tasking Queued API, during their regular profile-defined polling cycles for asynchronous execution, allowing for reliable command delivery and result storage.
+
+- Interactive tasks, on the other hand, bypass the standard queue and communicate directly with agents in real-time via the Interactive API, when an operator is in an interactive session, Agent polling increases to 2 seconds, providing immediate command execution and response feedback.
 
 ## Task Types and Commands: 
 
