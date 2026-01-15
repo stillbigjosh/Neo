@@ -52,7 +52,7 @@ class ModuleManager:
         self.config = config
         self.db = db
         self.modules_dir = "modules"
-        self.armory_dir = "armory"
+        #self.armory_dir = "armory"
         self.loaded_modules = {}
         
         self.setup_logging()
@@ -60,7 +60,7 @@ class ModuleManager:
         self.add_default_modules()
         self.load_all_modules()
         os.makedirs(self.modules_dir, exist_ok=True)
-        os.makedirs(self.armory_dir, exist_ok=True)
+        #os.makedirs(self.armory_dir, exist_ok=True)
 
     def setup_logging(self):
         log_dir = "logs"
