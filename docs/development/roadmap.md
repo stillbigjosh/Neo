@@ -27,6 +27,7 @@
 - [ ] Shellcode stager
 - [ ] Local file as BOF argument
 - [ ] Extension Package Repository
+- [ ] Window process migration
       
 
 ## To be implemented
