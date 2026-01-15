@@ -121,8 +121,8 @@ class NeoC2Framework:
 
             logger.info("Legacy communication protocols initialized successfully")
 
-            default_user = os.environ.get('DEFAULT_USERNAME', 'morpheus')
-            default_pass = os.environ.get('DEFAULT_PASSWORD', 'morpheus')
+            default_user = os.environ.get('DEFAULT_USERNAME')
+            default_pass = os.environ.get('DEFAULT_PASSWORD')
             final_test = self.user_manager.authenticate(default_user, default_pass)
             if final_test:
                 logger.info("FINAL VERIFICATION: Admin login working correctly!")
