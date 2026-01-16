@@ -199,7 +199,7 @@ Morpheus is a Python cross-platforn agent with very limited capability.
 
 ### Usage
 ```
-NeoC2 > payload phantom_hawk <listener_id> [--obfuscate] [--disable-sandbox] [--linux] [--redirector] [--use-failover]
+NeoC2 > payload morpheus <listener_id> [--obfuscate] [--disable-sandbox] [--linux] [--redirector] [--use-failover]
 NeoC2 [INTERACTIVE:abc123] > [reverse_proxy_start, reverse_proxy_stop, cmd, pwsh, upload, download, tty_shell, sleep, kill, interact, run]
 ```
 
