@@ -443,7 +443,7 @@ class TrinityPayloadGenerator:
                     import_lines.append('\t"agents/goffloader/src/lighthouse"')
 
                 if include_assembly:
-                    import_lines.append('\t"github.com/Ne0nd0g/go-clr"')
+                    import_lines.append('\t"agents/go-clr"')
 
                 if include_execute_pe:
                     import_lines.append('\t"agents/goffloader/src/pe"')
@@ -1047,12 +1047,27 @@ class TrinityPayloadGenerator:
 
             # Get go-clr dependency for .NET assembly execution if included
             if include_assembly:
+                # Copy local go-clr to temp directory for building
+                import shutil
+                import os
+                from pathlib import Path
+
+                local_go_clr_path = os.path.join(os.path.dirname(__file__), 'go-clr')
+                temp_go_clr_path = os.path.join(temp_dir, 'agents', 'go-clr')
+
+                # Create directory structure
+                os.makedirs(temp_go_clr_path, exist_ok=True)
+
+                # Copy the entire go-clr directory to the temp directory
+                shutil.copytree(local_go_clr_path, temp_go_clr_path, dirs_exist_ok=True)
+
+                # Add replace directive to use local go-clr module
                 result = subprocess.run([
-                    'go', 'get', 'github.com/Ne0nd0g/go-clr'
+                    'go', 'mod', 'edit', '-replace', 'agents/go-clr=./agents/go-clr'
                 ], capture_output=True, text=True, cwd=temp_dir, env=go_env)
 
                 if result.returncode != 0:
-                    raise Exception(f"Failed to get go-clr dependency: {result.stderr}")
+                    raise Exception(f"Failed to add replace directive for go-clr: {result.stderr}")
 
             # The PE module is already copied as part of the goffloader package above
             if include_execute_pe:
