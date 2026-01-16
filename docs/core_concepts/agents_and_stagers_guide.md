@@ -144,8 +144,8 @@ When a feature is excluded, attempting to use its commands will return an approp
 The modular approach conditionally includes external dependencies based on selected features:
 
 - **Core**: github.com/fernet/fernet-go
-- **BOF & Execute-PE**: github.com/praetorian-inc/goffloader/src/coff and lighthouse (with randomized Junk code injected directly into the library to change its signature per build)
-- **Assembly**: github.com/Ne0nd0g/go-clr
+- **BOF & Execute-PE**: agents/goffloader/ (with randomized Junk code injected directly into the library to change its signature per build)
+- **Assembly**: agents/go-clr/ (with randomized Junk code injected directly into the library to change its signature per build)
 - **All other functionality** uses Go's standard library and Windows syscalls
 
 ### Import Obfuscation 
