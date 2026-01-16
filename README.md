@@ -44,21 +44,11 @@
 - **BOF Execution**: Load and Execute Beacon Object Files 
 
 
-## Installation:
+### Installation
 NeoC2 works well on Debian based Linux distribution, such as Ubuntu and Kali Linux. See the [Installations](https://neoc2.readthedocs.io/en/latest/getting_started/Installation/) guide for instructions. 
 
-## Documentation 
+### Documentation 
 Read [https://neoc2.readthedocs.io/en/latest/](https://neoc2.readthedocs.io/en/latest/) for all Usage guides 
-
-Blog PART 1: Learning: Neo Command & Control Framework (Part 1) Tutorial & Usage guide [https://medium.com/@stillbigjosh/learning-neo-command-control-framework-part-1-912ac0b68f2b](https://medium.com/@stillbigjosh/learning-neo-command-control-framework-part-1-912ac0b68f2b)
-
-Blog PART 2: Learning: Neo Command & Control Framework (Part 2) Tutorial & Usage guide [https://stillbigjosh.medium.com/learning-neo-command-control-framework-part-2-tutorial-usage-guide-f2891b44a96d](https://stillbigjosh.medium.com/learning-neo-command-control-framework-part-2-tutorial-usage-guide-f2891b44a96d)
-
-Blog PART 3: Bypassing Windows 11 Defender with NeoC2 & MSFVenom [https://stillbigjosh.medium.com/bypass-windows-11-defender-with-neoc2-msfvenom-part-3-e61cbe055bde](https://stillbigjosh.medium.com/bypass-windows-11-defender-with-neoc2-msfvenom-part-3-e61cbe055bde)
-
-
-### Contributions
-This project is accepting contributions and under active development. You can submit a pull request or Join discussions https://github.com/stillbigjosh/Neo/discussions
 
 ### Disclaimer
 Users are responsible for ensuring their use of this framework complies with laws, regulations, and corporate policies. The author cannot be held responsible for any malicious utilizations. The Software is intended exclusively for authorised penetration testers and security researchers who have obtained authorisation from the owner of each target system.
