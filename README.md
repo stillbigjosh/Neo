@@ -44,7 +44,7 @@
 - **BOF Execution**: Load and Execute Beacon Object Files 
 
 
-### Installation:
+### Installation
 NeoC2 works well on Debian based Linux distribution, such as Ubuntu and Kali Linux. See the [Installations](https://neoc2.readthedocs.io/en/latest/getting_started/Installation/) guide for instructions. 
 
 ### Documentation 
