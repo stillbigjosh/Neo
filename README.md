@@ -44,15 +44,11 @@
 - **BOF Execution**: Load and Execute Beacon Object Files 
 
 
-## Installation:
+### Installation:
 NeoC2 works well on Debian based Linux distribution, such as Ubuntu and Kali Linux. See the [Installations](https://neoc2.readthedocs.io/en/latest/getting_started/Installation/) guide for instructions. 
 
-## Documentation 
+### Documentation 
 Read [https://neoc2.readthedocs.io/en/latest/](https://neoc2.readthedocs.io/en/latest/) for all Usage guides 
-
-
-### Contributions
-This project is accepting contributions and under active development. You can submit a pull request or Join discussions https://github.com/stillbigjosh/Neo/discussions
 
 ### Disclaimer
 Users are responsible for ensuring their use of this framework complies with laws, regulations, and corporate policies. The author cannot be held responsible for any malicious utilizations. The Software is intended exclusively for authorised penetration testers and security researchers who have obtained authorisation from the owner of each target system.
