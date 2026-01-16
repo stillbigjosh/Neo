@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/base64"
 	"fmt"
-	"github.com/praetorian-inc/goffloader/src/pe"
+	"agents/goffloader/src/pe"
 )
 
 // Execute PE file in memory using goffloader

@@ -3,8 +3,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/praetorian-inc/goffloader/src/coff"
-	"github.com/praetorian-inc/goffloader/src/lighthouse"
+	"agents/goffloader/src/coff"
+	"agents/goffloader/src/lighthouse"
 )
 
 // BOF execution functionality

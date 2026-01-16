@@ -376,14 +376,14 @@ class TrinityPayloadGenerator:
 
                 # Conditionally add feature-specific imports
                 if include_bof:
-                    import_lines.append('\t"github.com/praetorian-inc/goffloader/src/coff"')
-                    import_lines.append('\t"github.com/praetorian-inc/goffloader/src/lighthouse"')
+                    import_lines.append('\t"agents/goffloader/src/coff"')
+                    import_lines.append('\t"agents/goffloader/src/lighthouse"')
 
                 if include_assembly:
                     import_lines.append('\t"github.com/Ne0nd0g/go-clr"')
 
                 if include_execute_pe:
-                    import_lines.append('\t"github.com/praetorian-inc/goffloader/src/pe"')
+                    import_lines.append('\t"agents/goffloader/src/pe"')
 
                 import_lines.append(")")
                 import_lines.append("")  # Empty line after imports
@@ -926,6 +926,15 @@ class TrinityPayloadGenerator:
             if result.returncode != 0:
                 raise Exception(f"Failed to initialize Go module: {result.stderr}")
 
+            # Add replace directive to use local goffloader module
+            # Note: The actual goffloader files will be copied later based on feature flags
+            result = subprocess.run([
+                'go', 'mod', 'edit', '-replace', 'agents/goffloader=./agents/goffloader'
+            ], capture_output=True, text=True, cwd=temp_dir, env=go_env)
+
+            if result.returncode != 0:
+                raise Exception(f"Failed to add replace directive for goffloader: {result.stderr}")
+
             result = subprocess.run([
                 'go', 'get', 'github.com/fernet/fernet-go'
             ], capture_output=True, text=True, cwd=temp_dir, env=go_env)
@@ -934,20 +943,20 @@ class TrinityPayloadGenerator:
                 raise Exception(f"Failed to get fernet-go dependency: {result.stderr}")
 
             # Conditionally get dependencies based on included features
-            if include_bof:
-                result = subprocess.run([
-                    'go', 'get', 'github.com/praetorian-inc/goffloader/src/coff'
-                ], capture_output=True, text=True, cwd=temp_dir, env=go_env)
+            if include_bof or include_execute_pe:
+                # Copy local goffloader to temp directory for building
+                import shutil
+                local_goffloader_path = os.path.join(os.path.dirname(__file__), 'goffloader')
+                temp_goffloader_path = os.path.join(temp_dir, 'agents', 'goffloader')
 
-                if result.returncode != 0:
-                    raise Exception(f"Failed to get goffloader coff dependency: {result.stderr}")
+                # Create directory structure
+                os.makedirs(temp_goffloader_path, exist_ok=True)
 
-                result = subprocess.run([
-                    'go', 'get', 'github.com/praetorian-inc/goffloader/src/lighthouse'
-                ], capture_output=True, text=True, cwd=temp_dir, env=go_env)
+                # Copy the entire goffloader directory to the temp directory
+                shutil.copytree(local_goffloader_path, temp_goffloader_path, dirs_exist_ok=True)
 
-                if result.returncode != 0:
-                    raise Exception(f"Failed to get goffloader lighthouse dependency: {result.stderr}")
+                # Just copy the files - don't initialize a separate module for goffloader
+                # The main agent module will handle all dependencies through the replace directive
 
             # Get go-clr dependency for .NET assembly execution if included
             if include_assembly:
@@ -959,16 +968,22 @@ class TrinityPayloadGenerator:
                     raise Exception(f"Failed to get go-clr dependency: {result.stderr}")
 
             # Get goffloader PE dependency for PE execution if included
+            # The PE module is already copied as part of the goffloader package above
             if include_execute_pe:
-                result = subprocess.run([
-                    'go', 'get', 'github.com/praetorian-inc/goffloader/src/pe'
-                ], capture_output=True, text=True, cwd=temp_dir, env=go_env)
-
-                if result.returncode != 0:
-                    raise Exception(f"Failed to get goffloader pe dependency: {result.stderr}")
+                # Ensure the goffloader PE module is available locally
+                # This is handled by the copy operation above
+                pass
 
             # No additional dependencies needed for the enhanced shellcode injection
             # since we're using native Windows API calls that are already available through syscall
+
+            # Run go mod tidy to resolve all dependencies after all modules are in place
+            result = subprocess.run([
+                'go', 'mod', 'tidy'
+            ], capture_output=True, text=True, cwd=temp_dir, env=go_env)
+
+            if result.returncode != 0:
+                raise Exception(f"Failed to tidy Go module with all dependencies: {result.stderr}")
 
             output_filename = 'agent.exe'
             temp_exe_path = os.path.join(temp_dir, 'agent.exe')

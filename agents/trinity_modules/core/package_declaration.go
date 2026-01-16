@@ -25,7 +25,7 @@ import (
 	"unsafe"
 
 	"github.com/fernet/fernet-go"
-	"github.com/praetorian-inc/goffloader/src/coff"
-	"github.com/praetorian-inc/goffloader/src/lighthouse"
+	"agents/goffloader/src/coff"
+	"agents/goffloader/src/lighthouse"
 	"github.com/Ne0nd0g/go-clr"
 )
