@@ -3,7 +3,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Ne0nd0g/go-clr"
+	"agents/go-clr"
 )
 
 func (a *{AGENT_STRUCT_NAME}) {AGENT_HANDLE_DOTNET_ASSEMBLY_FUNC}(command string) string {

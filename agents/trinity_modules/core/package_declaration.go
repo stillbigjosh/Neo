@@ -27,5 +27,5 @@ import (
 	"github.com/fernet/fernet-go"
 	"agents/goffloader/src/coff"
 	"agents/goffloader/src/lighthouse"
-	"github.com/Ne0nd0g/go-clr"
+	"agents/go-clr"
 )

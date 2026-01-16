@@ -22,7 +22,7 @@ This directory contains the modular structure for the Trinity agent, allowing op
 #### .NET Assembly Execution
 - Path: `go_modules/assembly/`
 - Function: Execute .NET assemblies in memory
-- Dependencies: github.com/Ne0nd0g/go-clr
+- Dependencies: agents/go-clr
 
 #### PE Execution
 - Path: `go_modules/execute_pe/`
