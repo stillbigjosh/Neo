@@ -17,7 +17,7 @@ This directory contains the modular structure for the Trinity agent, allowing op
 #### BOF (Beacon Object File) Execution
 - Path: `go_modules/bof/`
 - Function: Execute COFF files in memory
-- Dependencies: agents/goffloader
+- Dependencies: agents/goffloader (with randomized Junk code injected directly into the library to change its signature per build)
 
 #### .NET Assembly Execution
 - Path: `go_modules/assembly/`
@@ -27,7 +27,7 @@ This directory contains the modular structure for the Trinity agent, allowing op
 #### PE Execution
 - Path: `go_modules/execute_pe/`
 - Function: Execute PE files in memory
-- Dependencies: agents/goffloader
+- Dependencies: agents/goffloader (with randomized Junk code injected directly into the library to change its signature per build)
 
 #### Shellcode Injection
 - Path: `go_modules/shellcode/`
