@@ -9,7 +9,7 @@
 
 ## Trinity
 
-The Trinity Agent, which is the main agent of the framework is a Golang, Windows-based, feature-rich polymorphic payload designed for advanced operations. It is compiled to a native executable and provides extensive capabilities for post-exploitation activities.
+The Trinity Agent, is the flagship agent of the framework, it is a Golang, Windows-based, feature-rich, polymorphicly generated payload designed for advanced operations. It is compiled to a native executable and provides extensive capabilities for post-exploitation activities.
 
 ### Architecture
 
