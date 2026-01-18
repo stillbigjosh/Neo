@@ -37,10 +37,9 @@ from core.models import NeoC2DB
 from teamserver.agent_manager import AgentManager
 
 class NeoC2Listener:
-    def __init__(self, config, db, protocol_manager):
+    def __init__(self, config, db):
         self.config = config
         self.db = db
-        self.protocol_manager = protocol_manager
         self.listeners = []
         self.setup_default_listeners()
     
