@@ -31,7 +31,6 @@ import threading
 
 from core.config import NeoC2Config
 from core.models import NeoC2DB
-from communication.protocol_manager import ProtocolManager
 from teamserver.module_manager import ModuleManager
 
 
@@ -64,7 +63,7 @@ class User(UserMixin):
         self.username = username
         self.role_name = role_name
 class NeoC2Web:
-    def __init__(self, config, db, protocol_manager, module_manager,
+    def __init__(self, config, db, module_manager,
                  session_manager=None, user_manager=None, role_manager=None, agent_manager=None, task_orchestrator=None):
         self.app = Flask(__name__,
                         template_folder='templates',
@@ -95,7 +94,6 @@ class NeoC2Web:
         
         self.db = db
         self.config = config
-        self.protocol_manager = protocol_manager
         self.module_manager = module_manager
         self.session_manager = session_manager
         self.user_manager = user_manager
@@ -122,7 +120,6 @@ class NeoC2Web:
         self.app.config_obj = config
         self.app.config['task_orchestrator'] = task_orchestrator
         self.app.module_manager = module_manager
-        self.app.protocol_manager = protocol_manager
         
         self.app.listener_manager = self.listener_manager
         self.app.audit_logger = self.audit_logger

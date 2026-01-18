@@ -32,7 +32,6 @@ from core.models import NeoC2DB
 
 from web.web_app import NeoC2Web
 
-from communication.protocol_manager import ProtocolManager
 from teamserver.module_manager import ModuleManager
 from teamserver.session_manager import SessionManager
 from teamserver.user_manager import UserManager
@@ -67,10 +66,9 @@ class NeoC2Framework:
     def _initialize_managers(self):
         try:
             logger.info("Initializing framework managers for WSGI...")
-        
-            self.protocol_manager = ProtocolManager(self.config)
+
             self.module_manager = ModuleManager(self.config, self.db)
-        
+
             logger.info("  Initializing database tables...")
             self.db.init_db()
             logger.info("  Database tables initialized successfully")
@@ -94,13 +92,12 @@ class NeoC2Framework:
             self.web_app = NeoC2Web(
                 self.config,
                 self.db,
-                self.protocol_manager,
                 self.module_manager,
                 self.session_manager,
                 self.user_manager,
                 self.role_manager,
                 self.agent_manager,
-                self.task_orchestrator 
+                self.task_orchestrator
             )
             
             self.web_app.app.audit_logger = self.audit_logger
@@ -785,7 +782,6 @@ class NeoC2Framework:
             'startup_time': self.startup_time.isoformat() if self.startup_time else None,
             'uptime': str(datetime.now() - self.startup_time) if self.startup_time else None,
             'managers': {
-                'protocol_manager': hasattr(self, 'protocol_manager'),
                 'module_manager': hasattr(self, 'module_manager'),
                 'session_manager': hasattr(self, 'session_manager'),
                 'user_manager': hasattr(self, 'user_manager'),
