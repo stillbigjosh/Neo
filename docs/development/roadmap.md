@@ -43,6 +43,7 @@
 - [ ] Keylogging & screenshot module
 - [ ] Early bird APC injection
 - [ ] DLL Sideloading
+- [ ] Integration with threat intel feeds
 
 
 ## Premium
