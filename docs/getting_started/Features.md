@@ -3,7 +3,7 @@
 
 ### Architecture
 - Teamserver: The central command-and-control server housing various handlers and managers for the command-and-control operations. Contains the Agent Manager, Module Manager, Listener Manager, and other core components that coordinate C2 operations.
-- High-Performance Web Stack: The command-and-control utilizes WSGI Gunicorn with gevent workers to provide asynchronous, high-concurrency handling of agent communications. This architecture enables stable operation under real-world traffic loads while maintaining low latency for interactive operations.
+- High-Performance Web Server: The command-and-control utilizes WSGI Gunicorn with gevent workers to provide asynchronous, high-concurrency handling of agent communications. This architecture enables stable operation under real-world traffic loads while maintaining low latency for interactive operations.
 - Flask web application stack: Handles all agent HTTP/S communication endpoints through a RESTful API. Serves as the primary web interface for agent communication and operator dashboards.
 - Listener stack: Runs as separate processes from the Flask application, acting as internal redirectors. Supports multiple protocols (HTTP/S, TCP) and forwards traffic from agents to the web application. Each listener operates independently with its own process space for enhanced stability and security.
 - Remote Client: Separate from the C2 Server and can be operated from anywhere. CLI allows operators to connect to the C2 via the Multiplayer coordinator. Provides secure remote access to all C2 capabilities.
