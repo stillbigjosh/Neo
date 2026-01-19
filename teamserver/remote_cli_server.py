@@ -3323,7 +3323,6 @@ class RemoteCLIServer:
                                                 break
                                             else:
                                                 # If direct execution fails, try via Python module
-                                                # This handles cases where the shebang line points to a non-existent interpreter
                                                 module_path = path
                                                 if path.endswith('/pyinstaller'):
                                                     # Try to run as a Python module
