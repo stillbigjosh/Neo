@@ -3280,55 +3280,115 @@ class RemoteCLIServer:
                             import sys
 
                             # Look for PyInstaller in multiple possible locations
-                            possible_paths = [
-                                'pyinstaller',
+                            # Always check the standard installation path first, regardless of where framework is running
+                            possible_paths = ['/opt/neoc2/.venv/bin/pyinstaller']  # Standard installation path
+
+                            # For development environments, check relative to project root
+                            # Determine project root by going up from current file location
+                            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                            dev_pyinstaller = os.path.join(project_root, '.venv', 'bin', 'pyinstaller')
+                            if os.path.exists(dev_pyinstaller):
+                                possible_paths.append(dev_pyinstaller)
+
+                            # Add other possible paths
+                            possible_paths.extend([
+                                'pyinstaller',  # System PATH
                                 # System Python environment
                                 os.path.join(os.path.dirname(sys.executable), 'pyinstaller'),
                                 # Pip install --user location
                                 os.path.join(os.path.expanduser('~/.local/bin'), 'pyinstaller'),
-                                # Installation paths after deployment (try both absolute and relative)
-                                '/opt/neoc2/.venv/bin/pyinstaller',
                                 '/usr/local/bin/pyinstaller',
                                 '/usr/bin/pyinstaller'
-                            ]
-                            current_install_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                            if current_install_dir.rstrip('/') in ['/opt/neoc2']:
-                                local_pyinstaller = os.path.join(current_install_dir, '.venv', 'bin', 'pyinstaller')
-                                possible_paths.insert(4, local_pyinstaller)  # Insert at position 4
+                            ])
 
                             pyinstaller_cmd = None
+                            validation_errors = []
+
                             for path in possible_paths:
                                 if path != 'pyinstaller':
                                     if os.path.exists(path):
-                                        pyinstaller_cmd = path
-                                        break
+                                        # Check if the file is executable
+                                        if not os.access(path, os.X_OK):
+                                            validation_errors.append(f"{path}: File exists but is not executable")
+                                            continue
+
+                                        # Validate that this is actually PyInstaller by checking its version
+                                        # Try both direct execution and via Python module
+                                        try:
+                                            # First, try direct execution
+                                            result = subprocess.run([path, '--version'],
+                                                                  capture_output=True, text=True, timeout=5)
+                                            if result.returncode == 0:
+                                                pyinstaller_cmd = path
+                                                break
+                                            else:
+                                                # If direct execution fails, try via Python module
+                                                module_path = path
+                                                if path.endswith('/pyinstaller'):
+                                                    # Try to run as a Python module
+                                                    py_path = os.path.dirname(path)
+                                                    # Find the pyinstaller package directory
+                                                    import sys
+                                                    sys_path_backup = sys.path[:]
+                                                    try:
+                                                        sys.path.insert(0, os.path.dirname(py_path))
+                                                        result = subprocess.run([sys.executable, '-c', 'import PyInstaller; print(PyInstaller.__version__)'],
+                                                                              capture_output=True, text=True, timeout=5)
+                                                        if result.returncode == 0:
+                                                            # Use python -m PyInstaller instead
+                                                            pyinstaller_cmd = [sys.executable, '-m', 'PyInstaller']
+                                                            break
+                                                    except:
+                                                        pass
+                                                    finally:
+                                                        sys.path[:] = sys_path_backup
+
+                                                validation_errors.append(f"{path}: Version check failed - {result.stderr}")
+                                        except Exception as e:
+                                            # If direct execution fails, try running as Python module
+                                            try:
+                                                result = subprocess.run([sys.executable, '-m', 'PyInstaller', '--version'],
+                                                                      capture_output=True, text=True, timeout=5)
+                                                if result.returncode == 0:
+                                                    pyinstaller_cmd = [sys.executable, '-m', 'PyInstaller']
+                                                    break
+                                            except Exception:
+                                                validation_errors.append(f"{path}: Execution failed - {str(e)}")
+                                    else:
+                                        validation_errors.append(f"{path}: File does not exist")
                                 else:
+                                    # For 'pyinstaller' (PATH lookup), just try to run it
                                     try:
                                         result = subprocess.run([path, '--version'],
                                                               capture_output=True, text=True, timeout=5)
                                         if result.returncode == 0:
                                             pyinstaller_cmd = path
                                             break
+                                        else:
+                                            validation_errors.append(f"{path}: Version check failed - {result.stderr}")
                                     except FileNotFoundError:
-                                        continue
+                                        validation_errors.append(f"{path}: Not found in PATH")
+                                    except Exception as e:
+                                        validation_errors.append(f"{path}: Execution failed - {str(e)}")
 
                             if pyinstaller_cmd is None:
-                                return "PyInstaller is not installed or not accessible", 'error'
-
-                            result = subprocess.run([pyinstaller_cmd, '--version'],
-                                                  capture_output=True, text=True, timeout=10)
-                            if result.returncode != 0:
-                                return "PyInstaller is not installed or not accessible", 'error'
+                                error_details = "\n".join(validation_errors)
+                                return f"PyInstaller is not installed or not accessible. Validation attempts failed:\n{error_details}", 'error'
 
                             with tempfile.TemporaryDirectory() as temp_dir:
                                 temp_script_path = os.path.join(temp_dir, 'agent.py')
                                 with open(temp_script_path, 'w', encoding='utf-8') as f:
                                     f.write(payload_code)
 
-                                result = subprocess.run([
-                                    pyinstaller_cmd, '--onefile', '--name', f'agent_{timestamp}',
-                                    '--distpath', logs_dir, temp_script_path
-                                ], capture_output=True, text=True, timeout=120)
+                                # Prepare the command based on whether pyinstaller_cmd is a string or list
+                                if isinstance(pyinstaller_cmd, list):
+                                    cmd = pyinstaller_cmd + ['--onefile', '--name', f'agent_{timestamp}',
+                                                             '--distpath', logs_dir, temp_script_path]
+                                else:
+                                    cmd = [pyinstaller_cmd, '--onefile', '--name', f'agent_{timestamp}',
+                                           '--distpath', logs_dir, temp_script_path]
+
+                                result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
 
                                 if result.returncode != 0:
                                     return f"PyInstaller failed: {result.stderr}", 'error'
