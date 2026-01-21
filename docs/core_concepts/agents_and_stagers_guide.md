@@ -26,49 +26,33 @@ The Trinity Agent is built with a modular architecture that allows operators to 
 #### Advanced Feature Modules
 The agent supports the following modular features that can be selectively included:
 
-1. **BOF (Beacon Object File) Execution**:
-   
-   - Execute COFF files in memory
-     
-   - Commands: `execute-bof <bof_filename> [arguments] [agent_id=<agent_id>]`
+1. **BOF (Beacon Object File) Module** Execute COFF files in memory:
+```
+execute-bof <bof_filename> [arguments] [agent_id=<agent_id>]
+```
 
-2. **.NET Assembly Execution**:
-   
-   - Execute .NET assemblies in memory
-     
-   - Commands: `execute-assembly <assembly_filename> [agent_id=<agent_id>]`
+2. **.NET Assembly Module** Execute .NET assemblies in memory:
+```
+execute-assembly <assembly_filename> [agent_id=<agent_id>]
+```
 
-3. **Shellcode Injection**:
-   
-   - Inject and execute shellcode in target processes
-     
-   - Multiple injection techniques (NtQueueApcThread, NtCreateThreadEx, CreateRemoteThread, etc.)
-     
-   - Commands: `pinject <b64_shellcode_filename> [agent_id=<agent_id>]`
+3. **Shellcode Injection Module** Inject and execute shellcode in target processes using multiple injection techniques (NtQueueApcThread, NtCreateThreadEx, CreateRemoteThread, etc.)
+```
+pinject <b64_shellcode_filename> [agent_id=<agent_id>]
+```
 
-4. **PE Injection**:
-   
-   - Inject and execute PE files in target processes
-     
-   - Process hollowing techniques
-     
-   - Commands: `peinject <pe_filename> [agent_id=<agent_id>]`
+4. **PE Injection Module** Inject and execute PE files in target processes using Process hollowing techniques:
+```
+peinject <pe_filename> [agent_id=<agent_id>]
+```
 
-5. **Reverse Proxy (SOCKS5)**:
-   
-   - Built-in SOCKS5 proxy functionality
-     
-   - Provides pivoting capabilities
-     
-   - Commands: `reverse_proxy_start`, `reverse_proxy_stop`
+5. **Reverse Proxy (SOCKS5) Module** Built-in SOCKS5 proxy functionality provides pivoting capabilities:
+```
+reverse_proxy_start
+reverse_proxy_stop
+```
 
-6. **Enhanced Sandbox Detection**:
-   
-   - Advanced anti-analysis and evasion checks
-     
-   - Process monitoring, network tools detection, debugger checks
-     
-   - Automatically runs during registration
+6. **Enhanced Sandbox Detection** Anti-analysis and evasion checks. Process monitoring, network tools detection, and debugger checks, automatically runs before agent registration.
 
 
 ### Feature Flags
@@ -152,21 +136,10 @@ The modular approach conditionally includes external dependencies based on selec
 
 This encrypts DLL imports and Windows API functions strings to evade static analysis and signature-based detection, which typically inspect the Import Address Table (IAT). During runtime, a XOR decryption routine is used to reconstruct the correct names. The secret key used for this operation is a simple XOR key with the value `0x42` (66 in decimal) at default. This key is defined in the Go agent template, and used in the runtime deobfuscation where each byte of the obfuscated string is XORed with the key to get the original strings. To override this default key, Use `--obfuscate` flag during payload generation, it randomizes this key and obfuscated bytes to make each agent unique.
 
-### Security Considerations
+### Other Security Considerations
 
 - **Polymorphic Engine**: Function and variable names are randomized for each payload
 - **String Obfuscation**: Critical strings are obfuscated to evade static analysis
-- **Import Obfuscation**: Windows API function names are obfuscated at runtime
-- **Size Reduction**: Excluding features reduces the attack surface and detection surface
-
-### Performance Impact
-
-Feature exclusion provides the following benefits:
-- **Smaller file size**: Reduced from ~6.5MB (full features) to ~4-5MB (minimal features)
-- **Faster compilation**: Less code and dependencies to process
-- **Reduced memory footprint**: Fewer loaded modules and functions
-- **Simpler execution**: Fewer checks and capabilities to process
-
 
 
 ## Morpheus
