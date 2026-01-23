@@ -31,16 +31,13 @@
       
 
 ## To be implemented
-- [ ] Built-in modules for network reconnaissance and internal enumeration
 - [ ] Support for additional communication channels
 - [ ] File browser
 - [ ] Large powershell scripts broken down in chunks in-memory to bypass characater limit
 - [ ] DNS over HTTPS
-- [ ] Lateral movement module
 - [ ] URI endpoint rotation in malleable profiles
 - [ ] Runtime obfuscation
 - [ ] OPSEC Safe P2P Agent communication
-- [ ] Keylogging & screenshot module
 - [ ] Early bird APC injection
 - [ ] DLL Sideloading
 - [ ] Integration with threat intel feeds
