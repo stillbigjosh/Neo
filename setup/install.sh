@@ -36,7 +36,7 @@ if [[ "$(pwd)" == */setup ]]; then
     PARENT_DIR="$(dirname "$(pwd)")"
     if [ ! -f "$PARENT_DIR/server.crt" ] || [ ! -f "$PARENT_DIR/server.key" ]; then
         echo "Generating SSL certificates in parent directory..."
-        openssl req -quiet -x509 -newkey rsa:4096 -keyout "$PARENT_DIR/server.key" -out "$PARENT_DIR/server.crt" -days 365 -nodes -subj "/C=US/ST=YourState/L=YourCity/O=YourOrganization/OU=YourOU/CN=YourDomain"
+        openssl req -x509 -newkey rsa:4096 -keyout "$PARENT_DIR/server.key" -out "$PARENT_DIR/server.crt" -days 365 -nodes -subj "/C=US/ST=YourState/L=YourCity/O=YourOrganization/OU=YourOU/CN=YourDomain"
         # Copy certificates to the existing listeners directory in the parent project
         cp "$PARENT_DIR/server.key" "$PARENT_DIR/listeners/"
         cp "$PARENT_DIR/server.crt" "$PARENT_DIR/listeners/"
@@ -44,7 +44,7 @@ if [[ "$(pwd)" == */setup ]]; then
 else
     if [ ! -f server.crt ] || [ ! -f server.key ]; then
         echo "Generating SSL certificates..."
-        openssl req -quiet -x509 -newkey rsa:4096 -keyout server.key -out server.crt -days 365 -nodes -subj "/C=US/ST=YourState/L=YourCity/O=YourOrganization/OU=YourOU/CN=YourDomain"
+        openssl req -x509 -newkey rsa:4096 -keyout server.key -out server.crt -days 365 -nodes -subj "/C=US/ST=YourState/L=YourCity/O=YourOrganization/OU=YourOU/CN=YourDomain"
         # Copy certificates to the existing listeners directory
         cp server.key listeners/
         cp server.crt listeners/
