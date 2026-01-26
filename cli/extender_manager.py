@@ -1270,6 +1270,7 @@ class ExtensionPackageManager:
                         }
                         self._save_config()
                         print(f"{green('[+]')} Package '{pkg_info.name}' installed successfully")
+
                         return True
                     else:
                         print(f"{red('[-]')} Failed to install extracted files")
@@ -1605,7 +1606,9 @@ class ExtensionPackageManager:
             return False
 
         # Install with force to overwrite
-        return self.install_package(package_name, force=True)
+        success = self.install_package(package_name, force=True)
+
+        return success
 
     def search_packages(self, search_term: str):
         print(f"{green('[+]')} Searching for packages containing: {search_term}")
