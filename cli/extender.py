@@ -107,27 +107,24 @@ class CLIExtender:
             self.package_manager = None
 
     def _load_extensions(self):
-        #print(f"[+] Loading extensions from {self.extensions_dir}")
-
-        # Register BOF files
         self._register_bof_files()
-
-        # Register assembly files
         self._register_assembly_files()
-
-        # Register PE files
         self._register_pe_files()
 
         print(f"{green('[+]')} Registered {len(self.command_registry)} extension commands")
+
+    def reload_extensions(self):
+        self.command_registry.clear()
+
+        self._load_extensions()
+
+        print(f"{green('[+]')} Extensions reloaded. {len(self.command_registry)} commands now available.")
 
     def _register_bof_files(self):
         if not self.bof_dir.exists():
             print(f"[-] BOF directory does not exist: {self.bof_dir}")
             return
 
-        #print(f"[*] Scanning BOF directory: {self.bof_dir}")
-
-        # Scan both root and subdirectories for BOF files
         for file_path in self.bof_dir.rglob("*.o"):
             command_name = self._extract_command_name(file_path.name)
             if command_name:
@@ -505,7 +502,10 @@ class CLIExtender:
                 return True
             package_name = command_parts[2]
             force = '--force' in command_parts or '-f' in command_parts
-            self.package_manager.install_package(package_name, force=force)
+            success = self.package_manager.install_package(package_name, force=force)
+            if success:
+                # Reload extensions to make the newly installed extension available immediately
+                self.reload_extensions()
             return True
         elif subcommand == "list":
             if len(command_parts) > 2:
@@ -531,13 +531,18 @@ class CLIExtender:
                 return True
             package_name = command_parts[2]
             self.package_manager.uninstall_package(package_name)
+            # Reload extensions to remove the uninstalled extension from the command registry
+            self.reload_extensions()
             return True
         elif subcommand == "update":
             if len(command_parts) < 3:
                 print(f"{red('[-]')} Package name required. Usage: extender update <package_name>")
                 return True
             package_name = command_parts[2]
-            self.package_manager.update_package(package_name)
+            success = self.package_manager.update_package(package_name)
+            if success:
+                # Reload extensions to make the updated extension available immediately
+                self.reload_extensions()
             return True
         elif subcommand in ["add-repo", "add_repository"]:
             if len(command_parts) < 5:
