@@ -8,7 +8,7 @@
 ## How to install
 
 #### Prerequisites:
-- Linux (Debian)
+- Kali Linux (Debian)
 - Python 3.1
 - Golang 1.2
 - Python virtual environment (python3-venv)
