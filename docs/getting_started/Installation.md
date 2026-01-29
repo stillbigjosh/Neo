@@ -59,8 +59,8 @@ This will install all dependencies in a python virtual environment. Generates an
 ```bash
 neoc2 status
 ```
-   
-5. A configuration file `/opt/neoc2/config.json` is created post-installation with randomly generated `secret_key` and `internal_api_token` values. The secret key is used by Flask for signing sessions and other security-related functions. It's required for Flask's session management and CSRF protection mechanisms. The internal_api_token adds a layer of protection against external access to sensitive profile configurations needed by the internal services.
+
+A configuration file `/opt/neoc2/config.json` is created post-installation with randomly generated `secret_key` and `internal_api_token` values. The secret key is used by Flask for signing sessions and other security-related functions. It's required for Flask's session management and CSRF protection mechanisms. The internal_api_token adds a layer of protection against external access to sensitive profile configurations needed by the internal services.
 
 
 #### Service Management
