@@ -44,22 +44,16 @@ DEFAULT_PASSWORD=<admin_password>      # REQUIRED - no default provided
 
 Neo command-and-control server is installed as a background service that starts automatically on boot:
 
-1. **Configure your environment variables** in `.env` file
-
-2. **Install and start the service:**
-
+- **Install and start the service:**
 ```bash
 sudo setup/install.sh
 ```
-
 This will install all dependencies in a python virtual environment. Generates an OpenSSL self-signed certificate. Installation path of the framework after running this will be `/opt/neoc2/` and would also creates two globally available commands for interacting with the C2 Server service instance `neoc2` and a launcher for the C2 Remote Client `neoc2-cli`
 
-3. **Verify service installation:**
-
+- **Verify service installation:**
 ```bash
 neoc2 status
 ```
-
 A configuration file `/opt/neoc2/config.json` is created post-installation with randomly generated `secret_key` and `internal_api_token` values. The secret key is used by Flask for signing sessions and other security-related functions. It's required for Flask's session management and CSRF protection mechanisms. The internal_api_token adds a layer of protection against external access to sensitive profile configurations needed by the internal services.
 
 
