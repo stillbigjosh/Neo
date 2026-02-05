@@ -27,6 +27,9 @@
 - [ ] Local file as BOF argument
 - [ ] Extension Package Repository
 - [ ] Window process migration
+- [ ] Modular support for custom listeners
+- [ ] GUI-based remote client
+- [ ] 
       
 
 ## To be implemented
