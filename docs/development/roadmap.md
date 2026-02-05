@@ -29,7 +29,6 @@
 - [ ] Window process migration
 - [ ] Modular support for custom listeners
 - [ ] GUI-based remote client
-- [ ] 
       
 
 ## To be implemented
