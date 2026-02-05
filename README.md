@@ -45,7 +45,7 @@
 
 
 ### Installation
-NeoC2 works well on Kali Linux. See the [Installations](https://neoc2.readthedocs.io/en/latest/getting_started/Installation/) guide for instructions. 
+NeoC2 server and remote client are currently meant to be run on Kali Linux machines. See the [Installations](https://neoc2.readthedocs.io/en/latest/getting_started/Installation/) guide for instructions. 
 
 ### Documentation 
 Read [https://neoc2.readthedocs.io/en/latest/](https://neoc2.readthedocs.io/en/latest/) for all Usage guides 
