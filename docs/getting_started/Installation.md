@@ -17,6 +17,7 @@
 ```bash
 sudo apt-get install golang
 sudo apt-get install python3-venv
+sudo apt-get install python3-dev
 git clone https://github.com/stillbigjosh/Neo.git
 nano .env
 ```
