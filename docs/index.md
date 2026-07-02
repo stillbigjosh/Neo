@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/img.jpeg" alt="Logo" width="220" style="margin-bottom: 20px;"/> 
+<img src="assets/neoc2.jpg" alt="Logo" width="300" style="margin-bottom: 20px;"/> 
 
 </div>
 
