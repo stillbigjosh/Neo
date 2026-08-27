@@ -42,6 +42,12 @@
 - [ ] Early bird APC injection
 - [ ] DLL Sideloading
 - [ ] Integration with threat intel feeds
+- [ ] `jump psexec` lateral movement
+- [ ] User token manipulation - `steal_token` `make_token`
+- [ ] Named pipe pivots
+- [ ] UAC bypasses
+- [ ] Time-stomping
+- [ ] Site clone
 
 
 ## Premium
