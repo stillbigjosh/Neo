@@ -48,6 +48,7 @@
 - [ ] UAC bypasses
 - [ ] Time-stomping
 - [ ] Site clone
+- [ ] PID spoofing
 
 
 ## Premium
